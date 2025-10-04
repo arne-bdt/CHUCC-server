@@ -48,3 +48,12 @@ vc:
   reset-enabled: true
   cherry-pick-enabled: true
   blame-enabled: true
+
+# Kafka event streaming configuration
+kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  topic-template: vc.{dataset}.events
+  partitions: 3
+  replication-factor: 1
+  retention-ms: -1  # -1 for infinite retention
+  compaction: false  # false for append-only (no log compaction)

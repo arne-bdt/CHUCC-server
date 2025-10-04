@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://chucc.org/schemas/version-control-event.json",
+  "title": "Version Control Event",
+  "description": "Base schema for all version control events",
+  "type": "object",
+  "required": ["eventType", "dataset", "timestamp"],
+  "properties": {
+    "eventType": {
+      "type": "string",
+      "enum": ["BranchCreated", "CommitCreated", "TagCreated", "BranchReset", "RevertCreated"]
+    },
+    "dataset": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/BranchCreated" },
+    { "$ref": "#/$defs/CommitCreated" },
+    { "$ref": "#/$defs/TagCreated" },
+    { "$ref": "#/$defs/BranchReset" },
+    { "$ref": "#/$defs/RevertCreated" }
+  ],
+  "$defs": {
+    "BranchCreated": {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "BranchCreated" },
+        "branchName": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._\\-]+$",
+          "minLength": 1
+        },
+        "commitId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["eventType", "branchName", "commitId"]
+    },
+    "CommitCreated": {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "CommitCreated" },
+        "commitId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parents": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rdfPatch": {
+          "type": "string"
+        }
+      },
+      "required": ["eventType", "commitId", "parents", "message", "author", "rdfPatch"]
+    },
+    "TagCreated": {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "TagCreated" },
+        "tagName": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._\\-]+$",
+          "minLength": 1
+        },
+        "commitId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["eventType", "tagName", "commitId"]
+    },
+    "BranchReset": {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "BranchReset" },
+        "branchName": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._\\-]+$",
+          "minLength": 1
+        },
+        "fromCommitId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "toCommitId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["eventType", "branchName", "fromCommitId", "toCommitId"]
+    },
+    "RevertCreated": {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "RevertCreated" },
+        "revertCommitId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revertedCommitId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rdfPatch": {
+          "type": "string"
+        }
+      },
+      "required": ["eventType", "revertCommitId", "revertedCommitId", "message", "author", "rdfPatch"]
+    }
+  }
+}

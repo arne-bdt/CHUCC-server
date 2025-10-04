@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/sparql-vc/conflict.json",
+  "type": "object",
+  "required": ["subject","predicate","type","ours","theirs"],
+  "properties": {
+    "subject": { "type": "string" },
+    "predicate": { "type": "string" },
+    "graph": { "type": ["string","null"] },
+    "type": { "enum": ["modify-modify","delete-modify","add-modify"] },
+    "base": { "$ref": "#/$defs/node" },
+    "ours": { "$ref": "#/$defs/node" },
+    "theirs": { "$ref": "#/$defs/node" }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["object"],
+      "properties": {
+        "object": { "type": "string" },
+        "datatype": { "type": ["string","null"] },
+        "lang": { "type": ["string","null"] }
+      }
+    }
+  }
+}

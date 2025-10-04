@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/sparql-vc/merge.json",
+  "type": "object",
+  "required": ["into","from"],
+  "properties": {
+    "strategy": { "enum": ["three-way","ours","theirs","manual"], "default": "three-way" },
+    "fastForward": { "enum": ["allow","only","never"], "default": "allow" },
+    "into": { "type": "string" },
+    "from": { "type": "string" },
+    "resolutions": {
+      "type": "array",
+      "items": { "$ref": "https://example.org/sparql-vc/conflict.json" }
+    }
+  }
+}

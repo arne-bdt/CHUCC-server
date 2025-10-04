@@ -1,0 +1,454 @@
+openapi: 3.1.0
+info:
+  title: SPARQL VC Protocol – /version APIs
+  version: 0.1.0
+  description: Minimal OpenAPI stubs for version-control endpoints of the SPARQL 1.2 protocol extension.
+servers:
+  - url: /
+paths:
+  /version/branches:
+    get:
+      summary: List branches
+      parameters:
+        - $ref: '#/components/parameters/Accept'
+      responses:
+        '200':
+          description: Branch list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchList'
+        default:
+          $ref: '#/components/responses/Problem'
+    post:
+      summary: Create branch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBranchRequest' }
+      responses:
+        '201':
+          description: Branch created
+          headers:
+            Location:
+              description: URL of the created branch
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Branch' }
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /version/branches/{name}:
+    parameters:
+      - $ref: '#/components/parameters/BranchName'
+    get:
+      summary: Get branch
+      responses:
+        '200':
+          description: Branch info
+          headers:
+            ETag:
+              description: Head commit id (strong ETag)
+              schema: { $ref: '#/components/schemas/CommitId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Branch' }
+        default:
+          $ref: '#/components/responses/Problem'
+    delete:
+      summary: Delete branch
+      responses:
+        '204':
+          description: Deleted
+        default:
+          $ref: '#/components/responses/Problem'
+    post:
+      summary: Reset branch (move ref)
+      description: Move branch ref (hard/soft) to target commit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BranchResetRequest' }
+      responses:
+        '200':
+          description: After reset
+          headers:
+            ETag:
+              description: New head commit id
+              schema: { $ref: '#/components/schemas/CommitId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Branch' }
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /version/commits/{id}:
+    parameters:
+      - $ref: '#/components/parameters/CommitIdParam'
+    get:
+      summary: Get commit metadata
+      responses:
+        '200':
+          description: Commit metadata
+          headers:
+            ETag:
+              description: Commit id (strong)
+              schema: { $ref: '#/components/schemas/CommitId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Commit' }
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /version/commits/{id}/changes:
+    parameters:
+      - $ref: '#/components/parameters/CommitIdParam'
+    get:
+      summary: Get materialized changeset
+      responses:
+        '200':
+          description: Changeset
+          content:
+            text/rdf-patch:
+              schema:
+                type: string
+                description: RDF Patch payload
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /version/history:
+    get:
+      summary: List history
+      parameters:
+        - $ref: '#/components/parameters/BranchParam'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Since'
+        - $ref: '#/components/parameters/Until'
+        - name: author
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: History
+          headers:
+            Link:
+              description: RFC 5988 pagination links
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/History' }
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /version/diff:
+    get:
+      summary: Diff two commits
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/CommitId' }
+        - name: to
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/CommitId' }
+      responses:
+        '200':
+          description: Changeset between from→to
+          content:
+            text/rdf-patch:
+              schema:
+                type: string
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /version/blame:
+    get:
+      summary: Last-writer attribution
+      parameters:
+        - name: subject
+          in: query
+          required: true
+          schema: { type: string, format: uri }
+      responses:
+        '200':
+          description: Blame/annotate info
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Blame' }
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /version/merge:
+    post:
+      summary: Merge branches/commits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MergeRequest' }
+      responses:
+        '200':
+          description: Merge result (fast-forward or auto-merge)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MergeResult' }
+        '409':
+          description: Merge conflict
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /version/tags:
+    get:
+      summary: List tags
+      responses:
+        '200':
+          description: Tags
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TagList' }
+        default:
+          $ref: '#/components/responses/Problem'
+    post:
+      summary: Create tag (immutable)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTagRequest' }
+      responses:
+        '201':
+          description: Tag created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /version/batch:
+    post:
+      summary: Apply batch of SPARQL Updates
+      description: Applies a sequence atomically; either one combined commit or multiple commits.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BatchRequest' }
+      responses:
+        '200':
+          description: Batch result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BatchResult' }
+        default:
+          $ref: '#/components/responses/Problem'
+
+components:
+  parameters:
+    Accept:
+      name: Accept
+      in: header
+      schema: { type: string }
+    BranchName:
+      name: name
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/BranchName' }
+    CommitIdParam:
+      name: id
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/CommitId' }
+    BranchParam:
+      name: branch
+      in: query
+      required: true
+      schema: { $ref: '#/components/schemas/BranchName' }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 1000, default: 100 }
+    Offset:
+      name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    Since:
+      name: since
+      in: query
+      description: RFC3339 timestamp (inclusive)
+      schema: { type: string, format: date-time }
+    Until:
+      name: until
+      in: query
+      description: RFC3339 timestamp (inclusive)
+      schema: { type: string, format: date-time }
+
+  responses:
+    Problem:
+      description: Error (RFC7807)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    BranchName:
+      type: string
+      pattern: '^[A-Za-z0-9._\-]+$'
+    CommitId:
+      type: string
+      description: UUIDv7 textual form (8-4-4-4-12)
+      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    Branch:
+      type: object
+      required: [name, head]
+      properties:
+        name: { $ref: '#/components/schemas/BranchName' }
+        head: { $ref: '#/components/schemas/CommitId' }
+        createdAt: { type: string, format: date-time }
+    BranchList:
+      type: array
+      items: { $ref: '#/components/schemas/Branch' }
+
+    CreateBranchRequest:
+      $ref: 'schemas/create-branch.json'
+
+    BranchResetRequest:
+      type: object
+      required: [to]
+      properties:
+        to:
+          oneOf:
+            - $ref: '#/components/schemas/CommitId'
+            - $ref: '#/components/schemas/BranchName'
+        mode:
+          type: string
+          enum: [hard, soft]
+          default: hard
+
+    Commit:
+      type: object
+      required: [id, parents, author, message, committedAt]
+      properties:
+        id: { $ref: '#/components/schemas/CommitId' }
+        parents:
+          type: array
+          items: { $ref: '#/components/schemas/CommitId' }
+        author: { type: string }
+        message: { type: string }
+        committedAt: { type: string, format: date-time }
+        contentHash: { type: string, nullable: true, description: 'Optional integrity hash' }
+
+    History:
+      type: object
+      required: [branch, commits]
+      properties:
+        branch: { $ref: '#/components/schemas/BranchName' }
+        commits:
+          type: array
+          items: { $ref: '#/components/schemas/Commit' }
+
+    MergeRequest:
+      $ref: 'schemas/merge.json'
+    Conflict:
+      $ref: 'schemas/conflict.json'
+    MergeResult:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: string
+          enum: [fast-forward, merged]
+        commit:
+          allOf:
+            - { $ref: '#/components/schemas/Commit' }
+          description: Present if a new merge commit was created.
+        conflicts:
+          type: array
+          items: { $ref: '#/components/schemas/Conflict' }
+          description: Empty or omitted on success.
+
+    Tag:
+      type: object
+      required: [name, commit]
+      properties:
+        name: { type: string, pattern: '^[A-Za-z0-9._\-]+$' }
+        commit: { $ref: '#/components/schemas/CommitId' }
+        message: { type: string, nullable: true }
+        author: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    TagList:
+      type: array
+      items: { $ref: '#/components/schemas/Tag' }
+    CreateTagRequest:
+      type: object
+      required: [name, commit]
+      properties:
+        name: { type: string, pattern: '^[A-Za-z0-9._\-]+$' }
+        commit: { $ref: '#/components/schemas/CommitId' }
+        message: { type: string, nullable: true }
+        author: { type: string, nullable: true }
+
+    Blame:
+      type: object
+      required: [subject, attributions]
+      properties:
+        subject: { type: string, format: uri }
+        attributions:
+          type: array
+          items:
+            type: object
+            required: [predicate, object, commit, author, committedAt]
+            properties:
+              predicate: { type: string, format: uri }
+              object: { type: string }
+              commit: { $ref: '#/components/schemas/CommitId' }
+              author: { type: string }
+              committedAt: { type: string, format: date-time }
+
+    BatchRequest:
+      type: object
+      required: [mode, updates]
+      properties:
+        mode:
+          type: string
+          enum: [single, multiple]
+          default: single
+        branch:
+          $ref: '#/components/schemas/BranchName'
+        ifMatch:
+          description: Use strong ETag of branch for optimistic concurrency
+          type: string
+        updates:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [sparql]
+            properties:
+              sparql: { type: string, description: SPARQL Update text }
+              message: { type: string }
+              author: { type: string }
+
+    BatchResult:
+      type: object
+      oneOf:
+        - properties:
+            mode: { const: single }
+            commit: { $ref: '#/components/schemas/Commit' }
+          required: [mode, commit]
+        - properties:
+            mode: { const: multiple }
+            commits:
+              type: array
+              items: { $ref: '#/components/schemas/Commit' }
+          required: [mode, commits]
+
+    Problem:
+      $ref: 'schemas/problem.json'

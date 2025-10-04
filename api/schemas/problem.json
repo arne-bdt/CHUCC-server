@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/sparql-vc/problem.json",
+  "type": "object",
+  "required": ["title","status"],
+  "properties": {
+    "type": { "type": "string", "format": "uri", "default": "about:blank" },
+    "title": { "type": "string" },
+    "status": { "type": "integer" },
+    "detail": { "type": "string" },
+    "instance": { "type": "string", "format": "uri" },
+    "code": { "type": "string" },
+    "conflicts": {
+      "type": "array",
+      "items": { "$ref": "https://example.org/sparql-vc/conflict.json" }
+    }
+  }
+}

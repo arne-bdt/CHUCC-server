@@ -39,17 +39,7 @@ This server implements:
 - ✅ **RFC 7807 Problem Details** - Standardized error responses
 - ✅ **Multi-tenant** - Dataset scoping support
 
-## Quick Start
 
-```bash
-# Install dependencies
-npm install
-
-# Start server
-npm start
-
-# Server runs on http://localhost:3030
-```
 
 ### Example: Basic Query
 

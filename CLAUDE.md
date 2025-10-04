@@ -7,4 +7,5 @@ The basic technology stack is:
 - RDFPatch from "jena-rdfpatch" for the events 
 - store the events in Apache Kafka with an appropriate topic structure and setup
 
+Always run "maven clean install" at the end of each task and fix any warning and error. 
 

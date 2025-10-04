@@ -31,3 +31,20 @@ logging:
     org.chucc: INFO
     org.springframework: INFO
     org.apache.jena: INFO
+
+# SPARQL Version Control conformance level
+# Level 1 (Basic): commits, branches, history, RDF Patch, strong ETags
+# Level 2 (Advanced): three-way merge, conflicts, tags, revert, reset, cherry-pick, blame
+vc:
+  level: 2  # 1 or 2
+  commits-enabled: true
+  branches-enabled: true
+  history-enabled: true
+  rdf-patch-enabled: true
+  merge-enabled: true
+  conflict-detection-enabled: true
+  tags-enabled: true
+  revert-enabled: true
+  reset-enabled: true
+  cherry-pick-enabled: true
+  blame-enabled: true

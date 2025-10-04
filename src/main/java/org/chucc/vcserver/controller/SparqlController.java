@@ -1,5 +1,6 @@
 package org.chucc.vcserver.controller;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;
@@ -7,6 +8,10 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.ArrayList;
+import java.util.List;
+import org.chucc.vcserver.config.VersionControlProperties;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,6 +31,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/sparql")
 @Tag(name = "SPARQL Protocol", description = "SPARQL 1.2 query and update operations")
 public class SparqlController {
+
+  private final VersionControlProperties vcProperties;
+
+  @SuppressFBWarnings(
+      value = "EI_EXPOSE_REP2",
+      justification = "Spring-managed config bean, not modified")
+  public SparqlController(VersionControlProperties vcProperties) {
+    this.vcProperties = vcProperties;
+  }
 
   /**
    * Execute a SPARQL query via HTTP GET.
@@ -176,5 +191,114 @@ public class SparqlController {
     return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
         .contentType(MediaType.APPLICATION_PROBLEM_JSON)
         .body("{\"title\":\"Not Implemented\",\"status\":501}");
+  }
+
+  /**
+   * Discover SPARQL endpoint capabilities via HTTP OPTIONS.
+   * Advertises SPARQL-Version-Control support and enabled features.
+   *
+   * @return OPTIONS response with capability headers
+   */
+  @RequestMapping(method = RequestMethod.OPTIONS)
+  @Operation(
+      summary = "Discover endpoint capabilities",
+      description = "Returns HTTP OPTIONS response advertising SPARQL 1.2 Protocol support, "
+          + "SPARQL-Version-Control extension, conformance level, and enabled features."
+  )
+  @ApiResponse(
+      responseCode = "200",
+      description = "Capability information",
+      headers = {
+          @Header(
+              name = "Allow",
+              description = "Allowed HTTP methods",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "Accept-Patch",
+              description = "Supported patch formats (text/rdf-patch)",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "SPARQL-Version-Control",
+              description = "Version control extension version",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "SPARQL-VC-Level",
+              description = "Conformance level (1=Basic, 2=Advanced)",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "SPARQL-VC-Features",
+              description = "Enabled features (comma-separated)",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "Link",
+              description = "Link to version control API",
+              schema = @Schema(type = "string")
+          )
+      }
+  )
+  public ResponseEntity<Void> options() {
+    HttpHeaders headers = new HttpHeaders();
+
+    // Standard HTTP OPTIONS
+    headers.add(HttpHeaders.ALLOW, "GET, POST, OPTIONS");
+
+    // SPARQL Version Control extension support
+    headers.add("SPARQL-Version-Control", "1.0");
+    headers.add("SPARQL-VC-Level", String.valueOf(vcProperties.getLevel()));
+
+    // Advertise RDF Patch support
+    if (vcProperties.isRdfPatchEnabled()) {
+      headers.add(HttpHeaders.ACCEPT_PATCH, "text/rdf-patch");
+    }
+
+    // Build enabled features list
+    List<String> features = new ArrayList<>();
+    if (vcProperties.isCommitsEnabled()) {
+      features.add("commits");
+    }
+    if (vcProperties.isBranchesEnabled()) {
+      features.add("branches");
+    }
+    if (vcProperties.isHistoryEnabled()) {
+      features.add("history");
+    }
+    if (vcProperties.isRdfPatchEnabled()) {
+      features.add("rdf-patch");
+    }
+    if (vcProperties.isMergeEnabled()) {
+      features.add("merge");
+    }
+    if (vcProperties.isConflictDetectionEnabled()) {
+      features.add("conflict-detection");
+    }
+    if (vcProperties.isTagsEnabled()) {
+      features.add("tags");
+    }
+    if (vcProperties.isRevertEnabled()) {
+      features.add("revert");
+    }
+    if (vcProperties.isResetEnabled()) {
+      features.add("reset");
+    }
+    if (vcProperties.isCherryPickEnabled()) {
+      features.add("cherry-pick");
+    }
+    if (vcProperties.isBlameEnabled()) {
+      features.add("blame");
+    }
+
+    if (!features.isEmpty()) {
+      headers.add("SPARQL-VC-Features", String.join(", ", features));
+    }
+
+    // Link to version control API
+    headers.add(HttpHeaders.LINK, "</version>; rel=\"version-control\"");
+
+    return ResponseEntity.ok().headers(headers).build();
   }
 }

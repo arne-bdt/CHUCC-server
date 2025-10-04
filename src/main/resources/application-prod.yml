@@ -1,0 +1,24 @@
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    consumer:
+      group-id: vc-server-prod
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    org.chucc: INFO
+    org.springframework: WARN
+    org.apache.jena: WARN

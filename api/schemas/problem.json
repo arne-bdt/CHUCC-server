@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.org/sparql-vc/problem.json",
+  "title": "RFC 7807 Problem Details",
   "type": "object",
   "required": ["title","status"],
   "properties": {

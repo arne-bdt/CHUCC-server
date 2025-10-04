@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/sparql-vc/sparql-results.json",
+  "title": "SPARQL Query Results JSON Format",
+  "description": "SPARQL 1.1 Query Results JSON Format - https://www.w3.org/TR/sparql11-results-json/",
+  "type": "object",
+  "properties": {
+    "head": {
+      "type": "object",
+      "required": ["vars"],
+      "properties": {
+        "vars": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Ordered list of query variable names (without '?' prefix)"
+        },
+        "link": {
+          "type": "array",
+          "items": { "type": "string", "format": "uri" }
+        }
+      }
+    },
+    "results": {
+      "type": "object",
+      "required": ["bindings"],
+      "properties": {
+        "bindings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/$defs/binding" }
+          }
+        }
+      }
+    },
+    "boolean": {
+      "type": "boolean",
+      "description": "Result for ASK queries"
+    }
+  },
+  "oneOf": [
+    { "required": ["head", "results"] },
+    { "required": ["head", "boolean"] }
+  ],
+  "$defs": {
+    "binding": {
+      "oneOf": [
+        { "$ref": "#/$defs/uri" },
+        { "$ref": "#/$defs/literal" },
+        { "$ref": "#/$defs/bnode" }
+      ]
+    },
+    "uri": {
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": { "type": "string", "enum": ["uri"] },
+        "value": { "type": "string", "format": "uri" }
+      }
+    },
+    "literal": {
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": { "type": "string", "enum": ["literal"] },
+        "value": { "type": "string" },
+        "datatype": { "type": "string", "format": "uri" },
+        "xml:lang": { "type": "string" }
+      }
+    },
+    "bnode": {
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": { "type": "string", "enum": ["bnode"] },
+        "value": { "type": "string" }
+      }
+    }
+  }
+}

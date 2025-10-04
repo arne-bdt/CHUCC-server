@@ -6,8 +6,8 @@
   "properties": {
     "subject": { "type": "string" },
     "predicate": { "type": "string" },
-    "graph": { "type": ["string","null"] },
-    "type": { "enum": ["modify-modify","delete-modify","add-modify"] },
+    "graph": { "type": "string", "nullable": true },
+    "type": { "type": "string", "enum": ["modify-modify","delete-modify","add-modify"] },
     "base": { "$ref": "#/$defs/node" },
     "ours": { "$ref": "#/$defs/node" },
     "theirs": { "$ref": "#/$defs/node" }
@@ -18,8 +18,8 @@
       "required": ["object"],
       "properties": {
         "object": { "type": "string" },
-        "datatype": { "type": ["string","null"] },
-        "lang": { "type": ["string","null"] }
+        "datatype": { "type": "string", "nullable": true },
+        "lang": { "type": "string", "nullable": true }
       }
     }
   }

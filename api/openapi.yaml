@@ -1,14 +1,182 @@
 openapi: 3.1.0
 info:
-  title: SPARQL VC Protocol – /version APIs
+  title: SPARQL 1.2 Protocol with Version Control Extension
   version: 0.1.0
-  description: Minimal OpenAPI stubs for version-control endpoints of the SPARQL 1.2 protocol extension.
+  description: |
+    Complete specification of the SPARQL 1.2 Protocol with Version Control Extension.
+
+    This API provides:
+    - Standard SPARQL 1.2 query and update operations
+    - Version control features: branches, commits, merges, history, time-travel
+    - Backward-compatible design (non-versioned operations work on default branch)
+
+    See: https://www.w3.org/TR/sparql12-protocol/
+  contact:
+    name: SPARQL VC Protocol
+    url: https://github.com/yourusername/CHUCC-server
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
 servers:
   - url: /
+    description: Default server
+
 paths:
+  # =========================================================================
+  # SPARQL 1.2 Protocol - Core Endpoints
+  # =========================================================================
+
+  /sparql:
+    get:
+      summary: SPARQL Query (GET)
+      description: |
+        Execute a SPARQL query using HTTP GET.
+
+        Version control: Query parameters `branch`, `commit`, or `asOf` select the dataset state.
+        Without these, queries execute against the default branch HEAD.
+      operationId: querySparqlGet
+      tags:
+        - SPARQL Protocol
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: The SPARQL query string
+          schema:
+            type: string
+            example: "SELECT * WHERE { ?s ?p ?o } LIMIT 10"
+        - $ref: '#/components/parameters/DefaultGraphUri'
+        - $ref: '#/components/parameters/NamedGraphUri'
+        - $ref: '#/components/parameters/BranchParam'
+        - $ref: '#/components/parameters/CommitParam'
+        - $ref: '#/components/parameters/AsOfParam'
+      responses:
+        '200':
+          description: Query results
+          headers:
+            ETag:
+              description: Commit id of the queried state
+              schema:
+                $ref: '#/components/schemas/CommitId'
+          content:
+            application/sparql-results+json:
+              schema:
+                $ref: '#/components/schemas/SparqlResultsJson'
+            application/sparql-results+xml:
+              schema:
+                type: string
+            text/csv:
+              schema:
+                type: string
+            text/tab-separated-values:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        default:
+          $ref: '#/components/responses/Problem'
+
+    post:
+      summary: SPARQL Query or Update (POST)
+      description: |
+        Execute a SPARQL query or update using HTTP POST.
+
+        - Content-Type: application/sparql-query → Query operation
+        - Content-Type: application/sparql-update → Update operation (creates commit)
+        - Content-Type: application/x-www-form-urlencoded → Query or update based on form fields
+      operationId: executeSparqlPost
+      tags:
+        - SPARQL Protocol
+      parameters:
+        - $ref: '#/components/parameters/BranchHeader'
+        - $ref: '#/components/parameters/CommitMessageHeader'
+        - $ref: '#/components/parameters/CommitAuthorHeader'
+      requestBody:
+        required: true
+        content:
+          application/sparql-query:
+            schema:
+              type: string
+              description: SPARQL query string
+            example: |
+              PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+              SELECT ?name WHERE { ?person foaf:name ?name }
+          application/sparql-update:
+            schema:
+              type: string
+              description: SPARQL update request
+            example: |
+              PREFIX dc: <http://purl.org/dc/elements/1.1/>
+              INSERT DATA { <http://example.org/book1> dc:title "A new book" }
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: SPARQL query (if query operation)
+                update:
+                  type: string
+                  description: SPARQL update (if update operation)
+                default-graph-uri:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
+                named-graph-uri:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
+      responses:
+        '200':
+          description: Query results or update confirmation with representation
+          headers:
+            ETag:
+              description: Commit id (new for updates, queried for queries)
+              schema:
+                $ref: '#/components/schemas/CommitId'
+            Location:
+              description: URI of created commit (for updates)
+              schema:
+                type: string
+                format: uri
+          content:
+            application/sparql-results+json:
+              schema:
+                $ref: '#/components/schemas/SparqlResultsJson'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Commit'
+        '204':
+          description: Update succeeded without representation
+          headers:
+            ETag:
+              description: New commit id
+              schema:
+                $ref: '#/components/schemas/CommitId'
+            Location:
+              description: URI of created commit
+              schema:
+                type: string
+                format: uri
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  # =========================================================================
+  # Version Control Extension - Branch Management
+  # =========================================================================
   /version/branches:
     get:
       summary: List branches
+      operationId: listBranches
+      tags:
+        - Version Control
       parameters:
         - $ref: '#/components/parameters/Accept'
       responses:
@@ -22,6 +190,9 @@ paths:
           $ref: '#/components/responses/Problem'
     post:
       summary: Create branch
+      operationId: createBranch
+      tags:
+        - Version Control
       requestBody:
         required: true
         content:
@@ -45,6 +216,9 @@ paths:
       - $ref: '#/components/parameters/BranchName'
     get:
       summary: Get branch
+      operationId: getBranch
+      tags:
+        - Version Control
       responses:
         '200':
           description: Branch info
@@ -59,6 +233,9 @@ paths:
           $ref: '#/components/responses/Problem'
     delete:
       summary: Delete branch
+      operationId: deleteBranch
+      tags:
+        - Version Control
       responses:
         '204':
           description: Deleted
@@ -67,6 +244,9 @@ paths:
     post:
       summary: Reset branch (move ref)
       description: Move branch ref (hard/soft) to target commit
+      operationId: resetBranch
+      tags:
+        - Version Control
       requestBody:
         required: true
         content:
@@ -90,6 +270,9 @@ paths:
       - $ref: '#/components/parameters/CommitIdParam'
     get:
       summary: Get commit metadata
+      operationId: getCommit
+      tags:
+        - Version Control
       responses:
         '200':
           description: Commit metadata
@@ -108,6 +291,9 @@ paths:
       - $ref: '#/components/parameters/CommitIdParam'
     get:
       summary: Get materialized changeset
+      operationId: getCommitChanges
+      tags:
+        - Version Control
       responses:
         '200':
           description: Changeset
@@ -122,6 +308,9 @@ paths:
   /version/history:
     get:
       summary: List history
+      operationId: listHistory
+      tags:
+        - Version Control
       parameters:
         - $ref: '#/components/parameters/BranchParam'
         - $ref: '#/components/parameters/Limit'
@@ -147,6 +336,9 @@ paths:
   /version/diff:
     get:
       summary: Diff two commits
+      operationId: diffCommits
+      tags:
+        - Version Control
       parameters:
         - name: from
           in: query
@@ -169,6 +361,9 @@ paths:
   /version/blame:
     get:
       summary: Last-writer attribution
+      operationId: blameResource
+      tags:
+        - Version Control
       parameters:
         - name: subject
           in: query
@@ -186,6 +381,9 @@ paths:
   /version/merge:
     post:
       summary: Merge branches/commits
+      operationId: mergeBranches
+      tags:
+        - Version Control
       requestBody:
         required: true
         content:
@@ -208,6 +406,9 @@ paths:
   /version/tags:
     get:
       summary: List tags
+      operationId: listTags
+      tags:
+        - Version Control
       responses:
         '200':
           description: Tags
@@ -218,6 +419,9 @@ paths:
           $ref: '#/components/responses/Problem'
     post:
       summary: Create tag (immutable)
+      operationId: createTag
+      tags:
+        - Version Control
       requestBody:
         required: true
         content:
@@ -236,6 +440,9 @@ paths:
     post:
       summary: Apply batch of SPARQL Updates
       description: Applies a sequence atomically; either one combined commit or multiple commits.
+      operationId: batchUpdate
+      tags:
+        - Version Control
       requestBody:
         required: true
         content:
@@ -252,10 +459,91 @@ paths:
 
 components:
   parameters:
+    # =========================================================================
+    # SPARQL Protocol Parameters
+    # =========================================================================
+    DefaultGraphUri:
+      name: default-graph-uri
+      in: query
+      description: Default graph URI(s) for the query
+      schema:
+        type: array
+        items:
+          type: string
+          format: uri
+
+    NamedGraphUri:
+      name: named-graph-uri
+      in: query
+      description: Named graph URI(s) for the query
+      schema:
+        type: array
+        items:
+          type: string
+          format: uri
+
+    # =========================================================================
+    # Version Control Parameters (Query)
+    # =========================================================================
+    BranchParam:
+      name: branch
+      in: query
+      description: Target branch for query/update (default branch if not specified)
+      schema:
+        $ref: '#/components/schemas/BranchName'
+
+    CommitParam:
+      name: commit
+      in: query
+      description: Target commit for query (read-only, cannot be combined with branch or asOf)
+      schema:
+        $ref: '#/components/schemas/CommitId'
+
+    AsOfParam:
+      name: asOf
+      in: query
+      description: Query branch state at or before this timestamp (RFC3339/ISO8601, inclusive)
+      schema:
+        type: string
+        format: date-time
+        example: "2025-10-04T12:30:00Z"
+
+    # =========================================================================
+    # Version Control Headers
+    # =========================================================================
+    BranchHeader:
+      name: SPARQL-VC-Branch
+      in: header
+      description: Target branch for update operations
+      schema:
+        $ref: '#/components/schemas/BranchName'
+
+    CommitMessageHeader:
+      name: SPARQL-VC-Commit-Message
+      in: header
+      description: Commit message (required for update operations)
+      required: false
+      schema:
+        type: string
+        example: "Update person data"
+
+    CommitAuthorHeader:
+      name: SPARQL-VC-Commit-Author
+      in: header
+      description: Commit author (required for update operations)
+      required: false
+      schema:
+        type: string
+        example: "alice@example.org"
+
+    # =========================================================================
+    # Common Parameters
+    # =========================================================================
     Accept:
       name: Accept
       in: header
       schema: { type: string }
+
     BranchName:
       name: name
       in: path
@@ -266,11 +554,7 @@ components:
       in: path
       required: true
       schema: { $ref: '#/components/schemas/CommitId' }
-    BranchParam:
-      name: branch
-      in: query
-      required: true
-      schema: { $ref: '#/components/schemas/BranchName' }
+
     Limit:
       name: limit
       in: query
@@ -291,6 +575,36 @@ components:
       schema: { type: string, format: date-time }
 
   responses:
+    BadRequest:
+      description: Bad Request - Invalid parameters or malformed request
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            selector_conflict:
+              value:
+                type: "about:blank"
+                title: "Bad Request"
+                status: 400
+                code: "selector_conflict"
+                detail: "Cannot combine 'commit' parameter with 'branch' or 'asOf'"
+
+    PreconditionFailed:
+      description: Precondition Failed - ETag mismatch (optimistic concurrency failure)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            etag_mismatch:
+              value:
+                type: "about:blank"
+                title: "Precondition Failed"
+                status: 412
+                code: "etag_mismatch"
+                detail: "Expected ETag does not match current branch head"
+
     Problem:
       description: Error (RFC7807)
       content:
@@ -298,6 +612,98 @@ components:
           schema: { $ref: '#/components/schemas/Problem' }
 
   schemas:
+    # =========================================================================
+    # SPARQL Protocol Schemas
+    # =========================================================================
+    SparqlResultsJson:
+      type: object
+      description: SPARQL Query Results JSON Format (SPARQL 1.1)
+      required: [head, results]
+      properties:
+        head:
+          type: object
+          required: [vars]
+          properties:
+            vars:
+              type: array
+              items:
+                type: string
+              description: Ordered list of query variable names (without '?' prefix)
+            link:
+              type: array
+              items:
+                type: string
+                format: uri
+        results:
+          type: object
+          required: [bindings]
+          properties:
+            bindings:
+              type: array
+              items:
+                type: object
+                additionalProperties:
+                  oneOf:
+                    - $ref: '#/components/schemas/SparqlUriBinding'
+                    - $ref: '#/components/schemas/SparqlLiteralBinding'
+                    - $ref: '#/components/schemas/SparqlBnodeBinding'
+        boolean:
+          type: boolean
+          description: Present for ASK queries instead of results
+      example:
+        head:
+          vars: ["name", "age"]
+        results:
+          bindings:
+            - name:
+                type: "literal"
+                value: "Alice"
+              age:
+                type: "literal"
+                value: "30"
+                datatype: "http://www.w3.org/2001/XMLSchema#integer"
+
+    SparqlUriBinding:
+      type: object
+      required: [type, value]
+      properties:
+        type:
+          type: string
+          enum: ["uri"]
+        value:
+          type: string
+          format: uri
+
+    SparqlLiteralBinding:
+      type: object
+      required: [type, value]
+      properties:
+        type:
+          type: string
+          enum: ["literal"]
+        value:
+          type: string
+        datatype:
+          type: string
+          format: uri
+        xml:lang:
+          type: string
+          description: Language tag (BCP47)
+
+    SparqlBnodeBinding:
+      type: object
+      required: [type, value]
+      properties:
+        type:
+          type: string
+          enum: ["bnode"]
+        value:
+          type: string
+          description: Blank node identifier
+
+    # =========================================================================
+    # Version Control Schemas - Core Types
+    # =========================================================================
     BranchName:
       type: string
       pattern: '^[A-Za-z0-9._\-]+$'

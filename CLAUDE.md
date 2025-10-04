@@ -1,0 +1,10 @@
+This project shall implement [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/) and the [Version Control Extension](./protocol/SPARQL_1_2_Protocol_Version_Control_Extension.md).
+
+The basic technology stack is:
+- Java 21 + Spring Boot 3.5 
+- using Apache Jena 5.5 - supporting only in-memory graphs based on org.apache.jena.sparql.core.mem.DatasetGraphInMemory (like Apache Jena Fuseki) 
+- implementing a CQRS-pattern with Event-Sourcing 
+- RDFPatch from "jena-rdfpatch" for the events 
+- store the events in Apache Kafka with an appropriate topic structure and setup
+
+

@@ -44,7 +44,8 @@ import org.springframework.test.context.TestPropertySource;
     })
 @TestPropertySource(properties = {
     "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
-    "kafka.bootstrap-servers=${spring.embedded.kafka.brokers}"
+    "kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
+    "kafka.transactional-id-prefix="
 })
 class EventPublisherIntegrationTest {
 

@@ -53,6 +53,7 @@ public class KafkaConfig {
 
   /**
    * Producer factory for version control events.
+   * Configured with idempotence and optional transactional support for exactly-once semantics.
    *
    * @return ProducerFactory instance
    */
@@ -70,7 +71,17 @@ public class KafkaConfig {
     configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
     configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
 
-    return new DefaultKafkaProducerFactory<>(configProps);
+    // Transactional producer configuration (optional)
+    DefaultKafkaProducerFactory<String, VersionControlEvent> factory =
+        new DefaultKafkaProducerFactory<>(configProps);
+
+    // Enable transactions if transactional ID prefix is configured
+    if (kafkaProperties.getTransactionalIdPrefix() != null
+        && !kafkaProperties.getTransactionalIdPrefix().isEmpty()) {
+      factory.setTransactionIdPrefix(kafkaProperties.getTransactionalIdPrefix());
+    }
+
+    return factory;
   }
 
   /**

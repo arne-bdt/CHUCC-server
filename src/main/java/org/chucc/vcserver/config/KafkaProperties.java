@@ -40,6 +40,11 @@ public class KafkaProperties {
    */
   private boolean compaction = false;
 
+  /**
+   * Transactional ID prefix for producers.
+   */
+  private String transactionalIdPrefix = "vc-tx-";
+
   public String getBootstrapServers() {
     return bootstrapServers;
   }
@@ -86,6 +91,14 @@ public class KafkaProperties {
 
   public void setCompaction(boolean compaction) {
     this.compaction = compaction;
+  }
+
+  public String getTransactionalIdPrefix() {
+    return transactionalIdPrefix;
+  }
+
+  public void setTransactionalIdPrefix(String transactionalIdPrefix) {
+    this.transactionalIdPrefix = transactionalIdPrefix;
   }
 
   /**

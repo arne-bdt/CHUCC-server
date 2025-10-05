@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.ArrayList;
 import java.util.List;
 import org.chucc.vcserver.config.VersionControlProperties;
+import org.chucc.vcserver.util.SelectorValidator;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -97,6 +98,9 @@ public class SparqlController {
       @Parameter(description = "Query branch state at or before this timestamp (ISO8601)")
       @RequestParam(required = false) String asOf
   ) {
+    // Validate selector mutual exclusion per §4
+    SelectorValidator.validateMutualExclusion(branch, commit, asOf);
+
     return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
         .contentType(MediaType.APPLICATION_PROBLEM_JSON)
         .body("{\"title\":\"Not Implemented\",\"status\":501}");

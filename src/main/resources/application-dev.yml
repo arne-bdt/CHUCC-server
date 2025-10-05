@@ -1,4 +1,6 @@
 spring:
+  main:
+    banner-mode: off
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
@@ -20,6 +22,13 @@ management:
 
 logging:
   level:
-    org.chucc: DEBUG
-    org.springframework.kafka: DEBUG
-    org.apache.jena: DEBUG
+    kafka: ERROR
+    org.apache.jena: ERROR
+    org.apache.kafka: ERROR
+    org.apache.zookeeper: ERROR
+    org.chucc: WARN
+    org.springframework: ERROR
+    org.springframework.kafka: ERROR
+    org.testcontainers: ERROR
+    state.change.logger: ERROR
+    tc.testcontainers: ERROR

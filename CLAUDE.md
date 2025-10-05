@@ -11,6 +11,11 @@ Prefer JUnit and Mockito for testing.
 Use a test-driven development (TDD) approach. Write unit tests and integration tests for each feature before implementing it.
 You may add additional tests after implementing a feature to increase coverage.
 
-At the end of the task execute "maven clean install" with only the added and modified tests first. Fix any warning and error. 
-This should reduce token usage. 
-As last step run "maven clean install" with all tests including the integration tests and fix any warning and any error. ("-DskipTests" is not allowed)
+At the end of the task execute "mvn clean install" with only the added and modified tests first. Fix any warning and error.
+This should reduce token usage.
+As last step run "mvn clean install" with all tests including the integration tests and fix any warning and any error. ("-DskipTests" is not allowed)
+
+Build configuration:
+- Use "mvn clean install" for normal builds (batch mode enabled by default via .mvn/maven.config)
+- Use "mvn clean install -X" only when you need verbose/debug output to diagnose build issues
+- The logback-test.xml configuration reduces Spring Boot, Kafka, and Testcontainers noise during tests

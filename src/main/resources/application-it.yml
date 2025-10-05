@@ -1,4 +1,6 @@
 spring:
+  main:
+    banner-mode: off
   kafka:
     consumer:
       group-id: vc-server-it
@@ -18,6 +20,14 @@ management:
 
 logging:
   level:
-    org.chucc: DEBUG
-    org.springframework.kafka: INFO
-    org.apache.jena: INFO
+    kafka: ERROR
+    org.apache.jena: ERROR
+    org.apache.kafka: ERROR
+    org.apache.zookeeper: ERROR
+    org.chucc: WARN
+    org.springframework: ERROR
+    org.springframework.kafka: ERROR
+    org.testcontainers: ERROR
+    state.change.logger: ERROR
+    tc.testcontainers: ERROR
+

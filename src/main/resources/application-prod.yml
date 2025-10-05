@@ -19,6 +19,13 @@ management:
 
 logging:
   level:
-    org.chucc: INFO
-    org.springframework: WARN
-    org.apache.jena: WARN
+    kafka: ERROR
+    org.apache.jena: ERROR
+    org.apache.kafka: ERROR
+    org.apache.zookeeper: ERROR
+    org.chucc: WARN
+    org.springframework: ERROR
+    org.springframework.kafka: ERROR
+    org.testcontainers: ERROR
+    state.change.logger: ERROR
+    tc.testcontainers: ERROR

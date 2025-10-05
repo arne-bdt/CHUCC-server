@@ -135,6 +135,43 @@ This implementation aims for:
 - RDF + SPARQL: Apache Jena 5.5
 - Persistent Event Sourcing: Kafka integration
 
+## Building
+
+### Quick Build
+```bash
+mvn clean install
+```
+
+The project uses batch mode by default for cleaner console output (configured in `.mvn/maven.config`).
+
+### Build Options
+
+**Verbose output** (when debugging):
+```bash
+mvn clean install -X
+```
+
+**Extra quiet** (minimal output):
+```bash
+mvn clean install -q
+```
+
+**Debug with full stack traces**:
+```bash
+mvn clean install -X -e
+```
+
+### Test Logging
+
+Test execution logging is configured in `src/test/resources/logback-test.xml`:
+- Application logs: INFO level
+- Spring Boot/Kafka/Testcontainers: WARN level (reduces noise)
+
+To temporarily increase test logging, override in your test:
+```java
+@SpringBootTest(properties = {"logging.level.org.springframework=DEBUG"})
+```
+
 ## Development Status
 
 🚧 **Pre-alpha** - API specification complete, implementation in progress

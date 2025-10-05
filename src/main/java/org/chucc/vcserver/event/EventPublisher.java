@@ -118,6 +118,7 @@ public class EventPublisher {
       case CommitCreatedEvent e -> event.dataset(); // Commits partition by dataset
       case TagCreatedEvent e -> event.dataset(); // Tags partition by dataset
       case RevertCreatedEvent e -> event.dataset(); // Reverts partition by dataset
+      case SnapshotCreatedEvent e -> e.branchName(); // Snapshots partition by branch
     };
   }
 
@@ -165,6 +166,12 @@ public class EventPublisher {
             e.revertCommitId().getBytes(StandardCharsets.UTF_8)));
         headers.add(new RecordHeader(EventHeaders.CONTENT_TYPE,
             EventHeaders.RDF_PATCH_CONTENT_TYPE.getBytes(StandardCharsets.UTF_8)));
+      }
+      case SnapshotCreatedEvent e -> {
+        headers.add(new RecordHeader(EventHeaders.BRANCH,
+            e.branchName().getBytes(StandardCharsets.UTF_8)));
+        headers.add(new RecordHeader(EventHeaders.COMMIT_ID,
+            e.commitId().getBytes(StandardCharsets.UTF_8)));
       }
     }
   }

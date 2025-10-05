@@ -18,14 +18,16 @@ import java.time.Instant;
     @JsonSubTypes.Type(value = CommitCreatedEvent.class, name = "CommitCreated"),
     @JsonSubTypes.Type(value = TagCreatedEvent.class, name = "TagCreated"),
     @JsonSubTypes.Type(value = BranchResetEvent.class, name = "BranchReset"),
-    @JsonSubTypes.Type(value = RevertCreatedEvent.class, name = "RevertCreated")
+    @JsonSubTypes.Type(value = RevertCreatedEvent.class, name = "RevertCreated"),
+    @JsonSubTypes.Type(value = SnapshotCreatedEvent.class, name = "SnapshotCreated")
 })
 public sealed interface VersionControlEvent
     permits BranchCreatedEvent,
         CommitCreatedEvent,
         TagCreatedEvent,
         BranchResetEvent,
-        RevertCreatedEvent {
+        RevertCreatedEvent,
+        SnapshotCreatedEvent {
 
   /**
    * Gets the timestamp when this event occurred.

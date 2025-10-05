@@ -5,17 +5,23 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.TopicConfig;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.config.TopicBuilder;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
 /**
@@ -130,5 +136,51 @@ public class KafkaConfig {
     builder.config(TopicConfig.COMPRESSION_TYPE_CONFIG, "snappy");
 
     return builder.build();
+  }
+
+  /**
+   * Consumer factory for version control events.
+   * Configured with auto.offset.reset=earliest for startup recovery.
+   *
+   * @return ConsumerFactory instance
+   */
+  @Bean
+  public ConsumerFactory<String, VersionControlEvent> consumerFactory() {
+    Map<String, Object> configProps = new HashMap<>();
+    configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+        kafkaProperties.getBootstrapServers());
+    configProps.put(ConsumerConfig.GROUP_ID_CONFIG, "read-model-projector");
+    configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+        StringDeserializer.class);
+    configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+        JsonDeserializer.class);
+    configProps.put(JsonDeserializer.TRUSTED_PACKAGES, "org.chucc.vcserver.event");
+    configProps.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
+    configProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
+        "org.chucc.vcserver.event.VersionControlEvent");
+
+    // Start from earliest offset on startup for recovery
+    configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+    // Enable auto-commit for simplicity (at-least-once delivery)
+    configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
+    configProps.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 1000);
+
+    return new DefaultKafkaConsumerFactory<>(configProps);
+  }
+
+  /**
+   * Kafka listener container factory for event consumers.
+   *
+   * @return ConcurrentKafkaListenerContainerFactory instance
+   */
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, VersionControlEvent>
+      kafkaListenerContainerFactory() {
+    ConcurrentKafkaListenerContainerFactory<String, VersionControlEvent> factory =
+        new ConcurrentKafkaListenerContainerFactory<>();
+    factory.setConsumerFactory(consumerFactory());
+    factory.setConcurrency(1); // Single consumer for ordered processing
+    return factory;
   }
 }

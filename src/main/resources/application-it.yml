@@ -1,17 +1,15 @@
 spring:
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
   kafka:
-    bootstrap-servers: localhost:9092
     consumer:
       group-id: vc-server-it
       auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+
+# Disable transactional Kafka for integration tests with Testcontainers
+# Testcontainers Kafka doesn't require transactions and simplifies testing
+kafka:
+  transactional-id-prefix: ""
 
 management:
   endpoint:

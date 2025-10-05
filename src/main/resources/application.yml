@@ -48,6 +48,8 @@ vc:
   reset-enabled: true
   cherry-pick-enabled: true
   blame-enabled: true
+  snapshots-enabled: true
+  snapshot-interval: 100  # Create snapshot every N commits
 
 # Kafka event streaming configuration
 kafka:

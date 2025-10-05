@@ -18,6 +18,7 @@ import org.chucc.vcserver.event.TagCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.service.SnapshotService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -37,15 +38,25 @@ public class ReadModelProjector {
 
   private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
+  private final SnapshotService snapshotService;
 
+  /**
+   * Constructs a ReadModelProjector.
+   *
+   * @param branchRepository the branch repository
+   * @param commitRepository the commit repository
+   * @param snapshotService the snapshot service
+   */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
       justification = "Repositories are Spring-managed beans and are intentionally shared")
   public ReadModelProjector(
       BranchRepository branchRepository,
-      CommitRepository commitRepository) {
+      CommitRepository commitRepository,
+      SnapshotService snapshotService) {
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
+    this.snapshotService = snapshotService;
   }
 
   /**
@@ -152,6 +163,10 @@ public class ReadModelProjector {
 
     logger.debug("Reset branch: {} from {} to {} in dataset: {}",
         event.branchName(), event.fromCommitId(), event.toCommitId(), event.dataset());
+
+    // Trigger snapshot check after branch update
+    snapshotService.recordCommit(event.dataset(), event.branchName(),
+        CommitId.of(event.toCommitId()));
   }
 
   /**

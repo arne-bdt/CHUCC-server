@@ -89,6 +89,17 @@ public class VersionControlProperties {
   private boolean blameEnabled = true;
 
   /**
+   * Whether to enable automatic snapshot creation.
+   */
+  private boolean snapshotsEnabled = true;
+
+  /**
+   * Number of commits between automatic snapshots.
+   * Default is 100 commits.
+   */
+  private int snapshotInterval = 100;
+
+  /**
    * Gets the conformance level.
    *
    * @return conformance level (1 or 2)
@@ -206,5 +217,45 @@ public class VersionControlProperties {
 
   public void setBlameEnabled(boolean blameEnabled) {
     this.blameEnabled = blameEnabled;
+  }
+
+  /**
+   * Checks if automatic snapshot creation is enabled.
+   *
+   * @return true if snapshots are enabled
+   */
+  public boolean isSnapshotsEnabled() {
+    return snapshotsEnabled;
+  }
+
+  /**
+   * Sets whether automatic snapshot creation is enabled.
+   *
+   * @param snapshotsEnabled true to enable snapshots
+   */
+  public void setSnapshotsEnabled(boolean snapshotsEnabled) {
+    this.snapshotsEnabled = snapshotsEnabled;
+  }
+
+  /**
+   * Gets the snapshot interval (number of commits between snapshots).
+   *
+   * @return the snapshot interval
+   */
+  public int getSnapshotInterval() {
+    return snapshotInterval;
+  }
+
+  /**
+   * Sets the snapshot interval (number of commits between snapshots).
+   *
+   * @param snapshotInterval the snapshot interval (must be positive)
+   * @throws IllegalArgumentException if interval is not positive
+   */
+  public void setSnapshotInterval(int snapshotInterval) {
+    if (snapshotInterval <= 0) {
+      throw new IllegalArgumentException("Snapshot interval must be positive");
+    }
+    this.snapshotInterval = snapshotInterval;
   }
 }

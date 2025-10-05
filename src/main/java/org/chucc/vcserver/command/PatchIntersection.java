@@ -3,9 +3,7 @@ package org.chucc.vcserver.command;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.jena.graph.Node;
-import org.apache.jena.graph.Triple;
 import org.apache.jena.rdfpatch.RDFPatch;
-import org.apache.jena.rdfpatch.changes.PatchCodes;
 
 /**
  * Utility for detecting conflicts via patch intersection.

@@ -2,7 +2,6 @@ package org.chucc.vcserver.command;
 
 import java.io.ByteArrayOutputStream;
 import java.time.Instant;
-import java.util.List;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.rdfpatch.changes.RDFChangesCollector;

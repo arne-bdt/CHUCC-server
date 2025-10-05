@@ -1,7 +1,6 @@
 package org.chucc.vcserver.util;
 
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
@@ -10,7 +9,6 @@ import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
 import org.apache.jena.sparql.core.DatasetGraph;
-import org.apache.jena.sparql.core.Quad;
 
 /**
  * Utility class for working with RDF Patches.

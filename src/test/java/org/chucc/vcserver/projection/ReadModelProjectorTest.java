@@ -1,17 +1,6 @@
 package org.chucc.vcserver.projection;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
 import org.apache.jena.rdfpatch.RDFPatch;
-import org.apache.jena.rdfpatch.RDFPatchOps;
-import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
@@ -20,11 +9,22 @@ import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.service.SnapshotService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for ReadModelProjector.
@@ -39,11 +39,14 @@ class ReadModelProjectorTest {
   @Mock
   private CommitRepository commitRepository;
 
+  @Mock
+  private SnapshotService snapshotService;
+
   private ReadModelProjector projector;
 
   @BeforeEach
   void setUp() {
-    projector = new ReadModelProjector(branchRepository, commitRepository);
+    projector = new ReadModelProjector(branchRepository, commitRepository, snapshotService);
   }
 
   @Test

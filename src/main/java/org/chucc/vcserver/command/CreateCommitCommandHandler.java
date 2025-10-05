@@ -1,7 +1,6 @@
 package org.chucc.vcserver.command;
 
 import java.io.ByteArrayOutputStream;
-import java.io.StringReader;
 import java.time.Instant;
 import java.util.List;
 import org.apache.jena.query.Dataset;

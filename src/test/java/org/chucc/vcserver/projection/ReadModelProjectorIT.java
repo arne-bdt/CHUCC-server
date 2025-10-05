@@ -1,12 +1,9 @@
 package org.chucc.vcserver.projection;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.chucc.vcserver.config.KafkaProperties;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
@@ -26,6 +23,16 @@ import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * Integration test for ReadModelProjector with Testcontainers Kafka.
@@ -62,13 +69,50 @@ class ReadModelProjectorIT {
   @Autowired
   private CommitRepository commitRepository;
 
+  @Autowired
+  private KafkaProperties kafkaProperties;
+
   private static final String DATASET = "test-dataset";
 
   @BeforeEach
-  void setUp() {
+  void setUp() throws Exception {
     // Clean up repositories before each test
     branchRepository.deleteAllByDataset(DATASET);
     commitRepository.deleteAllByDataset(DATASET);
+
+    // Ensure topic exists before publishing events
+    ensureTopicExists(DATASET);
+  }
+
+  /**
+   * Ensures the Kafka topic exists for the given dataset.
+   * This is necessary because the Kafka listener uses a topic pattern,
+   * and needs the topic to exist before it can subscribe.
+   */
+  private void ensureTopicExists(String dataset) throws Exception {
+    String topicName = kafkaProperties.getTopicName(dataset);
+
+    Map<String, Object> config = Map.of(
+        AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers()
+    );
+
+    try (AdminClient adminClient = AdminClient.create(config)) {
+      NewTopic newTopic = new NewTopic(
+          topicName,
+          kafkaProperties.getPartitions(),
+          (short) kafkaProperties.getReplicationFactor()
+      );
+
+      adminClient.createTopics(Collections.singletonList(newTopic)).all().get();
+    } catch (Exception e) {
+      // Topic might already exist, which is fine
+      if (!e.getMessage().contains("TopicExistsException")) {
+        throw e;
+      }
+    }
+
+    // Give Kafka listener time to discover the new topic
+    Thread.sleep(1000);
   }
 
   @Test

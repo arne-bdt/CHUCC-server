@@ -158,6 +158,13 @@ public class KafkaConfig {
     configProps.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
     configProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
         "org.chucc.vcserver.event.VersionControlEvent");
+    configProps.put(JsonDeserializer.TYPE_MAPPINGS,
+        "BranchCreated:org.chucc.vcserver.event.BranchCreatedEvent,"
+        + "CommitCreated:org.chucc.vcserver.event.CommitCreatedEvent,"
+        + "TagCreated:org.chucc.vcserver.event.TagCreatedEvent,"
+        + "BranchReset:org.chucc.vcserver.event.BranchResetEvent,"
+        + "RevertCreated:org.chucc.vcserver.event.RevertCreatedEvent,"
+        + "SnapshotCreated:org.chucc.vcserver.event.SnapshotCreatedEvent");
 
     // Start from earliest offset on startup for recovery
     configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");

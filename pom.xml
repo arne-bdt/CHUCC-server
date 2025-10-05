@@ -228,7 +228,7 @@
                 </executions>
                 <configuration>
                     <projectType>application</projectType>
-                    <schemaVersion>1.6</schemaVersion>
+                    <schemaVersion>1.5</schemaVersion>
                     <includeBomSerialNumber>true</includeBomSerialNumber>
                     <includeCompileScope>true</includeCompileScope>
                     <includeProvidedScope>true</includeProvidedScope>
@@ -239,6 +239,7 @@
                     <outputReactorProjects>true</outputReactorProjects>
                     <outputFormat>all</outputFormat>
                     <outputName>bom</outputName>
+                    <verbose>false</verbose>
                 </configuration>
             </plugin>
         </plugins>

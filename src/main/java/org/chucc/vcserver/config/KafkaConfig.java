@@ -173,6 +173,10 @@ public class KafkaConfig {
     configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
     configProps.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 1000);
 
+    // Poll for topic metadata more frequently to discover new topics quickly
+    // Default is 5 minutes (300000ms), reduce to 1 second for faster discovery
+    configProps.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, "1000");
+
     return new DefaultKafkaConsumerFactory<>(configProps);
   }
 

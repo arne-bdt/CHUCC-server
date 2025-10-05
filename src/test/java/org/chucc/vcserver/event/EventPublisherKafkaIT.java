@@ -1,5 +1,6 @@
 package org.chucc.vcserver.event;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,6 +12,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -81,13 +83,20 @@ class EventPublisherKafkaIT {
     // When
     eventPublisher.publish(event).get();
 
-    // Then - Consume the event from Kafka
+    // Then - Use Awaitility to reliably wait for the event
     try (KafkaConsumer<String, String> consumer = createConsumer(topicName)) {
-      ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(10));
+      AtomicReference<ConsumerRecord<String, String>> recordRef = new AtomicReference<>();
 
-      assertEquals(1, records.count(), "Should receive exactly one event");
+      await()
+          .atMost(Duration.ofSeconds(10))
+          .pollInterval(Duration.ofMillis(100))
+          .untilAsserted(() -> {
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+            assertEquals(1, records.count(), "Should receive exactly one event");
+            recordRef.set(records.iterator().next());
+          });
 
-      ConsumerRecord<String, String> record = records.iterator().next();
+      ConsumerRecord<String, String> record = recordRef.get();
       assertEquals("feature-branch", record.key(),
           "Event should be keyed by branch name");
 
@@ -125,27 +134,20 @@ class EventPublisherKafkaIT {
     // When
     eventPublisher.publish(event).get();
 
-    // Then - Wait a bit for the message to be available
-    Thread.sleep(100);
-
+    // Then - Use Awaitility to reliably wait for the event
     try (KafkaConsumer<String, String> consumer = createConsumer(topicName)) {
-      // Poll multiple times if needed - consumer may need time to rebalance
-      ConsumerRecords<String, String> records = null;
-      for (int i = 0; i < 5; i++) {
-        records = consumer.poll(Duration.ofSeconds(2));
-        if (!records.isEmpty()) {
-          break;
-        }
-      }
+      AtomicReference<ConsumerRecord<String, String>> recordRef = new AtomicReference<>();
 
-      System.out.println("DEBUG: Received " + records.count() + " records for commit test");
-      for (ConsumerRecord<String, String> r : records) {
-        System.out.println("DEBUG: Record value: " + r.value());
-      }
+      await()
+          .atMost(Duration.ofSeconds(10))
+          .pollInterval(Duration.ofMillis(100))
+          .untilAsserted(() -> {
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+            assertEquals(1, records.count(), "Should receive exactly one event");
+            recordRef.set(records.iterator().next());
+          });
 
-      assertEquals(1, records.count(), "Should receive exactly one event");
-
-      ConsumerRecord<String, String> record = records.iterator().next();
+      ConsumerRecord<String, String> record = recordRef.get();
       assertEquals(datasetId, record.key(),
           "Commit events should be keyed by dataset");
 
@@ -181,13 +183,20 @@ class EventPublisherKafkaIT {
     // When - Publish event
     eventPublisher.publish(event).get();
 
-    // Then
+    // Then - Use Awaitility to reliably wait for the event
     try (KafkaConsumer<String, String> consumer = createConsumer(topicName)) {
-      ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(10));
+      AtomicReference<ConsumerRecord<String, String>> recordRef = new AtomicReference<>();
 
-      assertEquals(1, records.count(), "Should receive exactly one event");
+      await()
+          .atMost(Duration.ofSeconds(10))
+          .pollInterval(Duration.ofMillis(100))
+          .untilAsserted(() -> {
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+            assertEquals(1, records.count(), "Should receive exactly one event");
+            recordRef.set(records.iterator().next());
+          });
 
-      ConsumerRecord<String, String> record = records.iterator().next();
+      ConsumerRecord<String, String> record = recordRef.get();
 
       // Verify headers
       assertHeaderExists(record, EventHeaders.EVENT_TYPE, "TagCreated");
@@ -225,26 +234,30 @@ class EventPublisherKafkaIT {
     eventPublisher.publish(event1).get();
     eventPublisher.publish(event2).get();
 
-    // Then - Verify both events are received
+    // Then - Use Awaitility to reliably wait for both events
     try (KafkaConsumer<String, String> consumer = createConsumer(topicName)) {
-      ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(10));
+      AtomicReference<Map<String, Integer>> countsRef = new AtomicReference<>(new HashMap<>());
 
-      assertTrue(records.count() >= 2, "Should receive at least two events");
+      await()
+          .atMost(Duration.ofSeconds(10))
+          .pollInterval(Duration.ofMillis(100))
+          .untilAsserted(() -> {
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
 
-      long branch1Count = 0;
-      long branch2Count = 0;
+            Map<String, Integer> counts = countsRef.get();
+            for (ConsumerRecord<String, String> record : records) {
+              counts.merge(record.key(), 1, Integer::sum);
+            }
+            countsRef.set(counts);
 
-      for (ConsumerRecord<String, String> record : records) {
-        if (record.key().equals("branch-1")) {
-          branch1Count++;
-        } else if (record.key().equals("branch-2")) {
-          branch2Count++;
-        }
-      }
+            assertTrue(counts.size() >= 2, "Should have received events for both branches");
+          });
+
+      Map<String, Integer> counts = countsRef.get();
 
       // With idempotence enabled, we should not have duplicates
-      assertEquals(1, branch1Count, "Should have exactly one event for branch-1");
-      assertEquals(1, branch2Count, "Should have exactly one event for branch-2");
+      assertEquals(1, counts.get("branch-1"), "Should have exactly one event for branch-1");
+      assertEquals(1, counts.get("branch-2"), "Should have exactly one event for branch-2");
     }
   }
 

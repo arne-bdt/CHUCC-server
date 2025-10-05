@@ -41,7 +41,7 @@ To ensure cross‑vendor portability, the following defaults are **MANDATORY** u
 - **Changeset format:** Servers **MUST** accept and produce **RDF Patch** (`text/rdf-patch`) for writes/diffs. Other formats (e.g., binary/rdf-patch) **MAY** be supported.
 - **No‑op update:** An update yielding an empty changeset **MUST NOT** create a commit; return **204**.
 - **Selectors precedence:** It is an error to combine `commit` with `branch` and/or `asOf`; return **400** (`selector_conflict`).
-- **ETags:** Use **strong ETags**. Branch resources’ ETag **MUST** equal the current head commit id. Commit resources **MUST** use their commit id as ETag.
+- **ETags:** Use **strong ETags** for content identification. Branch resources' ETag **MUST** equal the current head commit id. Commit resources **MUST** use their commit id as ETag. ETags are used for caching and content identification, **NOT** for concurrency control (see §7.2).
 - **Error media type:** Use **`application/problem+json`** with machine‑readable `code`.
 - **Charset:** All JSON and text payloads **MUST** be UTF‑8.
 - **Discovery:** `OPTIONS` **MUST** advertise `SPARQL-Version-Control` and supported features; `Accept-Patch` **MUST** include `text/rdf-patch`.
@@ -134,14 +134,21 @@ The selected state defines the dataset visible to SPARQL query execution. Entail
 - Success status: **204 No Content** (SPARQL 1.2 default) or **200 OK** with metadata only if `Prefer: return=representation` is sent.
 - The server **MUST** return `ETag` (new **UUIDv7** commit id) and `Location` of the commit resource.
 
-### 7.2 Optimistic Concurrency
+### 7.2 Concurrent Write Detection
 
-Use standard HTTP:
+Servers **MUST** detect conflicting concurrent writes by analyzing overlapping triple changes in RDF patches:
 
-- Client sends `If‑Match: <branch-etag>` where the ETag of the branch equals its current head commit id.
-- On mismatch, server returns **412 Precondition Failed**. Servers **MAY** additionally include a problem detail body (§12.3).
+- When a client writes to a branch, the server computes the changeset (RDF patch) from the current head.
+- Before committing, the server checks if any other commits were added to the branch since the client's operation began.
+- If concurrent commits exist, the server **MUST** analyze whether the changesets have **overlapping triples** (same subject, predicate, object, and graph).
+- **Overlapping triple detection:**
+  - Two changesets overlap if they both add, delete, or modify the same quad (s, p, o, g).
+  - A delete in one changeset overlaps with an add or delete of the same quad in another.
+  - An add in one changeset overlaps with a delete or add of the same quad in another.
+- If overlaps are detected, the server **MUST** return **409 Conflict** with a problem+json body listing the conflicting triples (§12.3).
+- If no overlaps exist, the server **MAY** automatically create the commit (auto-merge) or **MAY** still require explicit merge operation (server policy).
 
-Custom headers for parent expectations are **OPTIONAL**.
+Clients **MAY** include `SPARQL-VC-Expected-Parent` header with the commit id they based their changes on. This is **OPTIONAL** and used only for client-side tracking; conflict detection is based on RDF patch analysis, not parent expectations.
 
 ### 7.3 No‑Op Updates
 
@@ -289,18 +296,18 @@ Tags are immutable named refs to commits. Creation, listing, lookup, and deletio
 - **400 Bad Request** – Invalid parameters (e.g., `selector_conflict`)
 - **401/403** – Authentication/authorization failures
 - **404** – Unknown dataset/branch/commit/tag
-- **409** – Merge conflict, tag retarget attempt, or `fastForward=only` not possible
-- **412** – Precondition failed (ETag mismatch)
+- **409** – Merge conflict, concurrent write conflict (overlapping triples), tag retarget attempt, or `fastForward=only` not possible
 - **422** – Semantically invalid (e.g., malformed RDF Patch)
 - **429** – Rate limited
 - **500** – Server error
 
 ### 12.2 Error Media Type and Fields
 
-Servers **SHOULD** adopt RFC 7807 Problem Details (`application/problem+json`) with `type`, `title`, `detail`, and `instance`. Include machine‑readable `code` (e.g., `branch_not_found`, `merge_conflict`, `selector_conflict`).
+Servers **SHOULD** adopt RFC 7807 Problem Details (`application/problem+json`) with `type`, `title`, `detail`, and `instance`. Include machine‑readable `code` (e.g., `branch_not_found`, `merge_conflict`, `concurrent_write_conflict`, `selector_conflict`).
 
 ### 12.3 Examples
 
+**Merge conflict:**
 ```json
 {
   "type": "about:blank",
@@ -309,6 +316,28 @@ Servers **SHOULD** adopt RFC 7807 Problem Details (`application/problem+json`) 
   "code": "merge_conflict",
   "detail": "Conflicting changes to foaf:age for ex:John",
   "conflicts": [ ... ]
+}
+```
+
+**Concurrent write conflict:**
+```json
+{
+  "type": "about:blank",
+  "title": "Concurrent write conflict",
+  "status": 409,
+  "code": "concurrent_write_conflict",
+  "detail": "Another commit was made to branch 'main' that modifies overlapping triples",
+  "expectedParent": "01936b2e-3f47-7c89-a5b3-0a1e8c9d4f2a",
+  "actualHead": "01936b2f-5d89-7e12-b3c4-5f6a7b8c9d0e",
+  "conflicts": [
+    {
+      "subject": "http://example.org/John",
+      "predicate": "http://xmlns.com/foaf/0.1/age",
+      "graph": "http://example.org/employees",
+      "yourChange": {"operation": "add", "object": "31", "datatype": "http://www.w3.org/2001/XMLSchema#integer"},
+      "concurrentChange": {"operation": "add", "object": "32", "datatype": "http://www.w3.org/2001/XMLSchema#integer"}
+    }
+  ]
 }
 ```
 

@@ -22,7 +22,7 @@ Selectors apply as URL params per §D.
 ## C. Discovery & Media Types
 - `Link: <{base}/version>; rel="version-control"`
 - `Accept-Patch: text/rdf-patch` (required), optionally `application/vnd.apache.jena.rdfpatch+thrift` (binary RDF Patch)
-- For `PATCH` operations: `Content-Type: text/rdf-patch` or binary variant
+- **PATCH operations** are an extension to the base GSP specification, enabled by the `Accept-Patch` header; servers advertising `Accept-Patch: text/rdf-patch` MUST accept PATCH requests with `Content-Type: text/rdf-patch` or the binary variant.
 - For `PUT`/`POST`: standard RDF media types (Turtle, N-Triples, JSON-LD, etc.) per base GSP spec
 
 ## D. Selectors (URL parameters)
@@ -44,7 +44,7 @@ Selectors apply as URL params per §D.
 ## G. Changesets & No-Op Rule
 - `text/rdf-patch` REQUIRED for PATCH operations. Optional binary variant: `application/vnd.apache.jena.rdfpatch+thrift`.
 - No-op application → **`204 No Content`**, MUST NOT create a commit.
-- For PUT/POST with standard RDF formats, server computes changeset internally by diffing against current state.
+- For PUT/POST with standard RDF formats, server computes changeset internally by diffing against current state. When the computed diff is empty (i.e., the new content is identical to the current graph state), the server MUST return **`204 No Content`** and MUST NOT create a commit.
 
 ## H. Status Codes (common set)
 Same as Protocol: `200,201,202,204,400,406,409,412,415,422,500`.

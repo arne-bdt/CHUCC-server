@@ -27,7 +27,7 @@ All endpoints are relative to a dataset base URL.
 - `POST /version/commits` — create commit by applying RDF Patch against a **target ref**.
     - Selector: `branch` (required) **or** `commit` (detached commit). `asOf` allowed only with `branch` (selects base).
     - Body: `text/rdf-patch`.
-- `GET /version/history` — list commits with optional filters (branch, limit, offset, since, until, author).
+- `GET /version/history` — list commits with optional filters (branch, since, until, author).
 
 ### 3.3 Merge
 - `POST /version/merge` — merge two refs/commits into a target branch. Returns a merge commit or `409` with conflicts.
@@ -108,7 +108,7 @@ All endpoints are relative to a dataset base URL.
 ```
 **Canonical `code` values** (shared): `selector_conflict`, `merge_conflict`, `concurrent_write_conflict`, `graph_not_found`, `tag_retarget_forbidden`, `rebase_conflict`, `cherry_pick_conflict`.
 
-**Conflict Item Schema:** Each conflict item **MUST** include `subject`, `predicate`, `object`. The `graph` field is **REQUIRED** for dataset-scoped conflicts (aligning with GSP extension).
+**Conflict Item Schema:** Each conflict item **MUST** include `subject`, `predicate`, `object`, and `graph` (required for both graph-scoped and dataset-scoped conflicts, aligning with GSP extension).
 
 ## 10. Interoperability with Graph Store Protocol Extension
 When a server implements **both** this extension and the Graph Store Protocol Version Control Extension:
@@ -121,7 +121,7 @@ When a server implements **both** this extension and the Graph Store Protocol Ve
 - Conflict detection and resolution semantics are unified: the `graph` field is **REQUIRED** in conflict items for both protocols.
 
 ## 11. JSON Schemas (selected)
-- **Conflict item**: `graph` **REQUIRED** (consistent across Protocol and GSP extensions).
+- **Conflict item**: `graph`, `subject`, `predicate`, and `object` all **REQUIRED** (consistent across Protocol and GSP extensions).
 - **Batch**: array with `type` ∈ {`query`,`update`,`applyPatch`}, plus selector fields as in §4.
 - **Merge request**: `{"into": "branch", "from": "ref", "strategy": "three-way|ours|theirs|manual", "fastForward": "allow|only|never", "resolutions": [...]}`
 - **Squash request**: `{"branch": "branch-name", "commits": ["id1", "id2"], "message": "combined message", "author": "..."}`
@@ -137,6 +137,7 @@ Align author identity with authentication; protect merge/tag operations by polic
 ## 14. ABNF (normative snippets)
 ```
 commit-id    = 8HEXDIG "-" 4HEXDIG "-" 4HEXDIG "-" 4HEXDIG "-" 12HEXDIG
+               ; Servers MUST validate the version nibble = 7 for commit IDs
 branch       = 1*( ALPHA / DIGIT / "-" / "_" / "/" )
 selector     = ( "branch=" branch ) / ( "commit=" commit-id ) / ( "asOf=" date-time )
 ```

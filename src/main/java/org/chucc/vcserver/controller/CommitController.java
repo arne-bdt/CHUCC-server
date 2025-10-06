@@ -7,21 +7,182 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.net.URI;
+import java.time.format.DateTimeFormatter;
+import java.util.Map;
+import org.chucc.vcserver.command.CreateCommitCommand;
+import org.chucc.vcserver.command.CreateCommitCommandHandler;
+import org.chucc.vcserver.dto.CommitResponse;
+import org.chucc.vcserver.dto.ProblemDetail;
+import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Commit introspection endpoints for version control.
+ * Commit introspection and creation endpoints for version control.
  */
 @RestController
 @RequestMapping("/version/commits")
-@Tag(name = "Version Control", description = "Commit introspection operations")
+@Tag(name = "Version Control", description = "Commit introspection and creation operations")
 public class CommitController {
+
+  private final CreateCommitCommandHandler createCommitCommandHandler;
+
+  /**
+   * Constructs a CommitController.
+   *
+   * @param createCommitCommandHandler the command handler for creating commits
+   */
+  public CommitController(CreateCommitCommandHandler createCommitCommandHandler) {
+    this.createCommitCommandHandler = createCommitCommandHandler;
+  }
+
+  /**
+   * Create a new commit by applying an RDF Patch.
+   *
+   * @param patchBody the RDF Patch content
+   * @param branch target branch selector
+   * @param commit target commit selector (for detached commits)
+   * @param asOf timestamp selector (only with branch)
+   * @param dataset dataset name (default: "default")
+   * @param author commit author from header
+   * @param message commit message from header
+   * @param ifMatch ETag for optimistic concurrency control
+   * @return 201 Created with commit metadata, or 204 No Content for no-op patches
+   */
+  @PostMapping(
+      consumes = "text/rdf-patch",
+      produces = MediaType.APPLICATION_JSON_VALUE
+  )
+  @Operation(
+      summary = "Create commit",
+      description = "Create a new commit by applying an RDF Patch to a branch or commit"
+  )
+  @ApiResponse(
+      responseCode = "201",
+      description = "Commit created",
+      headers = {
+          @Header(
+              name = "Location",
+              description = "URI of the created commit",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "ETag",
+              description = "Commit id (strong)",
+              schema = @Schema(type = "string")
+          )
+      },
+      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+  )
+  @ApiResponse(
+      responseCode = "204",
+      description = "No Content (no-op patch)",
+      content = @Content
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request (invalid selector combination)",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "415",
+      description = "Unsupported Media Type",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  public ResponseEntity<?> createCommit(
+      @RequestBody String patchBody,
+      @Parameter(description = "Target branch for commit")
+      @RequestParam(required = false) String branch,
+      @Parameter(description = "Target commit for detached commit")
+      @RequestParam(required = false) String commit,
+      @Parameter(description = "Timestamp selector (only with branch)")
+      @RequestParam(required = false) String asOf,
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
+      @Parameter(description = "Commit author")
+      @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
+      @Parameter(description = "Commit message")
+      @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
+      @Parameter(description = "ETag for optimistic concurrency control")
+      @RequestHeader(name = "If-Match", required = false) String ifMatch
+  ) {
+    // Validate selectors
+    if (branch == null && commit == null) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              "Invalid selector",
+              400,
+              "SELECTOR_REQUIRED"));
+    }
+
+    if (branch != null && commit != null) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              "Cannot provide both 'branch' and 'commit' selectors",
+              400,
+              "SELECTOR_CONFLICT"));
+    }
+
+    if (asOf != null && commit != null) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              "'asOf' selector can only be used with 'branch', not 'commit'",
+              400,
+              "INVALID_SELECTOR_COMBINATION"));
+    }
+
+    // Set default values if not provided
+    String effectiveAuthor = author != null ? author : "anonymous";
+    String effectiveMessage = message != null ? message : "";
+
+    // Create command with patch
+    CreateCommitCommand command = new CreateCommitCommand(
+        dataset,
+        branch != null ? branch : "detached-" + commit,
+        null,  // sparqlUpdate
+        patchBody,  // patch
+        effectiveMessage,
+        effectiveAuthor,
+        Map.of()
+    );
+
+    // Handle the command
+    CommitCreatedEvent event = (CommitCreatedEvent) createCommitCommandHandler.handle(command);
+
+    // Check for no-op patch
+    if (event == null) {
+      return ResponseEntity.noContent().build();
+    }
+
+    // Build response
+    CommitResponse response = new CommitResponse(
+        event.commitId(),
+        event.parents(),
+        event.author(),
+        event.message(),
+        DateTimeFormatter.ISO_INSTANT.format(event.timestamp())
+    );
+
+    return ResponseEntity
+        .status(HttpStatus.CREATED)
+        .location(URI.create("/version/commits/" + event.commitId()))
+        .eTag("\"" + event.commitId() + "\"")
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(response);
+  }
 
   /**
    * Get commit metadata.

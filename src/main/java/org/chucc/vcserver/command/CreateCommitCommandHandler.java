@@ -77,11 +77,23 @@ public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCo
         .findPatchByDatasetAndId(command.dataset(), parentCommitId)
         .orElse(RDFPatchOps.emptyPatch());
 
-    // Execute SPARQL Update and generate patch
-    RDFPatch newPatch = executeSparqlUpdateAndGeneratePatch(
-        command.dataset(),
-        parentCommitId,
-        command.sparqlUpdate());
+    // Generate or parse the patch
+    RDFPatch newPatch;
+    if (command.hasPatch()) {
+      // Parse the provided RDF Patch
+      newPatch = parsePatch(command.patch());
+    } else {
+      // Execute SPARQL Update and generate patch
+      newPatch = executeSparqlUpdateAndGeneratePatch(
+          command.dataset(),
+          parentCommitId,
+          command.sparqlUpdate());
+    }
+
+    // Check for no-op patch
+    if (isNoOpPatch(newPatch, command.dataset(), parentCommitId)) {
+      return null; // Indicates no-op
+    }
 
     // Optimistic concurrency control: check for conflicts
     // If the parent has changes and the new patch intersects with it, reject
@@ -144,6 +156,65 @@ public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCo
 
     // Generate diff patch between source and target
     return RdfPatchUtil.diff(sourceGraph, targetGraph);
+  }
+
+  /**
+   * Parses an RDF Patch from a string.
+   *
+   * @param patchContent the patch content
+   * @return the parsed RDF Patch
+   * @throws IllegalArgumentException if the patch is invalid
+   */
+  private RDFPatch parsePatch(String patchContent) {
+    try {
+      java.io.ByteArrayInputStream inputStream =
+          new java.io.ByteArrayInputStream(
+              patchContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      return RDFPatchOps.read(inputStream);
+    } catch (Exception e) {
+      throw new IllegalArgumentException(
+          "Invalid RDF Patch syntax: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Checks if a patch is a no-op (applies cleanly but yields no dataset change).
+   * Per SPARQL 1.2 Protocol §7: A no-op patch MUST NOT create a commit.
+   *
+   * @param patch the RDF Patch to check
+   * @param datasetName the dataset name
+   * @param parentCommitId the parent commit ID
+   * @return true if the patch is a no-op
+   */
+  private boolean isNoOpPatch(RDFPatch patch, String datasetName, CommitId parentCommitId) {
+    // Get the parent dataset state
+    Dataset parentDataset = datasetService.getDataset(
+        new org.chucc.vcserver.domain.DatasetRef(datasetName, parentCommitId.value()));
+
+    DatasetGraph beforeGraph = parentDataset.asDatasetGraph();
+
+    // Create a copy and apply the patch
+    DatasetGraph afterGraph = new DatasetGraphInMemory();
+    RDFPatchOps.applyChange(afterGraph, RdfPatchUtil.diff(
+        new DatasetGraphInMemory(), beforeGraph));
+
+    // Apply the patch to the copy
+    try {
+      RDFPatchOps.applyChange(afterGraph, patch);
+    } catch (Exception e) {
+      // If patch doesn't apply cleanly, it's not a no-op
+      throw new IllegalArgumentException(
+          "Patch does not apply cleanly: " + e.getMessage(), e);
+    }
+
+    // Compare before and after - if identical, it's a no-op
+    RDFPatch diffPatch = RdfPatchUtil.diff(beforeGraph, afterGraph);
+    // An empty patch means no changes
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    RDFPatchOps.write(baos, diffPatch);
+    String patchString = baos.toString(java.nio.charset.StandardCharsets.UTF_8);
+    // Empty patches only contain TX/TC markers
+    return "TX .\nTC .".equals(patchString.trim());
   }
 
   /**

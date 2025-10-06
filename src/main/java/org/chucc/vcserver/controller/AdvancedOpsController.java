@@ -33,6 +33,7 @@ import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CherryPickedEvent;
 import org.chucc.vcserver.event.CommitsSquashedEvent;
 import org.chucc.vcserver.event.RevertCreatedEvent;
+import org.chucc.vcserver.service.PreconditionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -59,6 +60,7 @@ public class AdvancedOpsController {
   private final RevertCommitCommandHandler revertCommitCommandHandler;
   private final RebaseCommandHandler rebaseCommandHandler;
   private final SquashCommandHandler squashCommandHandler;
+  private final PreconditionService preconditionService;
 
   /**
    * Constructs an AdvancedOpsController.
@@ -68,18 +70,21 @@ public class AdvancedOpsController {
    * @param revertCommitCommandHandler the command handler for reverting commits
    * @param rebaseCommandHandler the command handler for rebasing branches
    * @param squashCommandHandler the command handler for squashing commits
+   * @param preconditionService the service for checking If-Match preconditions
    */
   public AdvancedOpsController(
       ResetBranchCommandHandler resetBranchCommandHandler,
       CherryPickCommandHandler cherryPickCommandHandler,
       RevertCommitCommandHandler revertCommitCommandHandler,
       RebaseCommandHandler rebaseCommandHandler,
-      SquashCommandHandler squashCommandHandler) {
+      SquashCommandHandler squashCommandHandler,
+      PreconditionService preconditionService) {
     this.resetBranchCommandHandler = resetBranchCommandHandler;
     this.cherryPickCommandHandler = cherryPickCommandHandler;
     this.revertCommitCommandHandler = revertCommitCommandHandler;
     this.rebaseCommandHandler = rebaseCommandHandler;
     this.squashCommandHandler = squashCommandHandler;
+    this.preconditionService = preconditionService;
   }
 
   /**
@@ -88,6 +93,7 @@ public class AdvancedOpsController {
    *
    * @param request the reset request containing branch, target commit, and mode
    * @param dataset the dataset name (default: "default")
+   * @param ifMatch ETag for optimistic concurrency control
    * @return the reset response with previous and new head commit IDs
    */
   @PostMapping(
@@ -119,21 +125,27 @@ public class AdvancedOpsController {
       description = "Branch or commit not found",
       content = @Content(mediaType = "application/problem+json")
   )
+  @ApiResponse(
+      responseCode = "412",
+      description = "Precondition Failed (If-Match ETag mismatch)",
+      content = @Content(mediaType = "application/problem+json")
+  )
   public ResponseEntity<?> resetBranch(
       @RequestBody ResetRequest request,
       @Parameter(description = "Dataset name")
-      @RequestParam(defaultValue = "default") String dataset
+      @RequestParam(defaultValue = "default") String dataset,
+      @Parameter(description = "ETag for optimistic concurrency control")
+      @RequestHeader(name = "If-Match", required = false) String ifMatch
   ) {
     // Validate request
-    try {
-      request.validate();
-    } catch (IllegalArgumentException e) {
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              e.getMessage(),
-              400,
-              "INVALID_REQUEST"));
+    ResponseEntity<?> validationError = validateRequest(request);
+    if (validationError != null) {
+      return validationError;
+    }
+
+    // Check If-Match precondition
+    if (ifMatch != null) {
+      preconditionService.checkIfMatch(dataset, request.getBranch(), ifMatch);
     }
 
     // Create command
@@ -160,13 +172,7 @@ public class AdvancedOpsController {
           .contentType(MediaType.APPLICATION_JSON)
           .body(response);
     } catch (IllegalArgumentException e) {
-      // Branch or commit not found
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              e.getMessage(),
-              404,
-              "NOT_FOUND"));
+      return createNotFoundResponse(e.getMessage());
     }
   }
 
@@ -177,6 +183,7 @@ public class AdvancedOpsController {
    * @param dataset the dataset name (default: "default")
    * @param author the author of the cherry-pick commit (from SPARQL-VC-Author header)
    * @param message optional commit message (from SPARQL-VC-Message header)
+   * @param ifMatch ETag for optimistic concurrency control
    * @return the cherry-pick response with new commit details
    */
   @PostMapping(
@@ -220,6 +227,11 @@ public class AdvancedOpsController {
       description = "Cherry-pick conflict",
       content = @Content(mediaType = "application/problem+json")
   )
+  @ApiResponse(
+      responseCode = "412",
+      description = "Precondition Failed (If-Match ETag mismatch)",
+      content = @Content(mediaType = "application/problem+json")
+  )
   public ResponseEntity<?> cherryPick(
       @RequestBody CherryPickRequest request,
       @Parameter(description = "Dataset name")
@@ -227,28 +239,15 @@ public class AdvancedOpsController {
       @Parameter(description = "Author of the cherry-pick commit")
       @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
       @Parameter(description = "Optional commit message")
-      @RequestHeader(name = "SPARQL-VC-Message", required = false) String message
+      @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
+      @Parameter(description = "ETag for optimistic concurrency control")
+      @RequestHeader(name = "If-Match", required = false) String ifMatch
   ) {
-    // Validate request
-    try {
-      request.validate();
-    } catch (IllegalArgumentException e) {
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              e.getMessage(),
-              400,
-              "INVALID_REQUEST"));
-    }
-
-    // Validate author header
-    if (author == null || author.isBlank()) {
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              "SPARQL-VC-Author header is required",
-              400,
-              "MISSING_AUTHOR"));
+    // Validate request, author, and preconditions
+    ResponseEntity<?> validationError = validateRequestAndPreconditions(
+        request, dataset, request.getOnto(), author, true, ifMatch);
+    if (validationError != null) {
+      return validationError;
     }
 
     // Create command
@@ -285,13 +284,7 @@ public class AdvancedOpsController {
           .contentType(MediaType.APPLICATION_JSON)
           .body(response);
     } catch (IllegalArgumentException e) {
-      // Source commit or target branch not found
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              e.getMessage(),
-              404,
-              "NOT_FOUND"));
+      return createNotFoundResponse(e.getMessage());
     }
   }
 
@@ -302,6 +295,7 @@ public class AdvancedOpsController {
    * @param dataset the dataset name (default: "default")
    * @param author the author of the revert commit (from SPARQL-VC-Author header)
    * @param message optional commit message (from SPARQL-VC-Message header)
+   * @param ifMatch ETag for optimistic concurrency control
    * @return the revert response with new commit details
    */
   @PostMapping(
@@ -345,6 +339,11 @@ public class AdvancedOpsController {
       description = "Revert would cause conflicts",
       content = @Content(mediaType = "application/problem+json")
   )
+  @ApiResponse(
+      responseCode = "412",
+      description = "Precondition Failed (If-Match ETag mismatch)",
+      content = @Content(mediaType = "application/problem+json")
+  )
   public ResponseEntity<?> revertCommit(
       @RequestBody RevertRequest request,
       @Parameter(description = "Dataset name")
@@ -352,28 +351,15 @@ public class AdvancedOpsController {
       @Parameter(description = "Author of the revert commit")
       @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
       @Parameter(description = "Optional commit message")
-      @RequestHeader(name = "SPARQL-VC-Message", required = false) String message
+      @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
+      @Parameter(description = "ETag for optimistic concurrency control")
+      @RequestHeader(name = "If-Match", required = false) String ifMatch
   ) {
-    // Validate request
-    try {
-      request.validate();
-    } catch (IllegalArgumentException e) {
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              e.getMessage(),
-              400,
-              "INVALID_REQUEST"));
-    }
-
-    // Validate author header
-    if (author == null || author.isBlank()) {
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              "SPARQL-VC-Author header is required",
-              400,
-              "MISSING_AUTHOR"));
+    // Validate request, author, and preconditions
+    ResponseEntity<?> validationError = validateRequestAndPreconditions(
+        request, dataset, request.getBranch(), author, true, ifMatch);
+    if (validationError != null) {
+      return validationError;
     }
 
     // Create command
@@ -410,13 +396,7 @@ public class AdvancedOpsController {
           .contentType(MediaType.APPLICATION_JSON)
           .body(response);
     } catch (IllegalArgumentException e) {
-      // Commit or branch not found
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              e.getMessage(),
-              404,
-              "NOT_FOUND"));
+      return createNotFoundResponse(e.getMessage());
     }
   }
 
@@ -426,6 +406,7 @@ public class AdvancedOpsController {
    * @param request the rebase request containing branch, onto ref, and from commit
    * @param dataset the dataset name (default: "default")
    * @param author the author of the rebase operation (from SPARQL-VC-Author header)
+   * @param ifMatch ETag for optimistic concurrency control
    * @return the rebase response with new commit details
    */
   @PostMapping(
@@ -457,33 +438,35 @@ public class AdvancedOpsController {
       description = "Rebase conflict",
       content = @Content(mediaType = "application/problem+json")
   )
+  @ApiResponse(
+      responseCode = "412",
+      description = "Precondition Failed (If-Match ETag mismatch)",
+      content = @Content(mediaType = "application/problem+json")
+  )
   public ResponseEntity<?> rebaseBranch(
       @RequestBody RebaseRequest request,
       @Parameter(description = "Dataset name")
       @RequestParam(defaultValue = "default") String dataset,
       @Parameter(description = "Author of the rebase operation")
-      @RequestHeader(name = "SPARQL-VC-Author", required = false) String author
+      @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
+      @Parameter(description = "ETag for optimistic concurrency control")
+      @RequestHeader(name = "If-Match", required = false) String ifMatch
   ) {
     // Validate request
-    try {
-      request.validate();
-    } catch (IllegalArgumentException e) {
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              e.getMessage(),
-              400,
-              "INVALID_REQUEST"));
+    ResponseEntity<?> validationError = validateRequest(request);
+    if (validationError != null) {
+      return validationError;
     }
 
     // Validate author header
-    if (author == null || author.isBlank()) {
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              "SPARQL-VC-Author header is required",
-              400,
-              "MISSING_AUTHOR"));
+    ResponseEntity<?> authorError = validateAuthor(author);
+    if (authorError != null) {
+      return authorError;
+    }
+
+    // Check If-Match precondition on branch
+    if (ifMatch != null) {
+      preconditionService.checkIfMatch(dataset, request.getBranch(), ifMatch);
     }
 
     // Create command
@@ -512,13 +495,7 @@ public class AdvancedOpsController {
           .contentType(MediaType.APPLICATION_JSON)
           .body(response);
     } catch (IllegalArgumentException e) {
-      // Branch or commit not found
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              e.getMessage(),
-              404,
-              "NOT_FOUND"));
+      return createNotFoundResponse(e.getMessage());
     }
   }
 
@@ -527,6 +504,7 @@ public class AdvancedOpsController {
    *
    * @param request the squash request containing commits to squash and new message
    * @param dataset the dataset name (default: "default")
+   * @param ifMatch ETag for optimistic concurrency control
    * @return the squash response with new commit details
    */
   @PostMapping(
@@ -558,21 +536,27 @@ public class AdvancedOpsController {
       description = "Branch or commit not found",
       content = @Content(mediaType = "application/problem+json")
   )
+  @ApiResponse(
+      responseCode = "412",
+      description = "Precondition Failed (If-Match ETag mismatch)",
+      content = @Content(mediaType = "application/problem+json")
+  )
   public ResponseEntity<?> squashCommits(
       @RequestBody SquashRequest request,
       @Parameter(description = "Dataset name")
-      @RequestParam(defaultValue = "default") String dataset
+      @RequestParam(defaultValue = "default") String dataset,
+      @Parameter(description = "ETag for optimistic concurrency control")
+      @RequestHeader(name = "If-Match", required = false) String ifMatch
   ) {
     // Validate request
-    try {
-      request.validate();
-    } catch (IllegalArgumentException e) {
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              e.getMessage(),
-              400,
-              "INVALID_REQUEST"));
+    ResponseEntity<?> validationError = validateRequest(request);
+    if (validationError != null) {
+      return validationError;
+    }
+
+    // Check If-Match precondition on branch
+    if (ifMatch != null) {
+      preconditionService.checkIfMatch(dataset, request.getBranch(), ifMatch);
     }
 
     // Create command
@@ -602,21 +586,130 @@ public class AdvancedOpsController {
           .contentType(MediaType.APPLICATION_JSON)
           .body(response);
     } catch (IllegalArgumentException e) {
-      // Branch or commit not found
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              e.getMessage(),
-              404,
-              "NOT_FOUND"));
+      return createNotFoundResponse(e.getMessage());
     } catch (UnsupportedOperationException e) {
-      // Squashing non-HEAD commits
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              e.getMessage(),
-              400,
-              "UNSUPPORTED_OPERATION"));
+      return createBadRequestResponse(e.getMessage(), "UNSUPPORTED_OPERATION");
     }
+  }
+
+  /**
+   * Validates request, author header, and If-Match precondition.
+   *
+   * @param request the request to validate
+   * @param dataset the dataset name
+   * @param branchName the branch name for precondition check
+   * @param author the author header value (can be null if not required)
+   * @param requireAuthor whether author is required
+   * @param ifMatch the If-Match header value (can be null)
+   * @return error response if validation fails, null if valid
+   */
+  private ResponseEntity<?> validateRequestAndPreconditions(
+      Object request,
+      String dataset,
+      String branchName,
+      String author,
+      boolean requireAuthor,
+      String ifMatch) {
+    // Validate request
+    ResponseEntity<?> validationError = validateRequest(request);
+    if (validationError != null) {
+      return validationError;
+    }
+
+    // Validate author header if required
+    if (requireAuthor) {
+      ResponseEntity<?> authorError = validateAuthor(author);
+      if (authorError != null) {
+        return authorError;
+      }
+    }
+
+    // Check If-Match precondition
+    if (ifMatch != null) {
+      preconditionService.checkIfMatch(dataset, branchName, ifMatch);
+    }
+
+    return null;
+  }
+
+  /**
+   * Validates a request object and returns error response if invalid.
+   *
+   * @param request the request to validate
+   * @return error response if validation fails, null if valid
+   */
+  private ResponseEntity<?> validateRequest(Object request) {
+    if (request instanceof CherryPickRequest cpRequest) {
+      try {
+        cpRequest.validate();
+      } catch (IllegalArgumentException e) {
+        return createBadRequestResponse(e.getMessage(), "INVALID_REQUEST");
+      }
+    } else if (request instanceof RevertRequest rvRequest) {
+      try {
+        rvRequest.validate();
+      } catch (IllegalArgumentException e) {
+        return createBadRequestResponse(e.getMessage(), "INVALID_REQUEST");
+      }
+    } else if (request instanceof RebaseRequest rbRequest) {
+      try {
+        rbRequest.validate();
+      } catch (IllegalArgumentException e) {
+        return createBadRequestResponse(e.getMessage(), "INVALID_REQUEST");
+      }
+    } else if (request instanceof ResetRequest rsRequest) {
+      try {
+        rsRequest.validate();
+      } catch (IllegalArgumentException e) {
+        return createBadRequestResponse(e.getMessage(), "INVALID_REQUEST");
+      }
+    } else if (request instanceof SquashRequest sqRequest) {
+      try {
+        sqRequest.validate();
+      } catch (IllegalArgumentException e) {
+        return createBadRequestResponse(e.getMessage(), "INVALID_REQUEST");
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Validates author header and returns error response if missing.
+   *
+   * @param author the author header value
+   * @return error response if author is missing, null if valid
+   */
+  private ResponseEntity<?> validateAuthor(String author) {
+    if (author == null || author.isBlank()) {
+      return createBadRequestResponse(
+          "SPARQL-VC-Author header is required",
+          "MISSING_AUTHOR");
+    }
+    return null;
+  }
+
+  /**
+   * Creates a 400 Bad Request response with problem details.
+   *
+   * @param message the error message
+   * @param errorCode the error code
+   * @return the response entity
+   */
+  private ResponseEntity<?> createBadRequestResponse(String message, String errorCode) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+        .body(new ProblemDetail(message, 400, errorCode));
+  }
+
+  /**
+   * Creates a 404 Not Found response with problem details.
+   *
+   * @param message the error message
+   * @return the response entity
+   */
+  private ResponseEntity<?> createNotFoundResponse(String message) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+        .body(new ProblemDetail(message, 404, "NOT_FOUND"));
   }
 }

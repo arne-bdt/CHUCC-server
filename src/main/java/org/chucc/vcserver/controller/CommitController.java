@@ -15,6 +15,7 @@ import org.chucc.vcserver.command.CreateCommitCommandHandler;
 import org.chucc.vcserver.dto.CommitResponse;
 import org.chucc.vcserver.dto.ProblemDetail;
 import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.service.PreconditionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -36,14 +37,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class CommitController {
 
   private final CreateCommitCommandHandler createCommitCommandHandler;
+  private final PreconditionService preconditionService;
 
   /**
    * Constructs a CommitController.
    *
    * @param createCommitCommandHandler the command handler for creating commits
+   * @param preconditionService the service for checking If-Match preconditions
    */
-  public CommitController(CreateCommitCommandHandler createCommitCommandHandler) {
+  public CommitController(
+      CreateCommitCommandHandler createCommitCommandHandler,
+      PreconditionService preconditionService) {
     this.createCommitCommandHandler = createCommitCommandHandler;
+    this.preconditionService = preconditionService;
   }
 
   /**
@@ -95,6 +101,11 @@ public class CommitController {
       content = @Content(mediaType = "application/problem+json")
   )
   @ApiResponse(
+      responseCode = "412",
+      description = "Precondition Failed (If-Match ETag mismatch)",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
       responseCode = "415",
       description = "Unsupported Media Type",
       content = @Content(mediaType = "application/problem+json")
@@ -142,6 +153,11 @@ public class CommitController {
               "'asOf' selector can only be used with 'branch', not 'commit'",
               400,
               "INVALID_SELECTOR_COMBINATION"));
+    }
+
+    // Check If-Match precondition if branch selector is used
+    if (branch != null && ifMatch != null) {
+      preconditionService.checkIfMatch(dataset, branch, ifMatch);
     }
 
     // Set default values if not provided

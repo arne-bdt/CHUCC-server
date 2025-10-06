@@ -18,6 +18,7 @@ import org.chucc.vcserver.command.RevertCommitCommand;
 import org.chucc.vcserver.command.RevertCommitCommandHandler;
 import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.RevertCreatedEvent;
+import org.chucc.vcserver.service.PreconditionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -48,6 +49,9 @@ class AdvancedOpsControllerTest {
 
   @MockitoBean
   private org.chucc.vcserver.command.SquashCommandHandler squashCommandHandler;
+
+  @MockitoBean
+  private PreconditionService preconditionService;
 
   private static final String DATASET_NAME = "test-dataset";
   private static final String BRANCH_NAME = "main";

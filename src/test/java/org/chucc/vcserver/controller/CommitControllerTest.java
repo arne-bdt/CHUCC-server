@@ -14,6 +14,7 @@ import java.util.List;
 import org.chucc.vcserver.command.CreateCommitCommand;
 import org.chucc.vcserver.command.CreateCommitCommandHandler;
 import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.service.PreconditionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -32,6 +33,9 @@ class CommitControllerTest {
 
   @MockitoBean
   private CreateCommitCommandHandler createCommitCommandHandler;
+
+  @MockitoBean
+  private PreconditionService preconditionService;
 
   private static final String DATASET_NAME = "test-dataset";
   private static final String COMMIT_ID = "01936c81-4567-7890-abcd-ef1234567890";

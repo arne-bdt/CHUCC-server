@@ -42,17 +42,9 @@ public record RevertCreatedEvent(
     Objects.requireNonNull(timestamp, "Timestamp cannot be null");
     Objects.requireNonNull(rdfPatch, "RDF Patch cannot be null");
 
-    if (dataset.isBlank()) {
-      throw new IllegalArgumentException("Dataset cannot be blank");
-    }
-    if (branch.isBlank()) {
-      throw new IllegalArgumentException("Branch cannot be blank");
-    }
-    if (message.isBlank()) {
-      throw new IllegalArgumentException("Message cannot be blank");
-    }
-    if (author.isBlank()) {
-      throw new IllegalArgumentException("Author cannot be blank");
-    }
+    EventValidation.requireNonBlank(dataset, "Dataset");
+    EventValidation.requireNonBlank(branch, "Branch");
+    EventValidation.requireNonBlank(message, "Message");
+    EventValidation.requireNonBlank(author, "Author");
   }
 }

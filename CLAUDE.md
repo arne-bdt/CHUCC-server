@@ -127,9 +127,46 @@ This project uses Checkstyle and SpotBugs for static code analysis.
 - **SE_TRANSIENT_FIELD_NOT_RESTORED**: Suppress with @SuppressFBWarnings if field is not actually serialized
 - Use `@SuppressFBWarnings(value = "CODE", justification = "reason")` only when warnings are false positives
 
-At the end of the task execute "mvn clean install" with only the added and modified tests first. Fix any warning and error, also those from Checkstyle and SpotBugs.
-This should reduce token usage.
-As last step run "mvn clean install" with all tests including the integration tests and fix any warning and any error. ("-DskipTests" is not allowed)
+**PMD Code Quality Rules:**
+- **CPD (Copy/Paste Detector)**: No code duplication - extract common code into helper methods or utility classes
+- When refactoring duplicated code, maintain readability and follow Single Responsibility Principle
+
+**Build Process and Quality Requirements:**
+
+**CRITICAL: Only completely successful builds are acceptable.**
+- All tests must pass (no failures, no errors)
+- Zero Checkstyle violations
+- Zero SpotBugs warnings
+- Zero PMD violations (including CPD duplications)
+- Build must complete with `BUILD SUCCESS`
+
+**Token-Efficient Build Strategy:**
+
+To minimize token usage and catch issues early, follow this two-phase approach:
+
+**Phase 1: Fast Static Analysis (before running tests)**
+```bash
+mvn clean compile checkstyle:check spotbugs:check pmd:check pmd:cpd-check
+```
+This catches code quality issues (formatting, bugs, duplications) in ~30 seconds without running the full test suite.
+
+**Phase 2a: Incremental Test Run (for new/modified code)**
+```bash
+mvn clean install -Dtest=NewTestClass,ModifiedTestClass
+```
+Run only the added and modified tests first to verify new functionality.
+
+**Phase 2b: Full Build (final verification)**
+```bash
+mvn clean install
+```
+Run all tests including integration tests. Fix any warnings or errors.
+
+**Important Notes:**
+- `-DskipTests` is NEVER allowed
+- Fix issues in Phase 1 before proceeding to Phase 2
+- Fix issues in Phase 2a before proceeding to Phase 2b
+- A build is not complete until Phase 2b succeeds with zero violations
 
 Build configuration:
 - Use "mvn clean install" for normal builds (batch mode enabled by default via .mvn/maven.config)

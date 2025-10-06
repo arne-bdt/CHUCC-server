@@ -65,6 +65,12 @@ public class VersionControlProperties {
   private boolean tagsEnabled = true;
 
   /**
+   * Whether to allow tag deletion.
+   * Default is true (deletion allowed).
+   */
+  private boolean tagDeletionAllowed = true;
+
+  /**
    * Whether to enable revert operations.
    * Part of Level 2.
    */
@@ -257,5 +263,23 @@ public class VersionControlProperties {
       throw new IllegalArgumentException("Snapshot interval must be positive");
     }
     this.snapshotInterval = snapshotInterval;
+  }
+
+  /**
+   * Checks if tag deletion is allowed.
+   *
+   * @return true if tag deletion is allowed
+   */
+  public boolean isTagDeletionAllowed() {
+    return tagDeletionAllowed;
+  }
+
+  /**
+   * Sets whether tag deletion is allowed.
+   *
+   * @param tagDeletionAllowed true to allow tag deletion
+   */
+  public void setTagDeletionAllowed(boolean tagDeletionAllowed) {
+    this.tagDeletionAllowed = tagDeletionAllowed;
   }
 }

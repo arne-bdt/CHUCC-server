@@ -64,6 +64,19 @@ public class TagRepository {
   }
 
   /**
+   * Deletes a specific tag.
+   *
+   * @param datasetName the dataset name
+   * @param tagName the tag name
+   */
+  public void delete(String datasetName, String tagName) {
+    Map<String, Tag> tags = datasetTags.get(datasetName);
+    if (tags != null) {
+      tags.remove(tagName);
+    }
+  }
+
+  /**
    * Deletes all tags for a dataset.
    *
    * @param datasetName the dataset name

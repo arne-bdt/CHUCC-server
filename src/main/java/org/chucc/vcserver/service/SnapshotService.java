@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
  * Snapshots are serialized as N-Quads and published to Kafka.
  */
 @Service
+@SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class SnapshotService {
   private static final Logger logger = LoggerFactory.getLogger(SnapshotService.class);
 

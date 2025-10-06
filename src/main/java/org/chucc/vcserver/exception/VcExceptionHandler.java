@@ -26,6 +26,7 @@ public class VcExceptionHandler {
    * @return RFC 7807 problem+json response with conflict details
    */
   @ExceptionHandler(MergeConflictException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<ConflictProblemDetail> handleMergeConflict(
       MergeConflictException ex) {
     ConflictProblemDetail problem = new ConflictProblemDetail(
@@ -48,6 +49,7 @@ public class VcExceptionHandler {
    * @return RFC 7807 problem+json response with conflict details
    */
   @ExceptionHandler(RebaseConflictException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<ConflictProblemDetail> handleRebaseConflict(
       RebaseConflictException ex) {
     ConflictProblemDetail problem = new ConflictProblemDetail(
@@ -70,6 +72,7 @@ public class VcExceptionHandler {
    * @return RFC 7807 problem+json response with conflict details
    */
   @ExceptionHandler(CherryPickConflictException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<ConflictProblemDetail> handleCherryPickConflict(
       CherryPickConflictException ex) {
     ConflictProblemDetail problem = new ConflictProblemDetail(
@@ -92,6 +95,7 @@ public class VcExceptionHandler {
    * @return RFC 7807 problem+json response
    */
   @ExceptionHandler(VcException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<ProblemDetail> handleVcException(VcException ex) {
     ProblemDetail problem = new ProblemDetail(
         ex.getMessage(),

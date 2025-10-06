@@ -7,7 +7,7 @@ import org.chucc.vcserver.util.SelectorValidator;
  * Per SPARQL 1.2 Protocol §4, selectors are mutually exclusive except for
  * the special case of asOf + branch (§3.2).
  */
-public class Selector {
+public final class Selector {
 
   private final String branch;
   private final String commit;

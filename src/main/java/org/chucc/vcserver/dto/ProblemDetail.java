@@ -14,7 +14,11 @@ public class ProblemDetail {
   private int status;
   private String code;
 
+  /**
+   * Default constructor for JSON deserialization.
+   */
   public ProblemDetail() {
+    // Required for JSON deserialization
   }
 
   /**

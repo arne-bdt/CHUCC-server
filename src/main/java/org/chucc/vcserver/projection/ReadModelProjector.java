@@ -33,6 +33,7 @@ import org.springframework.stereotype.Service;
  * Applies patches to the branch's dataset in order.
  */
 @Service
+@SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class ReadModelProjector {
   private static final Logger logger = LoggerFactory.getLogger(ReadModelProjector.class);
 

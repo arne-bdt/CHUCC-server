@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * Main application class for the SPARQL 1.2 Protocol with Version Control Extension server.
  */
 @SpringBootApplication
+@SuppressWarnings("PMD.UseUtilityClass") // Spring Boot requires instantiable main class
 public class VcServerApplication {
 
   public static void main(String[] args) {

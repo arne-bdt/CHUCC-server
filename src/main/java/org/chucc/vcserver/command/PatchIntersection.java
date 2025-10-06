@@ -141,6 +141,7 @@ public final class PatchIntersection {
       return result;
     }
 
+    @SuppressWarnings("PMD.CompareObjectsWithEquals") // Identity check for optimization
     private static boolean nodesEqual(Node n1, Node n2) {
       if (n1 == n2) {
         return true;

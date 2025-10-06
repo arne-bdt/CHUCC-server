@@ -245,6 +245,7 @@ public class SparqlController {
           )
       }
   )
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<Void> options() {
     HttpHeaders headers = new HttpHeaders();
 

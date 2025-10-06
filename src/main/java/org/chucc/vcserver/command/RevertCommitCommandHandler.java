@@ -5,7 +5,6 @@ import java.time.Instant;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
-import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.RevertCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
@@ -34,12 +33,9 @@ public class RevertCommitCommandHandler implements CommandHandler<RevertCommitCo
   }
 
   @Override
-  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-      value = "DLS_DEAD_LOCAL_STORE",
-      justification = "Branch variable is used for validation and retrieving commit ID")
   public VersionControlEvent handle(RevertCommitCommand command) {
     // Validate branch exists
-    Branch branch = branchRepository
+    branchRepository
         .findByDatasetAndName(command.dataset(), command.branchName())
         .orElseThrow(() -> new IllegalArgumentException(
             "Branch not found: " + command.branchName()

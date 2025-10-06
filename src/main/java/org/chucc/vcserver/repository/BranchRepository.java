@@ -62,10 +62,7 @@ public class BranchRepository {
    */
   public boolean delete(String datasetName, String branchName) {
     Map<String, Branch> branches = datasetBranches.get(datasetName);
-    if (branches == null) {
-      return false;
-    }
-    return branches.remove(branchName) != null;
+    return branches != null && branches.remove(branchName) != null;
   }
 
   /**

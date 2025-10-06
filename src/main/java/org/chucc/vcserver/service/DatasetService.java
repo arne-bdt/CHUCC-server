@@ -107,6 +107,7 @@ public class DatasetService {
    * @return the resolved commit ID
    * @throws IllegalArgumentException if the reference cannot be resolved
    */
+  @SuppressWarnings("PMD.EmptyCatchBlock") // Exception used for control flow
   private CommitId resolveRef(DatasetRef datasetRef) {
     String ref = datasetRef.ref();
 

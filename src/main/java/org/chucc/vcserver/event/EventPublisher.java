@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
  * Supports transactional publishing for exactly-once semantics.
  */
 @Service
+@SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class EventPublisher {
   private static final Logger logger = LoggerFactory.getLogger(EventPublisher.class);
 

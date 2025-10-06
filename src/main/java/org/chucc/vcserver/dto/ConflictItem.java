@@ -12,7 +12,11 @@ public class ConflictItem {
   private String object;
   private String details;
 
+  /**
+   * Default constructor for JSON deserialization.
+   */
   public ConflictItem() {
+    // Required for JSON deserialization
   }
 
   /**

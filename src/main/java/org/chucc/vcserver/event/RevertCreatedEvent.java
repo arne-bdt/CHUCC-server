@@ -12,6 +12,7 @@ public record RevertCreatedEvent(
     @JsonProperty("dataset") String dataset,
     @JsonProperty("revertCommitId") String revertCommitId,
     @JsonProperty("revertedCommitId") String revertedCommitId,
+    @JsonProperty("branch") String branch,
     @JsonProperty("message") String message,
     @JsonProperty("author") String author,
     @JsonProperty("timestamp") Instant timestamp,
@@ -24,6 +25,7 @@ public record RevertCreatedEvent(
    * @param dataset the dataset name (must be non-null and non-blank)
    * @param revertCommitId the ID of the new revert commit (must be non-null)
    * @param revertedCommitId the ID of the commit being reverted (must be non-null)
+   * @param branch the branch name where the revert commit will be created (must be non-null)
    * @param message the commit message (must be non-null and non-blank)
    * @param author the commit author (must be non-null and non-blank)
    * @param timestamp the commit timestamp (must be non-null)
@@ -34,6 +36,7 @@ public record RevertCreatedEvent(
     Objects.requireNonNull(dataset, "Dataset cannot be null");
     Objects.requireNonNull(revertCommitId, "Revert commit ID cannot be null");
     Objects.requireNonNull(revertedCommitId, "Reverted commit ID cannot be null");
+    Objects.requireNonNull(branch, "Branch cannot be null");
     Objects.requireNonNull(message, "Message cannot be null");
     Objects.requireNonNull(author, "Author cannot be null");
     Objects.requireNonNull(timestamp, "Timestamp cannot be null");
@@ -41,6 +44,9 @@ public record RevertCreatedEvent(
 
     if (dataset.isBlank()) {
       throw new IllegalArgumentException("Dataset cannot be blank");
+    }
+    if (branch.isBlank()) {
+      throw new IllegalArgumentException("Branch cannot be blank");
     }
     if (message.isBlank()) {
       throw new IllegalArgumentException("Message cannot be blank");

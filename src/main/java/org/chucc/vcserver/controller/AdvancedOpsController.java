@@ -11,13 +11,18 @@ import org.chucc.vcserver.command.CherryPickCommand;
 import org.chucc.vcserver.command.CherryPickCommandHandler;
 import org.chucc.vcserver.command.ResetBranchCommand;
 import org.chucc.vcserver.command.ResetBranchCommandHandler;
+import org.chucc.vcserver.command.RevertCommitCommand;
+import org.chucc.vcserver.command.RevertCommitCommandHandler;
 import org.chucc.vcserver.dto.CherryPickRequest;
 import org.chucc.vcserver.dto.CherryPickResponse;
 import org.chucc.vcserver.dto.ProblemDetail;
 import org.chucc.vcserver.dto.ResetRequest;
 import org.chucc.vcserver.dto.ResetResponse;
+import org.chucc.vcserver.dto.RevertRequest;
+import org.chucc.vcserver.dto.RevertResponse;
 import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CherryPickedEvent;
+import org.chucc.vcserver.event.RevertCreatedEvent;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -41,18 +46,22 @@ public class AdvancedOpsController {
 
   private final ResetBranchCommandHandler resetBranchCommandHandler;
   private final CherryPickCommandHandler cherryPickCommandHandler;
+  private final RevertCommitCommandHandler revertCommitCommandHandler;
 
   /**
    * Constructs an AdvancedOpsController.
    *
    * @param resetBranchCommandHandler the command handler for resetting branches
    * @param cherryPickCommandHandler the command handler for cherry-picking commits
+   * @param revertCommitCommandHandler the command handler for reverting commits
    */
   public AdvancedOpsController(
       ResetBranchCommandHandler resetBranchCommandHandler,
-      CherryPickCommandHandler cherryPickCommandHandler) {
+      CherryPickCommandHandler cherryPickCommandHandler,
+      RevertCommitCommandHandler revertCommitCommandHandler) {
     this.resetBranchCommandHandler = resetBranchCommandHandler;
     this.cherryPickCommandHandler = cherryPickCommandHandler;
+    this.revertCommitCommandHandler = revertCommitCommandHandler;
   }
 
   /**
@@ -259,6 +268,131 @@ public class AdvancedOpsController {
           .body(response);
     } catch (IllegalArgumentException e) {
       // Source commit or target branch not found
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              e.getMessage(),
+              404,
+              "NOT_FOUND"));
+    }
+  }
+
+  /**
+   * Revert a commit by creating an inverse commit.
+   *
+   * @param request the revert request containing commit to revert and target branch
+   * @param dataset the dataset name (default: "default")
+   * @param author the author of the revert commit (from SPARQL-VC-Author header)
+   * @param message optional commit message (from SPARQL-VC-Message header)
+   * @return the revert response with new commit details
+   */
+  @PostMapping(
+      value = "/revert",
+      consumes = MediaType.APPLICATION_JSON_VALUE,
+      produces = MediaType.APPLICATION_JSON_VALUE
+  )
+  @Operation(
+      summary = "Revert commit",
+      description = "Create inverse commit that undoes changes from a specified commit"
+  )
+  @ApiResponse(
+      responseCode = "201",
+      description = "Revert commit created",
+      headers = {
+          @Header(
+              name = "Location",
+              description = "URI of the revert commit",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "ETag",
+              description = "New revert commit ID",
+              schema = @Schema(type = "string")
+          )
+      },
+      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request (invalid request or missing author)",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "404",
+      description = "Commit or branch not found",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "409",
+      description = "Revert would cause conflicts",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  public ResponseEntity<?> revertCommit(
+      @RequestBody RevertRequest request,
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
+      @Parameter(description = "Author of the revert commit")
+      @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
+      @Parameter(description = "Optional commit message")
+      @RequestHeader(name = "SPARQL-VC-Message", required = false) String message
+  ) {
+    // Validate request
+    try {
+      request.validate();
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              e.getMessage(),
+              400,
+              "INVALID_REQUEST"));
+    }
+
+    // Validate author header
+    if (author == null || author.isBlank()) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              "SPARQL-VC-Author header is required",
+              400,
+              "MISSING_AUTHOR"));
+    }
+
+    // Create command
+    RevertCommitCommand command = new RevertCommitCommand(
+        dataset,
+        request.getBranch(),
+        request.getCommit(),
+        message,
+        author
+    );
+
+    // Handle command
+    try {
+      RevertCreatedEvent event = (RevertCreatedEvent) revertCommitCommandHandler.handle(command);
+
+      // Build response
+      RevertResponse response = new RevertResponse(
+          event.revertCommitId(),
+          request.getBranch(),
+          event.revertedCommitId()
+      );
+
+      // Build Location URI
+      String location = ServletUriComponentsBuilder
+          .fromCurrentContextPath()
+          .path("/version/commits/{id}")
+          .buildAndExpand(event.revertCommitId())
+          .toUriString();
+
+      return ResponseEntity
+          .status(HttpStatus.CREATED)
+          .header("Location", location)
+          .eTag("\"" + event.revertCommitId() + "\"")
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(response);
+    } catch (IllegalArgumentException e) {
+      // Commit or branch not found
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(

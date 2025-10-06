@@ -72,6 +72,7 @@ public class RevertCommitCommandHandler implements CommandHandler<RevertCommitCo
         command.dataset(),
         revertCommitId.value(),
         command.commitId(),
+        command.branchName(),
         revertMessage,
         command.author(),
         Instant.now(),

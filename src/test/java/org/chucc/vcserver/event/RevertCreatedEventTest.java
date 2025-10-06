@@ -15,6 +15,7 @@ class RevertCreatedEventTest {
         "test-dataset",
         "new-commit-id",
         "reverted-commit-id",
+        "main",
         "Revert 'bad changes'",
         "Alice <alice@example.com>",
         now,
@@ -34,63 +35,63 @@ class RevertCreatedEventTest {
   @Test
   void testNullDatasetThrowsException() {
     assertThrows(NullPointerException.class, () ->
-        new RevertCreatedEvent(null, "new", "old", "msg", "author", Instant.now(), "patch")
+        new RevertCreatedEvent(null, "new", "old", "main", "msg", "author", Instant.now(), "patch")
     );
   }
 
   @Test
   void testBlankDatasetThrowsException() {
     assertThrows(IllegalArgumentException.class, () ->
-        new RevertCreatedEvent("", "new", "old", "msg", "author", Instant.now(), "patch")
+        new RevertCreatedEvent("", "new", "old", "main", "msg", "author", Instant.now(), "patch")
     );
   }
 
   @Test
   void testNullRevertCommitIdThrowsException() {
     assertThrows(NullPointerException.class, () ->
-        new RevertCreatedEvent("dataset", null, "old", "msg", "author", Instant.now(), "patch")
+        new RevertCreatedEvent("dataset", null, "old", "main", "msg", "author", Instant.now(), "patch")
     );
   }
 
   @Test
   void testNullRevertedCommitIdThrowsException() {
     assertThrows(NullPointerException.class, () ->
-        new RevertCreatedEvent("dataset", "new", null, "msg", "author", Instant.now(), "patch")
+        new RevertCreatedEvent("dataset", "new", null, "main", "msg", "author", Instant.now(), "patch")
     );
   }
 
   @Test
   void testNullMessageThrowsException() {
     assertThrows(NullPointerException.class, () ->
-        new RevertCreatedEvent("dataset", "new", "old", null, "author", Instant.now(), "patch")
+        new RevertCreatedEvent("dataset", "new", "old", "main", null, "author", Instant.now(), "patch")
     );
   }
 
   @Test
   void testBlankMessageThrowsException() {
     assertThrows(IllegalArgumentException.class, () ->
-        new RevertCreatedEvent("dataset", "new", "old", "  ", "author", Instant.now(), "patch")
+        new RevertCreatedEvent("dataset", "new", "old", "main", "  ", "author", Instant.now(), "patch")
     );
   }
 
   @Test
   void testNullAuthorThrowsException() {
     assertThrows(NullPointerException.class, () ->
-        new RevertCreatedEvent("dataset", "new", "old", "msg", null, Instant.now(), "patch")
+        new RevertCreatedEvent("dataset", "new", "old", "main", "msg", null, Instant.now(), "patch")
     );
   }
 
   @Test
   void testBlankAuthorThrowsException() {
     assertThrows(IllegalArgumentException.class, () ->
-        new RevertCreatedEvent("dataset", "new", "old", "msg", "", Instant.now(), "patch")
+        new RevertCreatedEvent("dataset", "new", "old", "main", "msg", "", Instant.now(), "patch")
     );
   }
 
   @Test
   void testNullRdfPatchThrowsException() {
     assertThrows(NullPointerException.class, () ->
-        new RevertCreatedEvent("dataset", "new", "old", "msg", "author", Instant.now(), null)
+        new RevertCreatedEvent("dataset", "new", "old", "main", "msg", "author", Instant.now(), null)
     );
   }
 }

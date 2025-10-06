@@ -154,6 +154,7 @@ class EventPublisherTest {
         "test-dataset",
         "revert-commit",
         "bad-commit",
+        "main",
         "Revert bad changes",
         "Bob <bob@example.com>",
         Instant.now(),

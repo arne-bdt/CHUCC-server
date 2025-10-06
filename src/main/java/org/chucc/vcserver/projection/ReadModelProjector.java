@@ -193,26 +193,26 @@ public class ReadModelProjector {
    */
   void handleRevertCreated(RevertCreatedEvent event) {
     logger.debug("Processing RevertCreatedEvent: revertCommitId={}, revertedCommitId={}, "
-            + "dataset={}",
-        event.revertCommitId(), event.revertedCommitId(), event.dataset());
+            + "branch={}, dataset={}",
+        event.revertCommitId(), event.revertedCommitId(), event.branch(), event.dataset());
 
     // Parse RDF Patch from string
     ByteArrayInputStream inputStream = new ByteArrayInputStream(
         event.rdfPatch().getBytes(StandardCharsets.UTF_8));
     RDFPatch patch = RDFPatchOps.read(inputStream);
 
-    // Find the reverted commit to get parent information
-    Commit revertedCommit = commitRepository.findByDatasetAndId(
+    // Get the target branch to determine the parent commit (current HEAD)
+    Branch targetBranch = branchRepository.findByDatasetAndName(
         event.dataset(),
-        CommitId.of(event.revertedCommitId()))
+        event.branch())
         .orElseThrow(() -> new IllegalArgumentException(
-            "Cannot revert non-existent commit: " + event.revertedCommitId()));
+            "Cannot revert to non-existent branch: " + event.branch()));
 
     // Create Commit domain object for revert
-    // The revert commit's parent is the current HEAD (the commit being reverted from)
+    // The revert commit's parent is the current HEAD of the branch
     Commit commit = new Commit(
         CommitId.of(event.revertCommitId()),
-        revertedCommit.parents(), // Use the parent(s) from the reverted commit
+        java.util.List.of(targetBranch.getCommitId()),
         event.author(),
         event.message(),
         event.timestamp()
@@ -221,8 +221,15 @@ public class ReadModelProjector {
     // Save revert commit and patch
     commitRepository.save(event.dataset(), commit, patch);
 
-    logger.debug("Saved revert commit: {} reverting {} in dataset: {}",
-        commit.id(), event.revertedCommitId(), event.dataset());
+    // Update the target branch to point to the new revert commit
+    branchRepository.updateBranchHead(
+        event.dataset(),
+        event.branch(),
+        CommitId.of(event.revertCommitId())
+    );
+
+    logger.debug("Saved revert commit: {} reverting {} on branch {} in dataset: {}",
+        commit.id(), event.revertedCommitId(), event.branch(), event.dataset());
   }
 
   /**

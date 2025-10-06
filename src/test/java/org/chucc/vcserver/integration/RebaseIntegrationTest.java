@@ -175,6 +175,46 @@ class RebaseIntegrationTest {
         .findByDatasetAndName(DATASET_NAME, "feature")
         .orElseThrow();
     assertThat(featureBranch.getCommitId().value()).isEqualTo(json.get("newHead").asText());
+
+    // CRITICAL: Verify the actual rebase logic worked correctly
+    String newHeadId = json.get("newHead").asText();
+    String firstRebasedCommitId = json.get("newCommits").get(0).asText();
+    String secondRebasedCommitId = json.get("newCommits").get(1).asText();
+
+    // Verify the final commit (D') exists and has correct structure
+    Commit finalCommit = commitRepository
+        .findByDatasetAndId(DATASET_NAME, new CommitId(newHeadId))
+        .orElseThrow(() -> new AssertionError("New head commit not found in repository"));
+    assertThat(finalCommit.message()).isEqualTo("Feature commit D");
+    assertThat(finalCommit.author()).isEqualTo("Bob");
+    assertThat(finalCommit.parents()).hasSize(1);
+    assertThat(finalCommit.parents().get(0).value()).isEqualTo(firstRebasedCommitId);
+
+    // Verify the first rebased commit (C') exists and has correct parent
+    Commit firstRebasedCommit = commitRepository
+        .findByDatasetAndId(DATASET_NAME, new CommitId(firstRebasedCommitId))
+        .orElseThrow(() -> new AssertionError("First rebased commit not found in repository"));
+    assertThat(firstRebasedCommit.message()).isEqualTo("Feature commit C");
+    assertThat(firstRebasedCommit.author()).isEqualTo("Bob");
+    assertThat(firstRebasedCommit.parents()).hasSize(1);
+    assertThat(firstRebasedCommit.parents().get(0).value())
+        .isEqualTo(commitEId.value())
+        .describedAs("First rebased commit should have E as parent (the 'onto' commit)");
+
+    // Verify patches were preserved
+    RDFPatch rebasedPatchC = commitRepository
+        .findPatchByDatasetAndId(DATASET_NAME, new CommitId(firstRebasedCommitId))
+        .orElseThrow(() -> new AssertionError("Patch for C' not found"));
+    assertThat(rebasedPatchC).isNotNull();
+
+    RDFPatch rebasedPatchD = commitRepository
+        .findPatchByDatasetAndId(DATASET_NAME, new CommitId(secondRebasedCommitId))
+        .orElseThrow(() -> new AssertionError("Patch for D' not found"));
+    assertThat(rebasedPatchD).isNotNull();
+
+    // Verify old commits still exist (rebase creates new commits, doesn't delete old ones)
+    assertThat(commitRepository.findByDatasetAndId(DATASET_NAME, commitCId)).isPresent();
+    assertThat(commitRepository.findByDatasetAndId(DATASET_NAME, commitDId)).isPresent();
   }
 
   @Test

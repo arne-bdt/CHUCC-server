@@ -13,48 +13,95 @@ You may add additional tests after implementing a feature to increase coverage.
 
 **Test Quality Guidelines - Avoiding Superficial Tests:**
 
-Integration tests MUST verify actual behavior, not just API contracts. A test is superficial if it would still pass when the business logic is commented out.
+**IMPORTANT: This project uses CQRS with Event Sourcing and asynchronous event projectors.**
+- Commands create events immediately
+- Events are published to Kafka
+- Event projectors update read models **asynchronously**
+- HTTP responses return **before** repositories are updated
 
-**Red Flags (these indicate superficial tests):**
-- Only checks HTTP status codes and response JSON structure
-- Doesn't query repositories to verify state changes
-- Verifies counts (`rebasedCount == 2`) but not correctness (commit parents, graph structure)
-- Majority of tests are validation tests (400/404), with only 1-2 happy path tests
+**Integration Test Types:**
 
-**Required Assertions for Integration Tests:**
-1. **State Verification**: After operation, query repository and verify domain objects were created/modified correctly
-2. **Business Logic Verification**: Check that algorithms produced correct results (e.g., commit graph structure, parent relationships)
-3. **Data Preservation**: Verify data was transformed/copied correctly (messages, authors, patches)
-4. **Invariants**: Check that system invariants hold (e.g., "rebase creates new commits, doesn't delete old ones")
-
-**Example - Good Integration Test Structure:**
+**1. API Layer Integration Tests** (most common)
+Tests that verify HTTP API behavior with commands/events:
 ```java
 @Test
-void operation_shouldVerifyActualBehavior() {
-    // Arrange: Setup test data in repositories
+void operation_shouldReturnCorrectResponse() {
+    // Arrange: Setup test data
 
-    // Act: Make HTTP request
+    // Act: Make HTTP request (creates event, returns immediately)
     ResponseEntity<String> response = restTemplate.exchange(...);
 
-    // Assert: Verify API response
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    // Assert: Verify synchronous API response
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getHeaders().getFirst("Location")).isNotNull();
     JsonNode json = objectMapper.readTree(response.getBody());
+    assertThat(json.get("id").asText()).isNotNull();
 
-    // ✅ CRITICAL: Verify actual state changes in repositories
-    Entity entity = repository.findById(json.get("id").asText()).orElseThrow();
-    assertThat(entity.getProperty()).isEqualTo(expectedValue);
-
-    // ✅ CRITICAL: Verify business logic correctness
-    assertThat(entity.getParent().getId()).isEqualTo(expectedParentId);
-
-    // ✅ CRITICAL: Verify invariants
-    assertThat(oldEntity.stillExists()).isTrue();
+    // ⚠️ DO NOT query repositories here - they're updated asynchronously!
+    // Note: Repository updates handled by event projectors (see ReadModelProjectorIT)
 }
 ```
 
-**Self-Test Question**: "Would this test pass if I commented out the business logic and just returned mock data?"
-- If YES → Test is superficial, needs enhancement
-- If NO → Test is good, verifies actual behavior
+**2. Full System Integration Tests** (for async verification)
+Tests that verify the complete CQRS flow including event projection:
+```java
+@Test
+void operation_shouldEventuallyUpdateRepository() {
+    // Arrange: Setup test data
+
+    // Act: Make HTTP request
+    ResponseEntity<String> response = restTemplate.exchange(...);
+    JsonNode json = objectMapper.readTree(response.getBody());
+    String id = json.get("id").asText();
+
+    // Assert: Wait for async event processing
+    await().atMost(Duration.ofSeconds(5))
+        .until(() -> repository.findById(id).isPresent());
+
+    // ✅ NOW verify repository state (after async processing)
+    Entity entity = repository.findById(id).orElseThrow();
+    assertThat(entity.getProperty()).isEqualTo(expectedValue);
+    assertThat(entity.getParent().getId()).isEqualTo(expectedParentId);
+}
+```
+*Requires awaitility library for `await()` functionality*
+
+**3. Event Projector Integration Tests** (verify async processing)
+See existing examples: `ReadModelProjectorIT`, `EventPublisherKafkaIT`
+
+**Red Flags for API Layer Tests:**
+- ❌ Querying repositories immediately after HTTP request (will see stale state!)
+- ❌ Not acknowledging async architecture in comments
+- ✅ GOOD: Testing API contract (status, headers, response format)
+- ✅ GOOD: Adding comment: "Repository updates handled by event projectors"
+
+**Red Flags for Full System Tests:**
+- Only checks HTTP status codes without waiting for async processing
+- Verifies counts but not correctness after async updates
+- Majority of tests are validation tests (400/404), with only 1-2 happy path tests
+
+**Self-Test Questions:**
+1. "Am I testing the API layer or the full system?"
+   - API layer → Test synchronous response only
+   - Full system → Use `await()` for async verification
+
+2. "Would this test be flaky due to async timing?"
+   - If YES → Add proper async waiting or move assertions to projector tests
+   - If NO → Good, correctly scoped
+
+**Exception: Synchronous Operations**
+Some operations may update repositories synchronously (not via events):
+```java
+@Test
+void synchronousOperation_shouldUpdateImmediately() {
+    // Act
+    ResponseEntity<String> response = restTemplate.exchange(...);
+
+    // Assert: Can verify repository immediately for synchronous operations
+    assertThat(repository.findById(id)).isPresent();
+}
+```
+Example: Tag operations in `TagOperationsIntegrationTest`
 
 This project uses Checkstyle and SpotBugs for static code analysis.
 

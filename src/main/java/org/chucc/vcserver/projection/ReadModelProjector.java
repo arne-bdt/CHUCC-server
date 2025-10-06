@@ -11,6 +11,7 @@ import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.BranchCreatedEvent;
 import org.chucc.vcserver.event.BranchResetEvent;
+import org.chucc.vcserver.event.CherryPickedEvent;
 import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.event.RevertCreatedEvent;
 import org.chucc.vcserver.event.SnapshotCreatedEvent;
@@ -83,6 +84,7 @@ public class ReadModelProjector {
         case TagCreatedEvent e -> handleTagCreated(e);
         case RevertCreatedEvent e -> handleRevertCreated(e);
         case SnapshotCreatedEvent e -> handleSnapshotCreated(e);
+        case CherryPickedEvent e -> handleCherryPicked(e);
       }
 
       logger.info("Successfully projected event: {} for dataset: {}",
@@ -238,6 +240,56 @@ public class ReadModelProjector {
     // For now, we just log that a snapshot was created
     logger.info("Snapshot created for branch: {} at commit: {} in dataset: {}",
         event.branchName(), event.commitId(), event.dataset());
+  }
+
+  /**
+   * Handles CherryPickedEvent by saving the cherry-picked commit.
+   *
+   * @param event the cherry-picked event
+   */
+  void handleCherryPicked(CherryPickedEvent event) {
+    logger.debug("Processing CherryPickedEvent: newCommitId={}, sourceCommitId={}, "
+            + "branch={}, dataset={}",
+        event.newCommitId(), event.sourceCommitId(), event.branch(), event.dataset());
+
+    // Parse RDF Patch from string
+    ByteArrayInputStream inputStream = new ByteArrayInputStream(
+        event.rdfPatch().getBytes(StandardCharsets.UTF_8));
+    RDFPatch patch = RDFPatchOps.read(inputStream);
+
+    // Get the target branch to determine the parent commit
+    Branch targetBranch = branchRepository.findByDatasetAndName(
+        event.dataset(),
+        event.branch())
+        .orElseThrow(() -> new IllegalArgumentException(
+            "Cannot cherry-pick to non-existent branch: " + event.branch()));
+
+    // Create Commit domain object for cherry-picked commit
+    // The parent is the current HEAD of the target branch
+    Commit commit = new Commit(
+        CommitId.of(event.newCommitId()),
+        java.util.List.of(targetBranch.getCommitId()),
+        event.author(),
+        event.message(),
+        event.timestamp()
+    );
+
+    // Save cherry-picked commit and patch
+    commitRepository.save(event.dataset(), commit, patch);
+
+    // Update the target branch to point to the new commit
+    branchRepository.updateBranchHead(
+        event.dataset(),
+        event.branch(),
+        CommitId.of(event.newCommitId())
+    );
+
+    logger.debug("Saved cherry-picked commit: {} from source {} on branch {} in dataset: {}",
+        commit.id(), event.sourceCommitId(), event.branch(), event.dataset());
+
+    // Trigger snapshot check after branch update
+    snapshotService.recordCommit(event.dataset(), event.branch(),
+        CommitId.of(event.newCommitId()));
   }
 
   /**

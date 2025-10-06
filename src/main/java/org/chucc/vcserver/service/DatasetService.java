@@ -198,6 +198,20 @@ public class DatasetService {
   }
 
   /**
+   * Materializes a dataset graph at a specific commit.
+   * This creates a snapshot of the dataset state at the given commit by applying
+   * all patches in the commit history.
+   *
+   * @param datasetName the dataset name
+   * @param commitId the commit ID to materialize
+   * @return the dataset graph at the specified commit
+   * @throws IllegalArgumentException if the commit is not found
+   */
+  public DatasetGraph materializeCommit(String datasetName, CommitId commitId) {
+    return getOrCreateDatasetGraph(datasetName, commitId);
+  }
+
+  /**
    * Clears the dataset cache for a specific dataset.
    *
    * @param datasetName the dataset name

@@ -14,6 +14,7 @@ import org.chucc.vcserver.event.BranchRebasedEvent;
 import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CherryPickedEvent;
 import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.event.CommitsSquashedEvent;
 import org.chucc.vcserver.event.RevertCreatedEvent;
 import org.chucc.vcserver.event.SnapshotCreatedEvent;
 import org.chucc.vcserver.event.TagCreatedEvent;
@@ -87,6 +88,7 @@ public class ReadModelProjector {
         case RevertCreatedEvent e -> handleRevertCreated(e);
         case SnapshotCreatedEvent e -> handleSnapshotCreated(e);
         case CherryPickedEvent e -> handleCherryPicked(e);
+        case CommitsSquashedEvent e -> handleCommitsSquashed(e);
       }
 
       logger.info("Successfully projected event: {} for dataset: {}",
@@ -323,6 +325,34 @@ public class ReadModelProjector {
 
     logger.debug("Saved cherry-picked commit: {} from source {} on branch {} in dataset: {}",
         commit.id(), event.sourceCommitId(), event.branch(), event.dataset());
+
+    // Trigger snapshot check after branch update
+    snapshotService.recordCommit(event.dataset(), event.branch(),
+        CommitId.of(event.newCommitId()));
+  }
+
+  /**
+   * Handles CommitsSquashedEvent by updating the branch head.
+   * Note: The squashed commit is created by the command handler.
+   *
+   * @param event the commits squashed event
+   */
+  void handleCommitsSquashed(CommitsSquashedEvent event) {
+    logger.debug("Processing CommitsSquashedEvent: branch={}, previousHead={}, newCommitId={}, "
+            + "squashedCount={}, dataset={}",
+        event.branch(), event.previousHead(), event.newCommitId(),
+        event.squashedCommitIds().size(), event.dataset());
+
+    // Update branch to point to squashed commit
+    branchRepository.updateBranchHead(
+        event.dataset(),
+        event.branch(),
+        CommitId.of(event.newCommitId())
+    );
+
+    logger.debug("Squashed {} commits on branch: {} from {} to {} in dataset: {}",
+        event.squashedCommitIds().size(), event.branch(), event.previousHead(),
+        event.newCommitId(), event.dataset());
 
     // Trigger snapshot check after branch update
     snapshotService.recordCommit(event.dataset(), event.branch(),

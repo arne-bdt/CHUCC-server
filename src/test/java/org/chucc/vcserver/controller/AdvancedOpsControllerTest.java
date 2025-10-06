@@ -46,6 +46,9 @@ class AdvancedOpsControllerTest {
   @MockitoBean
   private RebaseCommandHandler rebaseCommandHandler;
 
+  @MockitoBean
+  private org.chucc.vcserver.command.SquashCommandHandler squashCommandHandler;
+
   private static final String DATASET_NAME = "test-dataset";
   private static final String BRANCH_NAME = "main";
   private static final String OLD_COMMIT_ID = "01936c7f-8a2e-7890-abcd-ef1234567890";

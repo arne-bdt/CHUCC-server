@@ -15,6 +15,8 @@ import org.chucc.vcserver.command.ResetBranchCommand;
 import org.chucc.vcserver.command.ResetBranchCommandHandler;
 import org.chucc.vcserver.command.RevertCommitCommand;
 import org.chucc.vcserver.command.RevertCommitCommandHandler;
+import org.chucc.vcserver.command.SquashCommand;
+import org.chucc.vcserver.command.SquashCommandHandler;
 import org.chucc.vcserver.dto.CherryPickRequest;
 import org.chucc.vcserver.dto.CherryPickResponse;
 import org.chucc.vcserver.dto.ProblemDetail;
@@ -24,9 +26,12 @@ import org.chucc.vcserver.dto.ResetRequest;
 import org.chucc.vcserver.dto.ResetResponse;
 import org.chucc.vcserver.dto.RevertRequest;
 import org.chucc.vcserver.dto.RevertResponse;
+import org.chucc.vcserver.dto.SquashRequest;
+import org.chucc.vcserver.dto.SquashResponse;
 import org.chucc.vcserver.event.BranchRebasedEvent;
 import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CherryPickedEvent;
+import org.chucc.vcserver.event.CommitsSquashedEvent;
 import org.chucc.vcserver.event.RevertCreatedEvent;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -53,6 +58,7 @@ public class AdvancedOpsController {
   private final CherryPickCommandHandler cherryPickCommandHandler;
   private final RevertCommitCommandHandler revertCommitCommandHandler;
   private final RebaseCommandHandler rebaseCommandHandler;
+  private final SquashCommandHandler squashCommandHandler;
 
   /**
    * Constructs an AdvancedOpsController.
@@ -61,16 +67,19 @@ public class AdvancedOpsController {
    * @param cherryPickCommandHandler the command handler for cherry-picking commits
    * @param revertCommitCommandHandler the command handler for reverting commits
    * @param rebaseCommandHandler the command handler for rebasing branches
+   * @param squashCommandHandler the command handler for squashing commits
    */
   public AdvancedOpsController(
       ResetBranchCommandHandler resetBranchCommandHandler,
       CherryPickCommandHandler cherryPickCommandHandler,
       RevertCommitCommandHandler revertCommitCommandHandler,
-      RebaseCommandHandler rebaseCommandHandler) {
+      RebaseCommandHandler rebaseCommandHandler,
+      SquashCommandHandler squashCommandHandler) {
     this.resetBranchCommandHandler = resetBranchCommandHandler;
     this.cherryPickCommandHandler = cherryPickCommandHandler;
     this.revertCommitCommandHandler = revertCommitCommandHandler;
     this.rebaseCommandHandler = rebaseCommandHandler;
+    this.squashCommandHandler = squashCommandHandler;
   }
 
   /**
@@ -510,6 +519,104 @@ public class AdvancedOpsController {
               e.getMessage(),
               404,
               "NOT_FOUND"));
+    }
+  }
+
+  /**
+   * Squash multiple commits into a single commit.
+   *
+   * @param request the squash request containing commits to squash and new message
+   * @param dataset the dataset name (default: "default")
+   * @return the squash response with new commit details
+   */
+  @PostMapping(
+      value = "/squash",
+      consumes = MediaType.APPLICATION_JSON_VALUE,
+      produces = MediaType.APPLICATION_JSON_VALUE
+  )
+  @Operation(
+      summary = "Squash commits",
+      description = "Combine multiple contiguous commits into a single commit"
+  )
+  @ApiResponse(
+      responseCode = "200",
+      description = "Commits squashed successfully",
+      headers = @Header(
+          name = "ETag",
+          description = "New commit ID",
+          schema = @Schema(type = "string")
+      ),
+      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request (commits not contiguous or fewer than 2)",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "404",
+      description = "Branch or commit not found",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  public ResponseEntity<?> squashCommits(
+      @RequestBody SquashRequest request,
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset
+  ) {
+    // Validate request
+    try {
+      request.validate();
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              e.getMessage(),
+              400,
+              "INVALID_REQUEST"));
+    }
+
+    // Create command
+    SquashCommand command = new SquashCommand(
+        dataset,
+        request.getBranch(),
+        request.getCommits(),
+        request.getMessage(),
+        request.getAuthor()
+    );
+
+    // Handle command
+    try {
+      CommitsSquashedEvent event = (CommitsSquashedEvent) squashCommandHandler.handle(command);
+
+      // Build response
+      SquashResponse response = new SquashResponse(
+          event.branch(),
+          event.newCommitId(),
+          event.squashedCommitIds(),
+          event.previousHead()
+      );
+
+      return ResponseEntity
+          .ok()
+          .eTag("\"" + event.newCommitId() + "\"")
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(response);
+    } catch (IllegalArgumentException e) {
+      // Branch or commit not found
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              e.getMessage(),
+              404,
+              "NOT_FOUND"));
+    } catch (UnsupportedOperationException e) {
+      // Squashing non-HEAD commits
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              e.getMessage(),
+              400,
+              "UNSUPPORTED_OPERATION"));
     }
   }
 }

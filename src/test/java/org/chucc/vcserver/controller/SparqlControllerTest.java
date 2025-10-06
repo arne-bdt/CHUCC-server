@@ -9,7 +9,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -124,5 +126,36 @@ class SparqlControllerTest {
         .andExpect(header().string("SPARQL-VC-Level", "1"))
         .andExpect(header().doesNotExist(HttpHeaders.ACCEPT_PATCH))
         .andExpect(header().string("SPARQL-VC-Features", "commits, branches, history"));
+  }
+
+  @Test
+  void postEndpoint_acceptsMessageHeader() throws Exception {
+    // When & Then: SPARQL-VC-Message header is accepted
+    mockMvc.perform(post("/sparql")
+            .contentType("application/sparql-update")
+            .header("SPARQL-VC-Message", "Test commit message")
+            .header("SPARQL-VC-Author", "test@example.org")
+            .content("INSERT DATA { <http://example.org/s> <http://example.org/p> \"o\" }"))
+        .andExpect(status().isNotImplemented());
+  }
+
+  @Test
+  void postEndpoint_acceptsAuthorHeader() throws Exception {
+    // When & Then: SPARQL-VC-Author header is accepted
+    mockMvc.perform(post("/sparql")
+            .contentType("application/sparql-update")
+            .header("SPARQL-VC-Author", "alice@example.org")
+            .header("SPARQL-VC-Message", "Test message")
+            .content("INSERT DATA { <http://example.org/s> <http://example.org/p> \"o\" }"))
+        .andExpect(status().isNotImplemented());
+  }
+
+  @Test
+  void getEndpoint_acceptsVcCommitHeader() throws Exception {
+    // When & Then: SPARQL-VC-Commit header is accepted
+    mockMvc.perform(get("/sparql")
+            .param("query", "SELECT * WHERE { ?s ?p ?o }")
+            .header("SPARQL-VC-Commit", "01936f7e-1234-7890-abcd-ef0123456789"))
+        .andExpect(status().isNotImplemented());
   }
 }

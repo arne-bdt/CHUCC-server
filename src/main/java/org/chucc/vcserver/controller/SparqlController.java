@@ -51,6 +51,7 @@ public class SparqlController {
    * @param branch target branch
    * @param commit target commit
    * @param asOf timestamp for time-travel query
+   * @param vcCommit commit ID for read consistency (header)
    * @return query results (501 stub)
    */
   @GetMapping(produces = {
@@ -96,7 +97,9 @@ public class SparqlController {
       @Parameter(description = "Target commit for query (read-only)")
       @RequestParam(required = false) String commit,
       @Parameter(description = "Query branch state at or before this timestamp (ISO8601)")
-      @RequestParam(required = false) String asOf
+      @RequestParam(required = false) String asOf,
+      @Parameter(description = "Commit ID for read consistency")
+      @RequestHeader(name = "SPARQL-VC-Commit", required = false) String vcCommit
   ) {
     // Validate selector mutual exclusion per §4
     SelectorValidator.validateMutualExclusion(branch, commit, asOf);
@@ -110,9 +113,8 @@ public class SparqlController {
    * Execute a SPARQL query or update via HTTP POST.
    *
    * @param body request body (query or update)
-   * @param vcBranch target branch header
-   * @param commitMessage commit message header
-   * @param commitAuthor commit author header
+   * @param message commit message header
+   * @param author commit author header
    * @param contentType content type header
    * @return query results or update confirmation (501 stub)
    */
@@ -184,12 +186,10 @@ public class SparqlController {
   )
   public ResponseEntity<String> executeSparqlPost(
       @RequestBody String body,
-      @Parameter(description = "Target branch for update operations")
-      @RequestHeader(name = "SPARQL-VC-Branch", required = false) String vcBranch,
-      @Parameter(description = "Commit message (required for updates)")
-      @RequestHeader(name = "SPARQL-VC-Commit-Message", required = false) String commitMessage,
-      @Parameter(description = "Commit author (required for updates)")
-      @RequestHeader(name = "SPARQL-VC-Commit-Author", required = false) String commitAuthor,
+      @Parameter(description = "Commit message (SHOULD provide for updates)")
+      @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
+      @Parameter(description = "Commit author (SHOULD provide for updates)")
+      @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
       @RequestHeader(name = "Content-Type", required = false) String contentType
   ) {
     return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)

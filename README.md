@@ -55,8 +55,8 @@ curl -X GET "http://localhost:3030/sparql?query=SELECT+*+WHERE+{+?s+?p+?o+}+LIMI
 # Create a commit on main branch
 curl -X POST http://localhost:3030/sparql \
   -H "Content-Type: application/sparql-update" \
-  -H "SPARQL-VC-Commit-Message: Add new person" \
-  -H "SPARQL-VC-Commit-Author: alice@example.org" \
+  -H "SPARQL-VC-Message: Add new person" \
+  -H "SPARQL-VC-Author: alice@example.org" \
   --data-binary @- <<'EOF'
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 INSERT DATA {
@@ -83,11 +83,10 @@ curl -X POST http://localhost:3030/version/branches \
   -d '{"name": "feature-x", "from": "main"}'
 
 # Update on feature branch
-curl -X POST http://localhost:3030/sparql \
+curl -X POST http://localhost:3030/sparql?branch=feature-x \
   -H "Content-Type: application/sparql-update" \
-  -H "SPARQL-VC-Branch: feature-x" \
-  -H "SPARQL-VC-Commit-Message: Experimental change" \
-  -H "SPARQL-VC-Commit-Author: bob@example.org" \
+  -H "SPARQL-VC-Message: Experimental change" \
+  -H "SPARQL-VC-Author: bob@example.org" \
   --data-binary "INSERT DATA { ... }"
 
 # Merge back to main

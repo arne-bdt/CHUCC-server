@@ -51,6 +51,7 @@ paths:
         - $ref: '#/components/parameters/BranchParam'
         - $ref: '#/components/parameters/CommitParam'
         - $ref: '#/components/parameters/AsOfParam'
+        - $ref: '#/components/parameters/VcCommitHeader'
       responses:
         '200':
           description: Query results
@@ -89,9 +90,8 @@ paths:
       tags:
         - SPARQL Protocol
       parameters:
-        - $ref: '#/components/parameters/BranchHeader'
-        - $ref: '#/components/parameters/CommitMessageHeader'
-        - $ref: '#/components/parameters/CommitAuthorHeader'
+        - $ref: '#/components/parameters/MessageHeader'
+        - $ref: '#/components/parameters/AuthorHeader'
       requestBody:
         required: true
         content:
@@ -511,30 +511,31 @@ components:
     # =========================================================================
     # Version Control Headers
     # =========================================================================
-    BranchHeader:
-      name: SPARQL-VC-Branch
+    MessageHeader:
+      name: SPARQL-VC-Message
       in: header
-      description: Target branch for update operations
-      schema:
-        $ref: '#/components/schemas/BranchName'
-
-    CommitMessageHeader:
-      name: SPARQL-VC-Commit-Message
-      in: header
-      description: Commit message (required for update operations)
+      description: Commit message (SHOULD provide for update operations)
       required: false
       schema:
         type: string
         example: "Update person data"
 
-    CommitAuthorHeader:
-      name: SPARQL-VC-Commit-Author
+    AuthorHeader:
+      name: SPARQL-VC-Author
       in: header
-      description: Commit author (required for update operations)
+      description: Commit author (SHOULD provide for update operations)
       required: false
       schema:
         type: string
         example: "alice@example.org"
+
+    VcCommitHeader:
+      name: SPARQL-VC-Commit
+      in: header
+      description: Commit ID for read consistency (servers MUST support)
+      required: false
+      schema:
+        $ref: '#/components/schemas/CommitId'
 
     # =========================================================================
     # Common Parameters

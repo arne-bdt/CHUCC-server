@@ -196,4 +196,93 @@ class CreateCommitCommandHandlerTest {
       assertEquals(true, e.getMessage().contains("Conflict detected"));
     }
   }
+
+  @Test
+  void shouldReturnNull_whenPatchIsNoOp() {
+    // Given
+    Branch mainBranch = new Branch(BRANCH_NAME, PARENT_COMMIT_ID);
+    Commit parentCommit = new Commit(
+        PARENT_COMMIT_ID,
+        java.util.List.of(),
+        "System",
+        "Initial commit",
+        java.time.Instant.now());
+
+    when(branchRepository.findByDatasetAndName(DATASET_NAME, BRANCH_NAME))
+        .thenReturn(Optional.of(mainBranch));
+    when(commitRepository.findByDatasetAndId(DATASET_NAME, PARENT_COMMIT_ID))
+        .thenReturn(Optional.of(parentCommit));
+    when(commitRepository.findPatchByDatasetAndId(DATASET_NAME, PARENT_COMMIT_ID))
+        .thenReturn(Optional.of(RDFPatchOps.emptyPatch()));
+
+    // Create a dataset with existing data
+    Dataset parentDataset = DatasetFactory.createGeneral();
+    parentDataset.getDefaultModel().add(
+        parentDataset.getDefaultModel().createResource("http://example.org/s"),
+        parentDataset.getDefaultModel().createProperty("http://example.org/p"),
+        "existing-value");
+    when(datasetService.getDataset(any())).thenReturn(parentDataset);
+
+    // Create a patch that adds the same triple that already exists (no-op)
+    String noOpPatchContent =
+        "TX .\nA <http://example.org/s> <http://example.org/p> \"existing-value\" .\nTC .";
+
+    CreateCommitCommand command = new CreateCommitCommand(
+        DATASET_NAME,
+        BRANCH_NAME,
+        null,  // no SPARQL update
+        noOpPatchContent,  // no-op patch
+        "Try to add existing triple",
+        "Alice",
+        Map.of());
+
+    // When
+    VersionControlEvent event = handler.handle(command);
+
+    // Then
+    assertNull(event, "Handler should return null for no-op patch");
+  }
+
+  @Test
+  void shouldReturnNull_whenSparqlUpdateIsNoOp() {
+    // Given
+    Branch mainBranch = new Branch(BRANCH_NAME, PARENT_COMMIT_ID);
+    Commit parentCommit = new Commit(
+        PARENT_COMMIT_ID,
+        java.util.List.of(),
+        "System",
+        "Initial commit",
+        java.time.Instant.now());
+
+    when(branchRepository.findByDatasetAndName(DATASET_NAME, BRANCH_NAME))
+        .thenReturn(Optional.of(mainBranch));
+    when(commitRepository.findByDatasetAndId(DATASET_NAME, PARENT_COMMIT_ID))
+        .thenReturn(Optional.of(parentCommit));
+    when(commitRepository.findPatchByDatasetAndId(DATASET_NAME, PARENT_COMMIT_ID))
+        .thenReturn(Optional.of(RDFPatchOps.emptyPatch()));
+
+    // Create a dataset with existing data
+    Dataset parentDataset = DatasetFactory.createGeneral();
+    parentDataset.getDefaultModel().add(
+        parentDataset.getDefaultModel().createResource("http://example.org/s"),
+        parentDataset.getDefaultModel().createProperty("http://example.org/p"),
+        "existing-value");
+    when(datasetService.getDataset(any())).thenReturn(parentDataset);
+
+    // SPARQL update that inserts the same data that already exists
+    CreateCommitCommand command = new CreateCommitCommand(
+        DATASET_NAME,
+        BRANCH_NAME,
+        "INSERT DATA { <http://example.org/s> <http://example.org/p> \"existing-value\" . }",
+        null,  // no patch
+        "Try to add existing triple",
+        "Alice",
+        Map.of());
+
+    // When
+    VersionControlEvent event = handler.handle(command);
+
+    // Then
+    assertNull(event, "Handler should return null for no-op SPARQL update");
+  }
 }

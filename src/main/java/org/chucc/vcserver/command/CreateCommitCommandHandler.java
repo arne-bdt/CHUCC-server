@@ -90,8 +90,10 @@ public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCo
           command.sparqlUpdate());
     }
 
-    // Check for no-op patch
-    if (isNoOpPatch(newPatch, command.dataset(), parentCommitId)) {
+    // Check for no-op patch (per §7: no-op patch MUST NOT create commit)
+    Dataset parentDataset = datasetService.getDataset(
+        new org.chucc.vcserver.domain.DatasetRef(command.dataset(), parentCommitId.value()));
+    if (RdfPatchUtil.isNoOp(newPatch, parentDataset.asDatasetGraph())) {
       return null; // Indicates no-op
     }
 
@@ -175,46 +177,6 @@ public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCo
       throw new IllegalArgumentException(
           "Invalid RDF Patch syntax: " + e.getMessage(), e);
     }
-  }
-
-  /**
-   * Checks if a patch is a no-op (applies cleanly but yields no dataset change).
-   * Per SPARQL 1.2 Protocol §7: A no-op patch MUST NOT create a commit.
-   *
-   * @param patch the RDF Patch to check
-   * @param datasetName the dataset name
-   * @param parentCommitId the parent commit ID
-   * @return true if the patch is a no-op
-   */
-  private boolean isNoOpPatch(RDFPatch patch, String datasetName, CommitId parentCommitId) {
-    // Get the parent dataset state
-    Dataset parentDataset = datasetService.getDataset(
-        new org.chucc.vcserver.domain.DatasetRef(datasetName, parentCommitId.value()));
-
-    DatasetGraph beforeGraph = parentDataset.asDatasetGraph();
-
-    // Create a copy and apply the patch
-    DatasetGraph afterGraph = new DatasetGraphInMemory();
-    RDFPatchOps.applyChange(afterGraph, RdfPatchUtil.diff(
-        new DatasetGraphInMemory(), beforeGraph));
-
-    // Apply the patch to the copy
-    try {
-      RDFPatchOps.applyChange(afterGraph, patch);
-    } catch (Exception e) {
-      // If patch doesn't apply cleanly, it's not a no-op
-      throw new IllegalArgumentException(
-          "Patch does not apply cleanly: " + e.getMessage(), e);
-    }
-
-    // Compare before and after - if identical, it's a no-op
-    RDFPatch diffPatch = RdfPatchUtil.diff(beforeGraph, afterGraph);
-    // An empty patch means no changes
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    RDFPatchOps.write(baos, diffPatch);
-    String patchString = baos.toString(java.nio.charset.StandardCharsets.UTF_8);
-    // Empty patches only contain TX/TC markers
-    return "TX .\nTC .".equals(patchString.trim());
   }
 
   /**

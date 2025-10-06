@@ -1,0 +1,209 @@
+package org.chucc.vcserver.integration;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import org.chucc.vcserver.domain.Branch;
+import org.chucc.vcserver.domain.Commit;
+import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.repository.BranchRepository;
+import org.chucc.vcserver.repository.CommitRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.ActiveProfiles;
+
+/**
+ * Integration tests for no-op detection with SPARQL UPDATE operations.
+ * Per SPARQL 1.2 Protocol §7: A SPARQL UPDATE that results in a no-op patch
+ * MUST NOT create a new commit and should return 204 No Content.
+ *
+ * NOTE: These tests are currently disabled as the SPARQL UPDATE endpoint
+ * (POST /sparql with application/sparql-update) is not yet fully implemented.
+ * Enable these tests when SPARQL UPDATE support is added to SparqlController.
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("it")
+class SparqlUpdateNoOpIntegrationTest {
+
+  @Autowired
+  private TestRestTemplate restTemplate;
+
+  @Autowired
+  private BranchRepository branchRepository;
+
+  @Autowired
+  private CommitRepository commitRepository;
+
+  private static final String DATASET_NAME = "test-dataset";
+  private CommitId initialCommitId;
+
+  @BeforeEach
+  void setUp() {
+    // Clean up repositories before each test
+    branchRepository.deleteAllByDataset(DATASET_NAME);
+    commitRepository.deleteAllByDataset(DATASET_NAME);
+
+    // Create initial commit with some data
+    initialCommitId = CommitId.generate();
+    Commit initialCommit = new Commit(
+        initialCommitId,
+        java.util.List.of(),
+        "System",
+        "Initial commit",
+        java.time.Instant.now()
+    );
+
+    // Create a patch with initial data
+    String initialPatch = "TX .\n"
+        + "A <http://example.org/s1> <http://example.org/p1> \"value1\" .\n"
+        + "TC .";
+
+    commitRepository.save(DATASET_NAME, initialCommit,
+        org.apache.jena.rdfpatch.RDFPatchOps.read(
+            new java.io.ByteArrayInputStream(
+                initialPatch.getBytes(java.nio.charset.StandardCharsets.UTF_8))));
+
+    Branch mainBranch = new Branch("main", initialCommitId);
+    branchRepository.save(DATASET_NAME, mainBranch);
+  }
+
+  @Test
+  @Disabled("SPARQL UPDATE endpoint not yet implemented - enable when POST /sparql is ready")
+  void sparqlUpdate_shouldReturn204_whenInsertingExistingData() {
+    // Given: SPARQL UPDATE that inserts data that already exists
+    String sparqlUpdate = "INSERT DATA { "
+        + "<http://example.org/s1> <http://example.org/p1> \"value1\" . "
+        + "}";
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.parseMediaType("application/sparql-update"));
+    headers.set("SPARQL-VC-Author", "Alice");
+    headers.set("SPARQL-VC-Message", "Try to insert existing data");
+
+    HttpEntity<String> request = new HttpEntity<>(sparqlUpdate, headers);
+
+    // When
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/sparql?branch=main&dataset=" + DATASET_NAME,
+        HttpMethod.POST,
+        request,
+        String.class
+    );
+
+    // Then: should return 204 No Content (no-op)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+    // Verify no Location header (no new commit)
+    assertThat(response.getHeaders().getFirst("Location")).isNull();
+
+    // Verify branch HEAD is unchanged
+    Branch branch = branchRepository.findByDatasetAndName(DATASET_NAME, "main")
+        .orElseThrow();
+    assertThat(branch.getCommitId()).isEqualTo(initialCommitId);
+  }
+
+  @Test
+  @Disabled("SPARQL UPDATE endpoint not yet implemented - enable when POST /sparql is ready")
+  void sparqlUpdate_shouldReturn204_whenDeletingNonExistentData() {
+    // Given: SPARQL UPDATE that deletes data that doesn't exist
+    String sparqlUpdate = "DELETE DATA { "
+        + "<http://example.org/s99> <http://example.org/p99> \"non-existent\" . "
+        + "}";
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.parseMediaType("application/sparql-update"));
+    headers.set("SPARQL-VC-Author", "Bob");
+    headers.set("SPARQL-VC-Message", "Try to delete non-existent data");
+
+    HttpEntity<String> request = new HttpEntity<>(sparqlUpdate, headers);
+
+    // When
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/sparql?branch=main&dataset=" + DATASET_NAME,
+        HttpMethod.POST,
+        request,
+        String.class
+    );
+
+    // Then: should return 204 No Content (no-op)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+    // Verify branch HEAD is unchanged
+    Branch branch = branchRepository.findByDatasetAndName(DATASET_NAME, "main")
+        .orElseThrow();
+    assertThat(branch.getCommitId()).isEqualTo(initialCommitId);
+  }
+
+  @Test
+  @Disabled("SPARQL UPDATE endpoint not yet implemented - enable when POST /sparql is ready")
+  void sparqlUpdate_shouldReturn200_whenInsertingNewData() throws Exception {
+    // Given: SPARQL UPDATE that inserts new data (not a no-op)
+    String sparqlUpdate = "INSERT DATA { "
+        + "<http://example.org/s2> <http://example.org/p2> \"value2\" . "
+        + "}";
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.parseMediaType("application/sparql-update"));
+    headers.set("SPARQL-VC-Author", "Charlie");
+    headers.set("SPARQL-VC-Message", "Insert new data");
+
+    HttpEntity<String> request = new HttpEntity<>(sparqlUpdate, headers);
+
+    // When
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/sparql?branch=main&dataset=" + DATASET_NAME,
+        HttpMethod.POST,
+        request,
+        String.class
+    );
+
+    // Then: should return 200 OK or 201 Created (not a no-op)
+    assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+    assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.NO_CONTENT);
+
+    // Verify Location header exists (new commit created)
+    String location = response.getHeaders().getFirst("Location");
+    assertThat(location).isNotNull();
+
+    // Note: Branch update verification is handled by event projectors (async)
+  }
+
+  @Test
+  @Disabled("SPARQL UPDATE endpoint not yet implemented - enable when POST /sparql is ready")
+  void sparqlUpdate_shouldReturn204_whenWhereClauseMatchesNothing() {
+    // Given: SPARQL UPDATE with WHERE clause that matches nothing
+    String sparqlUpdate = "DELETE { ?s ?p ?o } "
+        + "WHERE { ?s ?p ?o . FILTER(?s = <http://example.org/non-existent>) }";
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.parseMediaType("application/sparql-update"));
+    headers.set("SPARQL-VC-Author", "Dave");
+    headers.set("SPARQL-VC-Message", "Conditional update with no matches");
+
+    HttpEntity<String> request = new HttpEntity<>(sparqlUpdate, headers);
+
+    // When
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/sparql?branch=main&dataset=" + DATASET_NAME,
+        HttpMethod.POST,
+        request,
+        String.class
+    );
+
+    // Then: should return 204 No Content (no-op)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+    // Verify branch HEAD is unchanged
+    Branch branch = branchRepository.findByDatasetAndName(DATASET_NAME, "main")
+        .orElseThrow();
+    assertThat(branch.getCommitId()).isEqualTo(initialCommitId);
+  }
+}

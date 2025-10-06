@@ -420,4 +420,145 @@ class RdfPatchUtilTest {
   private boolean containsAllTriples(Graph expected, Graph actual) {
     return expected.find().toList().stream().allMatch(actual::contains);
   }
+
+  // ===== No-Op Patch Detection Tests =====
+
+  @Test
+  void testIsNoOpWithEmptyPatch() {
+    // Create dataset with some data
+    DatasetGraph dataset = new DatasetGraphInMemory();
+    dataset.getDefaultGraph().add(createTriple("http://example.org/s",
+        "http://example.org/p", "http://example.org/o"));
+
+    // Create empty patch (no operations)
+    RDFPatch emptyPatch = RdfPatchUtil.diff(
+        GraphFactory.createDefaultGraph(),
+        GraphFactory.createDefaultGraph());
+
+    // Empty patch should be a no-op
+    assertTrue(RdfPatchUtil.isNoOp(emptyPatch, dataset),
+        "Empty patch should be a no-op");
+  }
+
+  @Test
+  void testIsNoOpWithAddExistingTriple() {
+    // Create dataset with existing data
+    DatasetGraph dataset = new DatasetGraphInMemory();
+    dataset.getDefaultGraph().add(createTriple("http://example.org/s",
+        "http://example.org/p", "http://example.org/o"));
+
+    // Create patch that adds the same triple
+    Graph sourceGraph = GraphFactory.createDefaultGraph();
+    Graph targetGraph = GraphFactory.createDefaultGraph();
+    targetGraph.add(createTriple("http://example.org/s",
+        "http://example.org/p", "http://example.org/o"));
+
+    RDFPatch patch = RdfPatchUtil.diff(sourceGraph, targetGraph);
+
+    // Adding existing triple should be a no-op
+    assertTrue(RdfPatchUtil.isNoOp(patch, dataset),
+        "Adding existing triple should be a no-op");
+  }
+
+  @Test
+  void testIsNoOpWithDeleteNonExistentTriple() {
+    // Create dataset with some data
+    DatasetGraph dataset = new DatasetGraphInMemory();
+    dataset.getDefaultGraph().add(createTriple("http://example.org/s1",
+        "http://example.org/p1", "http://example.org/o1"));
+
+    // Create patch that deletes a non-existent triple
+    Graph sourceGraph = GraphFactory.createDefaultGraph();
+    sourceGraph.add(createTriple("http://example.org/s2",
+        "http://example.org/p2", "http://example.org/o2"));
+    Graph targetGraph = GraphFactory.createDefaultGraph();
+
+    RDFPatch patch = RdfPatchUtil.diff(sourceGraph, targetGraph);
+
+    // Deleting non-existent triple should be a no-op
+    assertTrue(RdfPatchUtil.isNoOp(patch, dataset),
+        "Deleting non-existent triple should be a no-op");
+  }
+
+  @Test
+  void testIsNoOpWithSelfCancelingOperations() {
+    // Create dataset with some data
+    DatasetGraph dataset = new DatasetGraphInMemory();
+    dataset.getDefaultGraph().add(createTriple("http://example.org/s1",
+        "http://example.org/p1", "http://example.org/o1"));
+
+    // Create patch that adds and then deletes the same triple
+    // This is a self-canceling operation that results in no net change
+    Graph sourceGraph = GraphFactory.createDefaultGraph();
+    sourceGraph.add(createTriple("http://example.org/s1",
+        "http://example.org/p1", "http://example.org/o1"));
+
+    Graph targetGraph = GraphFactory.createDefaultGraph();
+    targetGraph.add(createTriple("http://example.org/s1",
+        "http://example.org/p1", "http://example.org/o1"));
+
+    RDFPatch patch = RdfPatchUtil.diff(sourceGraph, targetGraph);
+
+    // Self-canceling operations should be a no-op
+    assertTrue(RdfPatchUtil.isNoOp(patch, dataset),
+        "Self-canceling operations should be a no-op");
+  }
+
+  @Test
+  void testIsNoOpReturnsFalseForRealChanges() {
+    // Create dataset with some data
+    DatasetGraph dataset = new DatasetGraphInMemory();
+    dataset.getDefaultGraph().add(createTriple("http://example.org/s1",
+        "http://example.org/p1", "http://example.org/o1"));
+
+    // Create patch that adds a new triple
+    Graph sourceGraph = GraphFactory.createDefaultGraph();
+    Graph targetGraph = GraphFactory.createDefaultGraph();
+    targetGraph.add(createTriple("http://example.org/s2",
+        "http://example.org/p2", "http://example.org/o2"));
+
+    RDFPatch patch = RdfPatchUtil.diff(sourceGraph, targetGraph);
+
+    // Real change should NOT be a no-op
+    assertFalse(RdfPatchUtil.isNoOp(patch, dataset),
+        "Patch with real changes should not be a no-op");
+  }
+
+  @Test
+  void testIsNoOpReturnsFalseForDeletion() {
+    // Create dataset with some data
+    DatasetGraph dataset = new DatasetGraphInMemory();
+    dataset.getDefaultGraph().add(createTriple("http://example.org/s1",
+        "http://example.org/p1", "http://example.org/o1"));
+
+    // Create patch that deletes an existing triple
+    Graph sourceGraph = GraphFactory.createDefaultGraph();
+    sourceGraph.add(createTriple("http://example.org/s1",
+        "http://example.org/p1", "http://example.org/o1"));
+    Graph targetGraph = GraphFactory.createDefaultGraph();
+
+    RDFPatch patch = RdfPatchUtil.diff(sourceGraph, targetGraph);
+
+    // Real deletion should NOT be a no-op
+    assertFalse(RdfPatchUtil.isNoOp(patch, dataset),
+        "Patch that deletes existing triple should not be a no-op");
+  }
+
+  @Test
+  void testIsNoOpWithNullPatch() {
+    DatasetGraph dataset = new DatasetGraphInMemory();
+    assertThrows(IllegalArgumentException.class, () -> {
+      RdfPatchUtil.isNoOp(null, dataset);
+    });
+  }
+
+  @Test
+  void testIsNoOpWithNullDataset() {
+    RDFPatch patch = RdfPatchUtil.diff(
+        GraphFactory.createDefaultGraph(),
+        GraphFactory.createDefaultGraph());
+    assertThrows(IllegalArgumentException.class, () -> {
+      RdfPatchUtil.isNoOp(patch, null);
+    });
+  }
 }

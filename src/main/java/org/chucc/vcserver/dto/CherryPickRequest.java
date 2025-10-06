@@ -1,7 +1,5 @@
 package org.chucc.vcserver.dto;
 
-import java.util.Objects;
-
 /**
  * Request DTO for cherry-picking a commit to a branch.
  * Used by POST /version/cherry-pick endpoint per SPARQL 1.2 Protocol §3.4.

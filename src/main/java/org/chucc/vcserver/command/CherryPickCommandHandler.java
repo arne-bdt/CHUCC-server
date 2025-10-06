@@ -8,7 +8,6 @@ import java.util.List;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.chucc.vcserver.domain.Branch;
-import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.dto.ConflictItem;
 import org.chucc.vcserver.event.CherryPickedEvent;

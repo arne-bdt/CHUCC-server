@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import java.time.Instant;
 import org.chucc.vcserver.command.CherryPickCommandHandler;
+import org.chucc.vcserver.command.RebaseCommandHandler;
 import org.chucc.vcserver.command.ResetBranchCommand;
 import org.chucc.vcserver.command.ResetBranchCommandHandler;
 import org.chucc.vcserver.command.RevertCommitCommand;
@@ -41,6 +42,9 @@ class AdvancedOpsControllerTest {
 
   @MockitoBean
   private RevertCommitCommandHandler revertCommitCommandHandler;
+
+  @MockitoBean
+  private RebaseCommandHandler rebaseCommandHandler;
 
   private static final String DATASET_NAME = "test-dataset";
   private static final String BRANCH_NAME = "main";

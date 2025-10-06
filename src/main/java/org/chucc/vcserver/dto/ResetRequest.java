@@ -1,7 +1,5 @@
 package org.chucc.vcserver.dto;
 
-import java.util.Objects;
-
 /**
  * Request DTO for resetting a branch to a different commit.
  * Used by POST /version/reset endpoint per SPARQL 1.2 Protocol §3.4.

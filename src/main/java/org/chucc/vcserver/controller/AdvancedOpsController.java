@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.chucc.vcserver.command.CherryPickCommand;
 import org.chucc.vcserver.command.CherryPickCommandHandler;
+import org.chucc.vcserver.command.RebaseCommand;
+import org.chucc.vcserver.command.RebaseCommandHandler;
 import org.chucc.vcserver.command.ResetBranchCommand;
 import org.chucc.vcserver.command.ResetBranchCommandHandler;
 import org.chucc.vcserver.command.RevertCommitCommand;
@@ -16,10 +18,13 @@ import org.chucc.vcserver.command.RevertCommitCommandHandler;
 import org.chucc.vcserver.dto.CherryPickRequest;
 import org.chucc.vcserver.dto.CherryPickResponse;
 import org.chucc.vcserver.dto.ProblemDetail;
+import org.chucc.vcserver.dto.RebaseRequest;
+import org.chucc.vcserver.dto.RebaseResponse;
 import org.chucc.vcserver.dto.ResetRequest;
 import org.chucc.vcserver.dto.ResetResponse;
 import org.chucc.vcserver.dto.RevertRequest;
 import org.chucc.vcserver.dto.RevertResponse;
+import org.chucc.vcserver.event.BranchRebasedEvent;
 import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CherryPickedEvent;
 import org.chucc.vcserver.event.RevertCreatedEvent;
@@ -47,6 +52,7 @@ public class AdvancedOpsController {
   private final ResetBranchCommandHandler resetBranchCommandHandler;
   private final CherryPickCommandHandler cherryPickCommandHandler;
   private final RevertCommitCommandHandler revertCommitCommandHandler;
+  private final RebaseCommandHandler rebaseCommandHandler;
 
   /**
    * Constructs an AdvancedOpsController.
@@ -54,14 +60,17 @@ public class AdvancedOpsController {
    * @param resetBranchCommandHandler the command handler for resetting branches
    * @param cherryPickCommandHandler the command handler for cherry-picking commits
    * @param revertCommitCommandHandler the command handler for reverting commits
+   * @param rebaseCommandHandler the command handler for rebasing branches
    */
   public AdvancedOpsController(
       ResetBranchCommandHandler resetBranchCommandHandler,
       CherryPickCommandHandler cherryPickCommandHandler,
-      RevertCommitCommandHandler revertCommitCommandHandler) {
+      RevertCommitCommandHandler revertCommitCommandHandler,
+      RebaseCommandHandler rebaseCommandHandler) {
     this.resetBranchCommandHandler = resetBranchCommandHandler;
     this.cherryPickCommandHandler = cherryPickCommandHandler;
     this.revertCommitCommandHandler = revertCommitCommandHandler;
+    this.rebaseCommandHandler = rebaseCommandHandler;
   }
 
   /**
@@ -393,6 +402,108 @@ public class AdvancedOpsController {
           .body(response);
     } catch (IllegalArgumentException e) {
       // Commit or branch not found
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              e.getMessage(),
+              404,
+              "NOT_FOUND"));
+    }
+  }
+
+  /**
+   * Rebase a branch onto another reference.
+   *
+   * @param request the rebase request containing branch, onto ref, and from commit
+   * @param dataset the dataset name (default: "default")
+   * @param author the author of the rebase operation (from SPARQL-VC-Author header)
+   * @return the rebase response with new commit details
+   */
+  @PostMapping(
+      value = "/rebase",
+      consumes = MediaType.APPLICATION_JSON_VALUE,
+      produces = MediaType.APPLICATION_JSON_VALUE
+  )
+  @Operation(
+      summary = "Rebase branch",
+      description = "Reapply commits from one branch onto another"
+  )
+  @ApiResponse(
+      responseCode = "200",
+      description = "Branch rebased successfully",
+      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request (invalid request or missing author)",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "404",
+      description = "Branch or commit not found",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "409",
+      description = "Rebase conflict",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  public ResponseEntity<?> rebaseBranch(
+      @RequestBody RebaseRequest request,
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
+      @Parameter(description = "Author of the rebase operation")
+      @RequestHeader(name = "SPARQL-VC-Author", required = false) String author
+  ) {
+    // Validate request
+    try {
+      request.validate();
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              e.getMessage(),
+              400,
+              "INVALID_REQUEST"));
+    }
+
+    // Validate author header
+    if (author == null || author.isBlank()) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              "SPARQL-VC-Author header is required",
+              400,
+              "MISSING_AUTHOR"));
+    }
+
+    // Create command
+    RebaseCommand command = new RebaseCommand(
+        dataset,
+        request.getBranch(),
+        request.getOnto(),
+        request.getFrom(),
+        author
+    );
+
+    // Handle command
+    try {
+      BranchRebasedEvent event = (BranchRebasedEvent) rebaseCommandHandler.handle(command);
+
+      // Build response
+      RebaseResponse response = new RebaseResponse(
+          event.branch(),
+          event.newHead(),
+          event.newCommits(),
+          event.newCommits().size()
+      );
+
+      return ResponseEntity
+          .ok()
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(response);
+    } catch (IllegalArgumentException e) {
+      // Branch or commit not found
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(

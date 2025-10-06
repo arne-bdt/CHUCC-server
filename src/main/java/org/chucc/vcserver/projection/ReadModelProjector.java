@@ -10,6 +10,7 @@ import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.BranchCreatedEvent;
+import org.chucc.vcserver.event.BranchRebasedEvent;
 import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CherryPickedEvent;
 import org.chucc.vcserver.event.CommitCreatedEvent;
@@ -81,6 +82,7 @@ public class ReadModelProjector {
         case CommitCreatedEvent e -> handleCommitCreated(e);
         case BranchCreatedEvent e -> handleBranchCreated(e);
         case BranchResetEvent e -> handleBranchReset(e);
+        case BranchRebasedEvent e -> handleBranchRebased(e);
         case TagCreatedEvent e -> handleTagCreated(e);
         case RevertCreatedEvent e -> handleRevertCreated(e);
         case SnapshotCreatedEvent e -> handleSnapshotCreated(e);
@@ -170,6 +172,34 @@ public class ReadModelProjector {
     // Trigger snapshot check after branch update
     snapshotService.recordCommit(event.dataset(), event.branchName(),
         CommitId.of(event.toCommitId()));
+  }
+
+  /**
+   * Handles BranchRebasedEvent by updating the branch head.
+   * Note: The individual rebased commits are created via separate CommitCreatedEvents.
+   *
+   * @param event the branch rebased event
+   */
+  void handleBranchRebased(BranchRebasedEvent event) {
+    logger.debug("Processing BranchRebasedEvent: branch={}, previousHead={}, newHead={}, "
+            + "rebasedCount={}, dataset={}",
+        event.branch(), event.previousHead(), event.newHead(),
+        event.newCommits().size(), event.dataset());
+
+    // Update branch to point to final rebased commit
+    branchRepository.updateBranchHead(
+        event.dataset(),
+        event.branch(),
+        CommitId.of(event.newHead())
+    );
+
+    logger.debug("Rebased branch: {} from {} to {} ({} commits) in dataset: {}",
+        event.branch(), event.previousHead(), event.newHead(),
+        event.newCommits().size(), event.dataset());
+
+    // Trigger snapshot check after branch update
+    snapshotService.recordCommit(event.dataset(), event.branch(),
+        CommitId.of(event.newHead()));
   }
 
   /**

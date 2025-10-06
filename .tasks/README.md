@@ -67,6 +67,12 @@ For each task:
 6. Run `mvn clean install` (all tests)
 7. Verify everything passes
 
+## Quality Improvement Tasks
+
+Beyond the protocol implementation, these tasks improve code quality:
+
+- **Task 16**: `16-enhance-superficial-tests.md` - Review and enhance integration tests that verify API contracts but don't test actual business logic
+
 ## Notes
 
 - Tasks are designed to be independent where possible

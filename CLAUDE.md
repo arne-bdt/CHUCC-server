@@ -11,6 +11,51 @@ Prefer JUnit and Mockito for testing.
 Use a test-driven development (TDD) approach. Write unit tests and integration tests for each feature before implementing it.
 You may add additional tests after implementing a feature to increase coverage.
 
+**Test Quality Guidelines - Avoiding Superficial Tests:**
+
+Integration tests MUST verify actual behavior, not just API contracts. A test is superficial if it would still pass when the business logic is commented out.
+
+**Red Flags (these indicate superficial tests):**
+- Only checks HTTP status codes and response JSON structure
+- Doesn't query repositories to verify state changes
+- Verifies counts (`rebasedCount == 2`) but not correctness (commit parents, graph structure)
+- Majority of tests are validation tests (400/404), with only 1-2 happy path tests
+
+**Required Assertions for Integration Tests:**
+1. **State Verification**: After operation, query repository and verify domain objects were created/modified correctly
+2. **Business Logic Verification**: Check that algorithms produced correct results (e.g., commit graph structure, parent relationships)
+3. **Data Preservation**: Verify data was transformed/copied correctly (messages, authors, patches)
+4. **Invariants**: Check that system invariants hold (e.g., "rebase creates new commits, doesn't delete old ones")
+
+**Example - Good Integration Test Structure:**
+```java
+@Test
+void operation_shouldVerifyActualBehavior() {
+    // Arrange: Setup test data in repositories
+
+    // Act: Make HTTP request
+    ResponseEntity<String> response = restTemplate.exchange(...);
+
+    // Assert: Verify API response
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    JsonNode json = objectMapper.readTree(response.getBody());
+
+    // ✅ CRITICAL: Verify actual state changes in repositories
+    Entity entity = repository.findById(json.get("id").asText()).orElseThrow();
+    assertThat(entity.getProperty()).isEqualTo(expectedValue);
+
+    // ✅ CRITICAL: Verify business logic correctness
+    assertThat(entity.getParent().getId()).isEqualTo(expectedParentId);
+
+    // ✅ CRITICAL: Verify invariants
+    assertThat(oldEntity.stillExists()).isTrue();
+}
+```
+
+**Self-Test Question**: "Would this test pass if I commented out the business logic and just returned mock data?"
+- If YES → Test is superficial, needs enhancement
+- If NO → Test is good, verifies actual behavior
+
 This project uses Checkstyle and SpotBugs for static code analysis.
 
 **Checkstyle Rules:**

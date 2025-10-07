@@ -1,13 +1,11 @@
 package org.chucc.vcserver.command;
 
-import java.time.Instant;
-import java.util.List;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdfpatch.RDFPatch;
-import org.chucc.vcserver.domain.CommitId;
-import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
+import org.chucc.vcserver.service.ConflictDetectionService;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.GraphDiffService;
 import org.chucc.vcserver.service.PreconditionService;
@@ -28,6 +26,7 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
   private final RdfParsingService rdfParsingService;
   private final GraphDiffService graphDiffService;
   private final PreconditionService preconditionService;
+  private final ConflictDetectionService conflictDetectionService;
 
   /**
    * Constructs a PutGraphCommandHandler.
@@ -37,6 +36,7 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
    * @param rdfParsingService the RDF parsing service
    * @param graphDiffService the graph diff service
    * @param preconditionService the precondition service
+   * @param conflictDetectionService the conflict detection service
    */
   @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
@@ -47,18 +47,20 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
       DatasetService datasetService,
       RdfParsingService rdfParsingService,
       GraphDiffService graphDiffService,
-      PreconditionService preconditionService) {
+      PreconditionService preconditionService,
+      ConflictDetectionService conflictDetectionService) {
     this.branchRepository = branchRepository;
     this.datasetService = datasetService;
     this.rdfParsingService = rdfParsingService;
     this.graphDiffService = graphDiffService;
     this.preconditionService = preconditionService;
+    this.conflictDetectionService = conflictDetectionService;
   }
 
   @Override
   public VersionControlEvent handle(PutGraphCommand command) {
-    // Validate branch exists
-    branchRepository
+    // Validate branch exists and get current head
+    Branch branch = branchRepository
         .findByDatasetAndName(command.dataset(), command.branch())
         .orElseThrow(() -> new IllegalArgumentException(
             "Branch not found: " + command.branch()
@@ -93,26 +95,16 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
         command.isDefaultGraph() ? null : command.graphIri()
     );
 
-    // Check for no-op (per SPARQL 1.2 Protocol: empty patch MUST NOT create commit)
-    if (graphDiffService.isPatchEmpty(patch)) {
-      return null; // Indicates no-op
-    }
-
-    // Generate commit ID
-    CommitId commitId = CommitId.generate();
-
-    // Serialize patch to string
-    String patchString = GraphCommandUtil.serializePatch(patch);
-
-    // Produce event
-    return new CommitCreatedEvent(
+    // Finalize command (check for no-op, conflicts, and create commit event)
+    return GraphCommandUtil.finalizeGraphCommand(
         command.dataset(),
-        commitId.value(),
-        List.of(command.baseCommit().value()),
+        patch,
+        graphDiffService,
+        conflictDetectionService,
+        branch.getCommitId(),
+        command.baseCommit(),
         command.message(),
-        command.author(),
-        Instant.now(),
-        patchString
+        command.author()
     );
   }
 }

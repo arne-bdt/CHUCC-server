@@ -89,6 +89,39 @@ public class VcExceptionHandler {
   }
 
   /**
+   * Handle concurrent write conflict exceptions with detailed conflict information.
+   *
+   * @param ex the concurrent write conflict exception
+   * @return RFC 7807 problem+json response with conflict details
+   */
+  @ExceptionHandler(ConcurrentWriteConflictException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<?> handleConcurrentWriteConflict(
+      ConcurrentWriteConflictException ex) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+
+    // If conflicts are present, return ConflictProblemDetail
+    if (!ex.getConflicts().isEmpty()) {
+      ConflictProblemDetail problem = new ConflictProblemDetail(
+          ex.getMessage(),
+          ex.getStatus(),
+          ex.getCode(),
+          ex.getConflicts()
+      );
+      return new ResponseEntity<>(problem, headers, HttpStatus.valueOf(ex.getStatus()));
+    }
+
+    // Otherwise, return simple ProblemDetail
+    ProblemDetail problem = new ProblemDetail(
+        ex.getMessage(),
+        ex.getStatus(),
+        ex.getCode()
+    );
+    return new ResponseEntity<>(problem, headers, HttpStatus.valueOf(ex.getStatus()));
+  }
+
+  /**
    * Handle all VcException instances.
    *
    * @param ex the version control exception

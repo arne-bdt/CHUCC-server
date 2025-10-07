@@ -1,12 +1,18 @@
 package org.chucc.vcserver.util;
 
 import java.io.ByteArrayOutputStream;
+import java.time.Instant;
+import java.util.List;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.event.VersionControlEvent;
+import org.chucc.vcserver.service.ConflictDetectionService;
 import org.chucc.vcserver.service.DatasetService;
+import org.chucc.vcserver.service.GraphDiffService;
 
 /**
  * Utility methods for graph command handlers.
@@ -53,5 +59,56 @@ public final class GraphCommandUtil {
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     RDFPatchOps.write(outputStream, patch);
     return outputStream.toString(java.nio.charset.StandardCharsets.UTF_8);
+  }
+
+  /**
+   * Finalizes a graph command by checking for conflicts and creating a commit event.
+   * Returns null if the patch is empty (no-op).
+   *
+   * @param dataset the dataset name
+   * @param patch the RDF patch
+   * @param graphDiffService the graph diff service
+   * @param conflictDetectionService the conflict detection service
+   * @param currentHead the current branch head commit ID
+   * @param baseCommit the base commit ID
+   * @param message the commit message
+   * @param author the commit author
+   * @return the commit created event, or null if no-op
+   */
+  public static VersionControlEvent finalizeGraphCommand(
+      String dataset,
+      RDFPatch patch,
+      GraphDiffService graphDiffService,
+      ConflictDetectionService conflictDetectionService,
+      CommitId currentHead,
+      CommitId baseCommit,
+      String message,
+      String author) {
+
+    // Check for no-op (per SPARQL 1.2 Protocol: empty patch MUST NOT create commit)
+    if (graphDiffService.isPatchEmpty(patch)) {
+      return null; // Indicates no-op
+    }
+
+    // Check for concurrent writes
+    conflictDetectionService.checkForConcurrentWrites(dataset, currentHead,
+        baseCommit, patch);
+
+    // Generate commit ID
+    CommitId commitId = CommitId.generate();
+
+    // Serialize patch to string
+    String patchString = serializePatch(patch);
+
+    // Produce event
+    return new CommitCreatedEvent(
+        dataset,
+        commitId.value(),
+        List.of(baseCommit.value()),
+        message,
+        author,
+        Instant.now(),
+        patchString
+    );
   }
 }

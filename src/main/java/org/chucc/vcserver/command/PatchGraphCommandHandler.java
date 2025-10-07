@@ -4,10 +4,12 @@ import java.time.Instant;
 import java.util.List;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdfpatch.RDFPatch;
+import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
+import org.chucc.vcserver.service.ConflictDetectionService;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.GraphDiffService;
 import org.chucc.vcserver.service.PreconditionService;
@@ -29,6 +31,7 @@ public class PatchGraphCommandHandler implements CommandHandler<PatchGraphComman
   private final RdfPatchService rdfPatchService;
   private final GraphDiffService graphDiffService;
   private final PreconditionService preconditionService;
+  private final ConflictDetectionService conflictDetectionService;
 
   /**
    * Constructs a PatchGraphCommandHandler.
@@ -38,6 +41,7 @@ public class PatchGraphCommandHandler implements CommandHandler<PatchGraphComman
    * @param rdfPatchService the RDF patch service
    * @param graphDiffService the graph diff service
    * @param preconditionService the precondition service
+   * @param conflictDetectionService the conflict detection service
    */
   @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
@@ -48,18 +52,20 @@ public class PatchGraphCommandHandler implements CommandHandler<PatchGraphComman
       DatasetService datasetService,
       RdfPatchService rdfPatchService,
       GraphDiffService graphDiffService,
-      PreconditionService preconditionService) {
+      PreconditionService preconditionService,
+      ConflictDetectionService conflictDetectionService) {
     this.branchRepository = branchRepository;
     this.datasetService = datasetService;
     this.rdfPatchService = rdfPatchService;
     this.graphDiffService = graphDiffService;
     this.preconditionService = preconditionService;
+    this.conflictDetectionService = conflictDetectionService;
   }
 
   @Override
   public VersionControlEvent handle(PatchGraphCommand command) {
-    // Validate branch exists
-    branchRepository
+    // Validate branch exists and get current head
+    Branch branch = branchRepository
         .findByDatasetAndName(command.dataset(), command.branch())
         .orElseThrow(() -> new IllegalArgumentException(
             "Branch not found: " + command.branch()
@@ -101,6 +107,10 @@ public class PatchGraphCommandHandler implements CommandHandler<PatchGraphComman
     if (graphDiffService.isPatchEmpty(filteredPatch)) {
       return null; // Indicates no-op
     }
+
+    // Check for concurrent writes
+    conflictDetectionService.checkForConcurrentWrites(command.dataset(), branch.getCommitId(),
+        command.baseCommit(), filteredPatch);
 
     // Generate commit ID
     CommitId commitId = CommitId.generate();

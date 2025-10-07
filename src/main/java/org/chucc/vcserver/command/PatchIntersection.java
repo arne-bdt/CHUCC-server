@@ -1,9 +1,12 @@
 package org.chucc.vcserver.command;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.apache.jena.graph.Node;
 import org.apache.jena.rdfpatch.RDFPatch;
+import org.chucc.vcserver.dto.ConflictItem;
 
 /**
  * Utility for detecting conflicts via patch intersection.
@@ -42,6 +45,34 @@ public final class PatchIntersection {
     }
 
     return false;
+  }
+
+  /**
+   * Detects conflicts between two RDF patches and returns detailed conflict information.
+   * Conflicts occur when both patches modify the same quads (graph, subject, predicate, object).
+   *
+   * @param patch1 the first patch
+   * @param patch2 the second patch
+   * @return list of conflict items describing the overlapping changes
+   */
+  public static List<ConflictItem> detectConflicts(RDFPatch patch1, RDFPatch patch2) {
+    if (patch1 == null || patch2 == null) {
+      return new ArrayList<>();
+    }
+
+    Set<QuadKey> patch1Affected = extractAffectedQuads(patch1);
+    Set<QuadKey> patch2Affected = extractAffectedQuads(patch2);
+
+    List<ConflictItem> conflicts = new ArrayList<>();
+
+    // Find intersection
+    for (QuadKey key : patch1Affected) {
+      if (patch2Affected.contains(key)) {
+        conflicts.add(quadKeyToConflictItem(key));
+      }
+    }
+
+    return conflicts;
   }
 
   /**
@@ -111,6 +142,60 @@ public final class PatchIntersection {
     });
 
     return affected;
+  }
+
+  /**
+   * Converts a QuadKey to a ConflictItem.
+   *
+   * @param key the quad key
+   * @return the conflict item
+   */
+  private static ConflictItem quadKeyToConflictItem(QuadKey key) {
+    String graph = nodeToString(key.g());
+    String subject = nodeToString(key.s());
+    String predicate = nodeToString(key.p());
+    String object = nodeToString(key.o());
+
+    return new ConflictItem(
+        graph,
+        subject,
+        predicate,
+        object,
+        "Overlapping modification"
+    );
+  }
+
+  /**
+   * Converts a Jena Node to a string representation.
+   *
+   * @param node the node
+   * @return the string representation
+   */
+  private static String nodeToString(Node node) {
+    if (node == null) {
+      return "urn:x-arq:DefaultGraph"; // Default graph representation
+    }
+    if (node.isURI()) {
+      return node.getURI();
+    }
+    if (node.isLiteral()) {
+      // Format literal with quotes and optional language/datatype
+      String lexical = node.getLiteralLexicalForm();
+      String lang = node.getLiteralLanguage();
+      String datatype = node.getLiteralDatatypeURI();
+
+      if (lang != null && !lang.isEmpty()) {
+        return "\"" + lexical + "\"@" + lang;
+      } else if (datatype != null && !datatype.isEmpty()) {
+        return "\"" + lexical + "\"^^<" + datatype + ">";
+      } else {
+        return "\"" + lexical + "\"";
+      }
+    }
+    if (node.isBlank()) {
+      return "_:" + node.getBlankNodeLabel();
+    }
+    return node.toString();
   }
 
   /**

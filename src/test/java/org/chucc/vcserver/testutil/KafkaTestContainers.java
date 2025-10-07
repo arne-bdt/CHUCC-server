@@ -15,7 +15,7 @@ public final class KafkaTestContainers {
   private static final Properties TEST_PROPERTIES = loadTestProperties();
   private static final String KAFKA_IMAGE = TEST_PROPERTIES.getProperty(
       "testcontainers.kafka.image",
-      "apache/kafka:3.9.1" // fallback default
+      "apache/kafka-native:4.1.0" // fallback default - native image for faster tests
   );
   private static final boolean KAFKA_REUSE = Boolean.parseBoolean(
       TEST_PROPERTIES.getProperty("testcontainers.kafka.reuse", "false")

@@ -16,7 +16,8 @@ Test configuration is externalized in `src/test/resources/test.properties`:
 
 ```properties
 # Testcontainers Configuration
-testcontainers.kafka.image=apache/kafka:3.9.1
+# Using native image for faster startup and lower memory footprint
+testcontainers.kafka.image=apache/kafka-native:4.1.0
 testcontainers.kafka.reuse=false
 
 # Test Data Configuration
@@ -155,10 +156,11 @@ static void kafkaProperties(DynamicPropertyRegistry registry) {
 ```
 
 **Benefits:**
-- Consistent Kafka version across all tests
+- Consistent Kafka version across all tests (using native image 4.1.0)
 - Configuration loaded from `test.properties`
 - Easy updates (just change properties file)
 - Proper error handling with fallback defaults
+- Native image provides faster startup and lower memory footprint for tests
 
 **Methods:**
 - `createKafkaContainer()` - Standard container
@@ -216,6 +218,33 @@ static final KafkaContainer kafka =
 @Container
 static final KafkaContainer kafka =
     KafkaTestContainers.createKafkaContainerNoReuse();
+```
+
+### Why Native Kafka Image?
+
+The native Kafka image (`apache/kafka-native:4.1.0`) provides significant benefits for integration tests:
+
+**Performance Benefits:**
+- **Faster startup**: Native compilation eliminates JVM warmup time
+- **Lower memory footprint**: Reduced overhead compared to JVM-based images
+- **Consistent performance**: No JIT compilation delays during tests
+
+**Compatibility:**
+- Fully compatible with Testcontainers
+- Same Kafka APIs and protocols as standard image
+- KRaft mode support (no ZooKeeper required)
+
+**When to use standard vs native:**
+- **Native (recommended for tests)**: Fast startup, lower resource usage
+- **Standard**: Only if you need JVM-specific features or debugging
+
+To switch between images, simply update `test.properties`:
+```properties
+# For native image (recommended)
+testcontainers.kafka.image=apache/kafka-native:4.1.0
+
+# For standard JVM image
+testcontainers.kafka.image=apache/kafka:4.1.0
 ```
 
 ## Best Practices

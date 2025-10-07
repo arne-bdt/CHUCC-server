@@ -1,5 +1,6 @@
 package org.chucc.vcserver.controller;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;
@@ -7,6 +8,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.chucc.vcserver.config.VersionControlProperties;
+import org.chucc.vcserver.dto.ProblemDetail;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +25,21 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/version")
 @Tag(name = "Version Control", description = "History and diff operations")
 public class HistoryController {
+
+  private final VersionControlProperties vcProperties;
+
+  /**
+   * Constructs a HistoryController.
+   *
+   * @param vcProperties the version control configuration properties
+   */
+  @SuppressFBWarnings(
+      value = "EI_EXPOSE_REP2",
+      justification = "VersionControlProperties is a Spring-managed singleton bean"
+  )
+  public HistoryController(VersionControlProperties vcProperties) {
+    this.vcProperties = vcProperties;
+  }
 
   /**
    * List commit history with filters and pagination.
@@ -80,7 +98,12 @@ public class HistoryController {
    * @return changeset (501 stub)
    */
   @GetMapping(value = "/diff", produces = "text/rdf-patch")
-  @Operation(summary = "Diff two commits", description = "Get changeset between two commits")
+  @Operation(
+      summary = "Diff two commits",
+      description = "Get changeset between two commits. "
+          + "⚠️ EXTENSION: This endpoint is not part of the official "
+          + "SPARQL 1.2 Protocol specification."
+  )
   @ApiResponse(
       responseCode = "200",
       description = "Changeset between from→to",
@@ -102,6 +125,16 @@ public class HistoryController {
       @Parameter(description = "To commit id (UUIDv7)", required = true)
       @RequestParam String to
   ) {
+    if (!vcProperties.isDiffEnabled()) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              "Diff endpoint is disabled",
+              404,
+              "NOT_FOUND"
+          ).toString());
+    }
+
     return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
         .contentType(MediaType.APPLICATION_PROBLEM_JSON)
         .body("{\"title\":\"Not Implemented\",\"status\":501}");
@@ -116,7 +149,9 @@ public class HistoryController {
   @GetMapping(value = "/blame", produces = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
       summary = "Last-writer attribution",
-      description = "Get last-writer attribution for a resource"
+      description = "Get last-writer attribution for a resource. "
+          + "⚠️ EXTENSION: This endpoint is not part of the official "
+          + "SPARQL 1.2 Protocol specification."
   )
   @ApiResponse(
       responseCode = "200",
@@ -137,6 +172,16 @@ public class HistoryController {
       @Parameter(description = "Subject IRI", required = true)
       @RequestParam String subject
   ) {
+    if (!vcProperties.isBlameEnabled()) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              "Blame endpoint is disabled",
+              404,
+              "NOT_FOUND"
+          ).toString());
+    }
+
     return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
         .contentType(MediaType.APPLICATION_PROBLEM_JSON)
         .body("{\"title\":\"Not Implemented\",\"status\":501}");

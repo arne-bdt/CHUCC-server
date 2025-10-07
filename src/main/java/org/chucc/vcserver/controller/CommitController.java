@@ -258,38 +258,4 @@ public class CommitController {
         .body("{\"title\":\"Not Implemented\",\"status\":501}");
   }
 
-  /**
-   * Get materialized changeset for a commit.
-   *
-   * @param id commit id
-   * @return changeset in RDF Patch format (501 stub)
-   */
-  @GetMapping(value = "/{id}/changes", produces = "text/rdf-patch")
-  @Operation(
-      summary = "Get materialized changeset",
-      description = "Retrieve the changeset for a commit in RDF Patch format"
-  )
-  @ApiResponse(
-      responseCode = "200",
-      description = "Changeset",
-      content = @Content(mediaType = "text/rdf-patch")
-  )
-  @ApiResponse(
-      responseCode = "404",
-      description = "Commit not found",
-      content = @Content(mediaType = "application/problem+json")
-  )
-  @ApiResponse(
-      responseCode = "501",
-      description = "Not Implemented",
-      content = @Content(mediaType = "application/problem+json")
-  )
-  public ResponseEntity<String> getCommitChanges(
-      @Parameter(description = "Commit id (UUIDv7)", required = true)
-      @PathVariable String id
-  ) {
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-        .body("{\"title\":\"Not Implemented\",\"status\":501}");
-  }
 }

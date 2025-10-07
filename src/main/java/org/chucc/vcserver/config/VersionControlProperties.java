@@ -95,6 +95,12 @@ public class VersionControlProperties {
   private boolean blameEnabled = true;
 
   /**
+   * Whether to enable diff endpoint (extension).
+   * This is not part of the official SPARQL 1.2 Protocol specification.
+   */
+  private boolean diffEnabled = true;
+
+  /**
    * Whether to enable automatic snapshot creation.
    */
   private boolean snapshotsEnabled = true;
@@ -223,6 +229,24 @@ public class VersionControlProperties {
 
   public void setBlameEnabled(boolean blameEnabled) {
     this.blameEnabled = blameEnabled;
+  }
+
+  /**
+   * Checks if diff endpoint is enabled.
+   *
+   * @return true if diff endpoint is enabled
+   */
+  public boolean isDiffEnabled() {
+    return diffEnabled;
+  }
+
+  /**
+   * Sets whether diff endpoint is enabled.
+   *
+   * @param diffEnabled true to enable diff endpoint
+   */
+  public void setDiffEnabled(boolean diffEnabled) {
+    this.diffEnabled = diffEnabled;
   }
 
   /**

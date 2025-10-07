@@ -66,11 +66,12 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
             "Branch not found: " + command.branch()
                 + " in dataset: " + command.dataset()));
 
-    // Check HTTP precondition (If-Match header) - returns 412 if mismatch
+    // Check HTTP precondition (If-Match header) against graph-level ETag - returns 412 if mismatch
     // Per protocol: "advisory fast-fail mechanism"
-    preconditionService.checkIfMatch(
+    preconditionService.checkIfMatchForGraph(
         command.dataset(),
         command.branch(),
+        command.graphIri(),
         command.ifMatchEtag()
     );
 

@@ -249,6 +249,113 @@ public class DatasetService {
   }
 
   /**
+   * Finds the last commit that modified a specific graph.
+   * Walks commit history backwards to find the most recent commit
+   * that contains changes to the specified graph.
+   *
+   * @param datasetName the dataset name
+   * @param startCommit the commit to start searching from (typically branch HEAD)
+   * @param graphIri the graph IRI to search for (null for default graph)
+   * @return the commit ID that last modified the graph, or the initial commit if never modified
+   */
+  public CommitId findLastModifyingCommit(
+      String datasetName, CommitId startCommit, String graphIri) {
+    // Walk backwards from startCommit
+    CommitId currentCommitId = startCommit;
+
+    while (currentCommitId != null) {
+      // Get the patch for this commit
+      java.util.Optional<RDFPatch> patchOpt =
+          commitRepository.findPatchByDatasetAndId(datasetName, currentCommitId);
+
+      if (patchOpt.isPresent()) {
+        RDFPatch patch = patchOpt.get();
+
+        // Check if this patch modifies the target graph
+        if (patchModifiesGraph(patch, graphIri)) {
+          return currentCommitId;
+        }
+      }
+
+      // Move to parent commit
+      java.util.Optional<Commit> commitOpt =
+          commitRepository.findByDatasetAndId(datasetName, currentCommitId);
+
+      if (commitOpt.isEmpty() || commitOpt.get().parents().isEmpty()) {
+        // Reached initial commit or no parent found
+        break;
+      }
+
+      // Follow first parent (mainline history)
+      currentCommitId = commitOpt.get().parents().get(0);
+    }
+
+    // If no modifying commit found, return the start commit
+    // (graph was never modified, so ETag is the current commit)
+    return startCommit;
+  }
+
+  /**
+   * Checks if an RDF Patch modifies a specific graph.
+   *
+   * @param patch the RDF patch to inspect
+   * @param graphIri the graph IRI to check (null for default graph)
+   * @return true if the patch contains operations on the specified graph
+   */
+  private boolean patchModifiesGraph(RDFPatch patch, String graphIri) {
+    // Use a collector to check if any operations target the graph
+    class GraphModificationChecker
+        extends org.apache.jena.rdfpatch.changes.RDFChangesWrapper {
+      private boolean modified = false;
+
+      GraphModificationChecker() {
+        super(new org.apache.jena.rdfpatch.changes.RDFChangesCollector());
+      }
+
+      private boolean graphMatches(org.apache.jena.graph.Node g) {
+        // Check if g represents the default graph
+        boolean isDefaultGraphNode = g == null
+            || g.equals(org.apache.jena.sparql.core.Quad.defaultGraphNodeGenerated)
+            || g.equals(org.apache.jena.sparql.core.Quad.defaultGraphIRI);
+
+        if (graphIri == null) {
+          // Checking default graph
+          return isDefaultGraphNode;
+        } else {
+          // Checking named graph
+          return isDefaultGraphNode || (g.isURI() && g.getURI().equals(graphIri));
+        }
+      }
+
+      @Override
+      public void add(org.apache.jena.graph.Node g, org.apache.jena.graph.Node s,
+          org.apache.jena.graph.Node p, org.apache.jena.graph.Node o) {
+        if (graphMatches(g)) {
+          modified = true;
+        }
+        super.add(g, s, p, o);
+      }
+
+      @Override
+      public void delete(org.apache.jena.graph.Node g, org.apache.jena.graph.Node s,
+          org.apache.jena.graph.Node p, org.apache.jena.graph.Node o) {
+        if (graphMatches(g)) {
+          modified = true;
+        }
+        super.delete(g, s, p, o);
+      }
+
+      public boolean isModified() {
+        return modified;
+      }
+    }
+
+    GraphModificationChecker checker = new GraphModificationChecker();
+    patch.apply(checker);
+    return checker.isModified();
+  }
+
+  /**
    * Clears the dataset cache for a specific dataset.
    *
    * @param datasetName the dataset name

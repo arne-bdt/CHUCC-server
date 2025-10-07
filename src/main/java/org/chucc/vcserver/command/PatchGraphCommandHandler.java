@@ -71,10 +71,11 @@ public class PatchGraphCommandHandler implements CommandHandler<PatchGraphComman
             "Branch not found: " + command.branch()
                 + " in dataset: " + command.dataset()));
 
-    // Check HTTP precondition (If-Match header) - returns 412 if mismatch
-    preconditionService.checkIfMatch(
+    // Check HTTP precondition (If-Match header) against graph-level ETag - returns 412 if mismatch
+    preconditionService.checkIfMatchForGraph(
         command.dataset(),
         command.branch(),
+        command.graphIri(),
         command.ifMatchEtag()
     );
 

@@ -23,12 +23,14 @@ import org.junit.jupiter.api.Test;
 class PreconditionServiceTest {
 
   private BranchRepository branchRepository;
+  private DatasetService datasetService;
   private PreconditionService preconditionService;
 
   @BeforeEach
   void setUp() {
     branchRepository = mock(BranchRepository.class);
-    preconditionService = new PreconditionService(branchRepository);
+    datasetService = mock(DatasetService.class);
+    preconditionService = new PreconditionService(branchRepository, datasetService);
   }
 
   @Test

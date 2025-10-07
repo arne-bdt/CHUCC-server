@@ -208,9 +208,13 @@ public class GraphStoreController {
     // Get the graph from the dataset (throws GraphNotFoundException if not found)
     org.apache.jena.rdf.model.Model model = getModelFromDataset(graph, isDefault, commitId);
 
+    // Compute graph-level ETag (last commit that modified this graph)
+    org.chucc.vcserver.domain.CommitId graphEtag =
+        datasetService.findLastModifyingCommit(DATASET_NAME, commitId, graph);
+
     // Build response headers
     HttpHeaders headers = buildResponseHeaders(
-        commitId,
+        graphEtag,
         serializationService.getContentType(
             org.apache.jena.riot.RDFLanguages.contentTypeToLang(accept))
     );
@@ -281,8 +285,12 @@ public class GraphStoreController {
     // Check graph existence (throws GraphNotFoundException if not found)
     getModelFromDataset(graph, isDefault, commitId);
 
+    // Compute graph-level ETag (last commit that modified this graph)
+    org.chucc.vcserver.domain.CommitId graphEtag =
+        datasetService.findLastModifyingCommit(DATASET_NAME, commitId, graph);
+
     // Build response headers (same as GET, but default to text/turtle for content-type)
-    HttpHeaders headers = buildResponseHeaders(commitId, "text/turtle");
+    HttpHeaders headers = buildResponseHeaders(graphEtag, "text/turtle");
 
     // Return headers with no body
     return ResponseEntity.ok().headers(headers).build();

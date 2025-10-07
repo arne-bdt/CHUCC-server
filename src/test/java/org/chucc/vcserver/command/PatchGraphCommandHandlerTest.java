@@ -371,7 +371,7 @@ class PatchGraphCommandHandlerTest {
         .thenReturn(Optional.of(branch));
     doThrow(new PreconditionFailedException(wrongEtag, currentHead.value()))
         .when(preconditionService)
-        .checkIfMatch("default", "main", wrongEtag);
+        .checkIfMatchForGraph("default", "main", "http://example.org/graph1", wrongEtag);
 
     // When/Then
     assertThatThrownBy(() -> handler.handle(command))

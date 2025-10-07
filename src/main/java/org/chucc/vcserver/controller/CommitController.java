@@ -38,18 +38,22 @@ public class CommitController {
 
   private final CreateCommitCommandHandler createCommitCommandHandler;
   private final PreconditionService preconditionService;
+  private final org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService;
 
   /**
    * Constructs a CommitController.
    *
    * @param createCommitCommandHandler the command handler for creating commits
    * @param preconditionService the service for checking If-Match preconditions
+   * @param selectorResolutionService the service for resolving selectors
    */
   public CommitController(
       CreateCommitCommandHandler createCommitCommandHandler,
-      PreconditionService preconditionService) {
+      PreconditionService preconditionService,
+      org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService) {
     this.createCommitCommandHandler = createCommitCommandHandler;
     this.preconditionService = preconditionService;
+    this.selectorResolutionService = selectorResolutionService;
   }
 
   /**
@@ -155,6 +159,22 @@ public class CommitController {
               "INVALID_SELECTOR_COMBINATION"));
     }
 
+    // asOf requires branch per spec §3.2
+    if (asOf != null && branch == null) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              "'asOf' selector requires 'branch' parameter",
+              400,
+              "INVALID_SELECTOR_COMBINATION"));
+    }
+
+    // Resolve selectors to base commit ID
+    org.chucc.vcserver.domain.CommitId baseCommitId = null;
+    if (asOf != null || commit != null) {
+      baseCommitId = selectorResolutionService.resolve(dataset, branch, commit, asOf);
+    }
+
     // Check If-Match precondition if branch selector is used
     if (branch != null && ifMatch != null) {
       preconditionService.checkIfMatch(dataset, branch, ifMatch);
@@ -168,6 +188,7 @@ public class CommitController {
     CreateCommitCommand command = new CreateCommitCommand(
         dataset,
         branch != null ? branch : "detached-" + commit,
+        baseCommitId != null ? baseCommitId.value() : null,
         null,  // sparqlUpdate
         patchBody,  // patch
         effectiveMessage,

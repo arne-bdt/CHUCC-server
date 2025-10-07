@@ -1,5 +1,7 @@
 package org.chucc.vcserver.repository;
 
+import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -89,5 +91,22 @@ public class CommitRepository {
   public void deleteAllByDataset(String datasetName) {
     datasetCommits.remove(datasetName);
     datasetPatches.remove(datasetName);
+  }
+
+  /**
+   * Finds the most recent commit at or before the given timestamp.
+   *
+   * @param datasetName the dataset name
+   * @param timestamp the timestamp threshold (inclusive)
+   * @return an Optional containing the most recent commit at or before the timestamp,
+   *     empty if no such commit exists
+   */
+  public Optional<Commit> findLatestBeforeTimestamp(String datasetName, Instant timestamp) {
+    return Optional.ofNullable(datasetCommits.get(datasetName))
+        .map(commits -> commits.values().stream()
+            .filter(commit -> !commit.timestamp().isAfter(timestamp))
+            .max(Comparator.comparing(Commit::timestamp))
+        )
+        .orElse(Optional.empty());
   }
 }

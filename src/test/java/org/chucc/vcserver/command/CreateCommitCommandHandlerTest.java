@@ -81,6 +81,7 @@ class CreateCommitCommandHandlerTest {
     CreateCommitCommand command = new CreateCommitCommand(
         DATASET_NAME,
         BRANCH_NAME,
+        null,  // no base commit override
         "INSERT DATA { <http://example.org/s> <http://example.org/p> \"value\" . }",
         null,  // no patch
         "Add new triple",
@@ -112,6 +113,7 @@ class CreateCommitCommandHandlerTest {
     CreateCommitCommand command = new CreateCommitCommand(
         DATASET_NAME,
         BRANCH_NAME,
+        null,  // no base commit override
         "INSERT DATA { <http://example.org/s> <http://example.org/p> \"value\" . }",
         null,  // no patch
         "Add new triple",
@@ -135,6 +137,7 @@ class CreateCommitCommandHandlerTest {
     CreateCommitCommand command = new CreateCommitCommand(
         DATASET_NAME,
         BRANCH_NAME,
+        null,  // no base commit override
         "INSERT DATA { <http://example.org/s> <http://example.org/p> \"value\" . }",
         null,  // no patch
         "Add new triple",
@@ -178,6 +181,7 @@ class CreateCommitCommandHandlerTest {
     CreateCommitCommand command = new CreateCommitCommand(
         DATASET_NAME,
         BRANCH_NAME,
+        null,  // no base commit override
         "DELETE { <http://example.org/s> <http://example.org/p> \"old\" . } "
             + "INSERT { <http://example.org/s> <http://example.org/p> \"new\" . } "
             + "WHERE { }",
@@ -230,6 +234,7 @@ class CreateCommitCommandHandlerTest {
     CreateCommitCommand command = new CreateCommitCommand(
         DATASET_NAME,
         BRANCH_NAME,
+        null,  // no base commit override
         null,  // no SPARQL update
         noOpPatchContent,  // no-op patch
         "Try to add existing triple",
@@ -273,6 +278,7 @@ class CreateCommitCommandHandlerTest {
     CreateCommitCommand command = new CreateCommitCommand(
         DATASET_NAME,
         BRANCH_NAME,
+        null,  // no base commit override
         "INSERT DATA { <http://example.org/s> <http://example.org/p> \"existing-value\" . }",
         null,  // no patch
         "Try to add existing triple",

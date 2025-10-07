@@ -63,7 +63,10 @@ public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCo
             "Branch not found: " + command.branchName()
                 + " in dataset: " + command.dataset()));
 
-    CommitId parentCommitId = branch.getCommitId();
+    // Use baseCommitId if provided (for asOf/commit selectors), otherwise use branch HEAD
+    CommitId parentCommitId = command.baseCommitId() != null
+        ? CommitId.of(command.baseCommitId())
+        : branch.getCommitId();
 
     // Validate parent commit exists
     Commit parentCommit = commitRepository

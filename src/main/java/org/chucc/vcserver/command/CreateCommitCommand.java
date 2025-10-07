@@ -9,6 +9,7 @@ import java.util.Objects;
  *
  * @param dataset the dataset name
  * @param branchName the branch to commit to
+ * @param baseCommitId optional base commit ID (overrides branch HEAD if provided)
  * @param sparqlUpdate the SPARQL UPDATE query representing the changes (nullable)
  * @param patch the RDF Patch content (nullable)
  * @param message the commit message
@@ -18,6 +19,7 @@ import java.util.Objects;
 public record CreateCommitCommand(
     String dataset,
     String branchName,
+    String baseCommitId,
     String sparqlUpdate,
     String patch,
     String message,

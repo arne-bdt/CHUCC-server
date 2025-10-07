@@ -104,6 +104,15 @@ public class SparqlController {
     // Validate selector mutual exclusion per §4
     SelectorValidator.validateMutualExclusion(branch, commit, asOf);
 
+    // TODO: When implementing SPARQL query execution:
+    // 1. Inject SelectorResolutionService
+    // 2. Resolve selectors to target commit:
+    //    CommitId targetCommit = selectorResolutionService.resolve(dataset, branch, commit, asOf);
+    // 3. Materialize dataset at that commit:
+    //    Dataset dataset = datasetService.materializeCommit(targetCommit);
+    // 4. Execute query against materialized dataset
+    // 5. Return results with ETag header containing commit ID
+
     return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
         .contentType(MediaType.APPLICATION_PROBLEM_JSON)
         .body("{\"title\":\"Not Implemented\",\"status\":501}");

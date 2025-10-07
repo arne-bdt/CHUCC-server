@@ -108,4 +108,25 @@ public class VcExceptionHandler {
 
     return new ResponseEntity<>(problem, headers, HttpStatus.valueOf(ex.getStatus()));
   }
+
+  /**
+   * Handle IllegalArgumentException (e.g., invalid timestamp format).
+   *
+   * @param ex the illegal argument exception
+   * @return RFC 7807 problem+json response with 400 Bad Request
+   */
+  @ExceptionHandler(IllegalArgumentException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<ProblemDetail> handleIllegalArgument(IllegalArgumentException ex) {
+    ProblemDetail problem = new ProblemDetail(
+        ex.getMessage(),
+        HttpStatus.BAD_REQUEST.value(),
+        "invalid_argument"
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+
+    return new ResponseEntity<>(problem, headers, HttpStatus.BAD_REQUEST);
+  }
 }

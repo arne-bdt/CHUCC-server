@@ -22,6 +22,7 @@ import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.exception.PreconditionFailedException;
 import org.chucc.vcserver.repository.BranchRepository;
+import org.chucc.vcserver.service.ConflictDetectionService;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.GraphDiffService;
 import org.chucc.vcserver.service.PreconditionService;
@@ -55,6 +56,9 @@ class PatchGraphCommandHandlerTest {
   @Mock
   private PreconditionService preconditionService;
 
+  @Mock
+  private ConflictDetectionService conflictDetectionService;
+
   private PatchGraphCommandHandler handler;
 
   @BeforeEach
@@ -64,7 +68,8 @@ class PatchGraphCommandHandlerTest {
         datasetService,
         rdfPatchService,
         graphDiffService,
-        preconditionService
+        preconditionService,
+        conflictDetectionService
     );
   }
 

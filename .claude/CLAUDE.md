@@ -171,6 +171,31 @@ mvn -q clean install
 - All quality gates enforced (checkstyle, spotbugs, pmd, jacoco)
 - **Success output is minimal (just "BUILD SUCCESS")**
 
+**CRITICAL: Verifying Build Success**
+
+⚠️ **ALWAYS verify build success by checking the output!** Do NOT assume a build succeeded just because the command completed.
+
+When using Bash tool with `cmd.exe /c "mvn..."`, output may be suppressed. Instead:
+1. Use `mvn` commands directly WITHOUT `cmd.exe /c` wrapper
+2. Always check the output for "BUILD SUCCESS" or "BUILD FAILURE"
+3. Look for test failure summaries in the output
+4. If output is empty or unclear, re-run without `-q` to see full details
+
+**Example of proper verification:**
+```bash
+# GOOD: Direct mvn command shows full output
+mvn -q clean install
+
+# BAD: cmd.exe /c may suppress output
+cmd.exe /c "mvn -q clean install"
+```
+
+After running a build command, always:
+- Check for "Tests run: X, Failures: Y" in output
+- Verify Y (failures) is 0
+- Confirm "BUILD SUCCESS" appears at the end
+- If uncertain, run `mvn test 2>&1 | tail -50` to see test summary
+
 **When Failures Occur:**
 If a build fails with `-q`, re-run the same command WITHOUT `-q` to see full details:
 ```bash

@@ -23,6 +23,7 @@ import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.exception.GraphNotFoundException;
 import org.chucc.vcserver.exception.PreconditionFailedException;
 import org.chucc.vcserver.repository.BranchRepository;
+import org.chucc.vcserver.service.ConflictDetectionService;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.GraphDiffService;
 import org.chucc.vcserver.service.PreconditionService;
@@ -50,6 +51,9 @@ class DeleteGraphCommandHandlerTest {
   @Mock
   private PreconditionService preconditionService;
 
+  @Mock
+  private ConflictDetectionService conflictDetectionService;
+
   private DeleteGraphCommandHandler handler;
 
   @BeforeEach
@@ -58,7 +62,8 @@ class DeleteGraphCommandHandlerTest {
         branchRepository,
         datasetService,
         graphDiffService,
-        preconditionService
+        preconditionService,
+        conflictDetectionService
     );
   }
 

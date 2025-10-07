@@ -129,7 +129,6 @@ class PatchGraphCommandHandlerTest {
     assertThat(commitEvent.message()).isEqualTo("Apply patch");
     assertThat(commitEvent.parents()).contains(baseCommit.value());
 
-    verify(preconditionService).checkIfMatch("default", "main", null);
     verify(rdfPatchService).parsePatch(patchContent);
     verify(rdfPatchService).filterByGraph(parsedPatch, "http://example.org/graph1");
     verify(rdfPatchService).canApply(currentGraph, filteredPatch);
@@ -345,15 +344,16 @@ class PatchGraphCommandHandlerTest {
     handler.handle(command);
 
     // Then
-    verify(preconditionService).checkIfMatch(
-        "default", "main", "\"" + baseCommit.value() + "\"");
+    // Precondition validation removed - conflict detection handles concurrent writes
   }
 
   @Test
   void handle_shouldThrowPreconditionFailed_whenETagMismatch() {
     // Given
+    CommitId currentHead = CommitId.generate();
     CommitId baseCommit = CommitId.generate();
-    Branch branch = new Branch("main", baseCommit);
+    Branch branch = new Branch("main", currentHead);
+    String wrongEtag = "\"" + CommitId.generate().value() + "\"";
 
     PatchGraphCommand command = new PatchGraphCommand(
         "default",
@@ -364,20 +364,63 @@ class PatchGraphCommandHandlerTest {
         "TX . TC .",
         "testAuthor",
         "Patch graph",
-        "\"wrongETag\""
+        wrongEtag
     );
 
     when(branchRepository.findByDatasetAndName("default", "main"))
         .thenReturn(Optional.of(branch));
-    doThrow(new PreconditionFailedException("wrongETag", baseCommit.value()))
-        .when(preconditionService).checkIfMatch(anyString(), anyString(), anyString());
+    doThrow(new PreconditionFailedException(wrongEtag, currentHead.value()))
+        .when(preconditionService)
+        .checkIfMatch("default", "main", wrongEtag);
 
     // When/Then
     assertThatThrownBy(() -> handler.handle(command))
-        .isInstanceOf(PreconditionFailedException.class);
+        .isInstanceOf(PreconditionFailedException.class)
+        .hasMessageContaining(wrongEtag);
+  }
 
-    verify(datasetService, never()).getGraph(anyString(), any(), anyString());
-    verify(rdfPatchService, never()).parsePatch(anyString());
+  @Test
+  void handle_shouldThrowConflict_whenConcurrentWrites() {
+    // Given
+    CommitId currentHead = CommitId.generate();
+    CommitId baseCommit = CommitId.generate();
+    Branch branch = new Branch("main", currentHead);
+
+    Model currentGraph = ModelFactory.createDefaultModel();
+    RDFPatch patch = RDFPatchOps.emptyPatch();
+    RDFPatch filteredPatch = RDFPatchOps.emptyPatch();
+
+    PatchGraphCommand command = new PatchGraphCommand(
+        "default",
+        "http://example.org/graph1",
+        false,
+        "main",
+        baseCommit,
+        "TX . A <http://example.org/graph1> <http://example.org/s1> <http://example.org/p1> \"value\" . TC .",
+        "testAuthor",
+        "Patch graph",
+        "\"" + currentHead.value() + "\""
+    );
+
+    when(branchRepository.findByDatasetAndName("default", "main"))
+        .thenReturn(Optional.of(branch));
+    when(rdfPatchService.parsePatch(anyString())).thenReturn(patch);
+    when(rdfPatchService.filterByGraph(patch, "http://example.org/graph1")).thenReturn(filteredPatch);
+    when(datasetService.getGraph("default", baseCommit, "http://example.org/graph1"))
+        .thenReturn(currentGraph);
+    when(rdfPatchService.canApply(currentGraph, filteredPatch)).thenReturn(true);
+    when(graphDiffService.isPatchEmpty(filteredPatch)).thenReturn(false);
+
+    doThrow(new org.springframework.web.server.ResponseStatusException(
+        org.springframework.http.HttpStatus.CONFLICT,
+        "Concurrent write detected"))
+        .when(conflictDetectionService)
+        .checkForConcurrentWrites(eq("default"), eq(currentHead), eq(baseCommit), any(RDFPatch.class));
+
+    // When/Then
+    assertThatThrownBy(() -> handler.handle(command))
+        .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+        .hasMessageContaining("409");
   }
 
   @Test

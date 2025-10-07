@@ -401,9 +401,19 @@ public class GraphStoreController {
     }
 
     // Resolve selector to base commit
+    // If If-Match is provided, use it as the base commit (for conflict detection)
+    // Otherwise, use current branch HEAD
     String effectiveBranch = (branch != null && !branch.isBlank()) ? branch : "main";
-    org.chucc.vcserver.domain.CommitId baseCommitId =
-        selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+    org.chucc.vcserver.domain.CommitId baseCommitId;
+
+    if (ifMatch != null && !ifMatch.isBlank()) {
+      // Parse If-Match to get client's base commit
+      String baseCommitStr = org.chucc.vcserver.util.EtagUtil.parseEtag(ifMatch);
+      baseCommitId = new org.chucc.vcserver.domain.CommitId(baseCommitStr);
+    } else {
+      // No If-Match provided, use current HEAD
+      baseCommitId = selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+    }
 
     // Set default values for author and message
     String effectiveAuthor = (author != null && !author.isBlank()) ? author : "anonymous";
@@ -561,9 +571,19 @@ public class GraphStoreController {
     }
 
     // Resolve selector to base commit
+    // If If-Match is provided, use it as the base commit (for conflict detection)
+    // Otherwise, use current branch HEAD
     String effectiveBranch = (branch != null && !branch.isBlank()) ? branch : "main";
-    org.chucc.vcserver.domain.CommitId baseCommitId =
-        selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+    org.chucc.vcserver.domain.CommitId baseCommitId;
+
+    if (ifMatch != null && !ifMatch.isBlank()) {
+      // Parse If-Match to get client's base commit
+      String baseCommitStr = org.chucc.vcserver.util.EtagUtil.parseEtag(ifMatch);
+      baseCommitId = new org.chucc.vcserver.domain.CommitId(baseCommitStr);
+    } else {
+      // No If-Match provided, use current HEAD
+      baseCommitId = selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+    }
 
     // Set default values for author and message
     String effectiveAuthor = (author != null && !author.isBlank()) ? author : "anonymous";
@@ -699,9 +719,19 @@ public class GraphStoreController {
     }
 
     // Resolve selector to base commit
+    // If If-Match is provided, use it as the base commit (for conflict detection)
+    // Otherwise, use current branch HEAD
     String effectiveBranch = (branch != null && !branch.isBlank()) ? branch : "main";
-    org.chucc.vcserver.domain.CommitId baseCommitId =
-        selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+    org.chucc.vcserver.domain.CommitId baseCommitId;
+
+    if (ifMatch != null && !ifMatch.isBlank()) {
+      // Parse If-Match to get client's base commit
+      String baseCommitStr = org.chucc.vcserver.util.EtagUtil.parseEtag(ifMatch);
+      baseCommitId = new org.chucc.vcserver.domain.CommitId(baseCommitStr);
+    } else {
+      // No If-Match provided, use current HEAD
+      baseCommitId = selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+    }
 
     // Set default values for author and message
     String effectiveAuthor = (author != null && !author.isBlank()) ? author : "anonymous";
@@ -851,9 +881,19 @@ public class GraphStoreController {
     }
 
     // Resolve selector to base commit
+    // If If-Match is provided, use it as the base commit (for conflict detection)
+    // Otherwise, use current branch HEAD
     String effectiveBranch = (branch != null && !branch.isBlank()) ? branch : "main";
-    org.chucc.vcserver.domain.CommitId baseCommitId =
-        selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+    org.chucc.vcserver.domain.CommitId baseCommitId;
+
+    if (ifMatch != null && !ifMatch.isBlank()) {
+      // Parse If-Match to get client's base commit
+      String baseCommitStr = org.chucc.vcserver.util.EtagUtil.parseEtag(ifMatch);
+      baseCommitId = new org.chucc.vcserver.domain.CommitId(baseCommitStr);
+    } else {
+      // No If-Match provided, use current HEAD
+      baseCommitId = selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+    }
 
     // Set default values for author and message
     String effectiveAuthor = (author != null && !author.isBlank()) ? author : "anonymous";

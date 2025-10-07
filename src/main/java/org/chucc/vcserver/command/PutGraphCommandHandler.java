@@ -35,7 +35,7 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
    * @param datasetService the dataset service
    * @param rdfParsingService the RDF parsing service
    * @param graphDiffService the graph diff service
-   * @param preconditionService the precondition service
+   * @param preconditionService the precondition validation service
    * @param conflictDetectionService the conflict detection service
    */
   @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
@@ -66,7 +66,8 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
             "Branch not found: " + command.branch()
                 + " in dataset: " + command.dataset()));
 
-    // Check If-Match precondition
+    // Check HTTP precondition (If-Match header) - returns 412 if mismatch
+    // Per protocol: "advisory fast-fail mechanism"
     preconditionService.checkIfMatch(
         command.dataset(),
         command.branch(),

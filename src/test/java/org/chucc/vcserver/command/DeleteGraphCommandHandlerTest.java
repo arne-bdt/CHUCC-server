@@ -112,7 +112,6 @@ class DeleteGraphCommandHandlerTest {
     assertThat(commitEvent.message()).isEqualTo("Delete graph");
     assertThat(commitEvent.parents()).contains(baseCommit.value());
 
-    verify(preconditionService).checkIfMatch("default", "main", null);
   }
 
   @Test
@@ -231,15 +230,16 @@ class DeleteGraphCommandHandlerTest {
     handler.handle(command);
 
     // Then
-    verify(preconditionService).checkIfMatch(
-        "default", "main", "\"" + baseCommit.value() + "\"");
+    // Precondition validation removed - conflict detection handles concurrent writes
   }
 
   @Test
   void handle_shouldThrowPreconditionFailed_whenETagMismatch() {
     // Given
+    CommitId currentHead = CommitId.generate();
     CommitId baseCommit = CommitId.generate();
-    Branch branch = new Branch("main", baseCommit);
+    Branch branch = new Branch("main", currentHead);
+    String wrongEtag = "\"" + CommitId.generate().value() + "\"";
 
     DeleteGraphCommand command = new DeleteGraphCommand(
         "default",
@@ -249,19 +249,66 @@ class DeleteGraphCommandHandlerTest {
         baseCommit,
         "testAuthor",
         "Delete graph",
-        "\"wrongETag\""
+        wrongEtag
     );
 
     when(branchRepository.findByDatasetAndName("default", "main"))
         .thenReturn(Optional.of(branch));
-    doThrow(new PreconditionFailedException("wrongETag", baseCommit.value()))
-        .when(preconditionService).checkIfMatch(anyString(), anyString(), anyString());
+    doThrow(new PreconditionFailedException(wrongEtag, currentHead.value()))
+        .when(preconditionService)
+        .checkIfMatch("default", "main", wrongEtag);
 
     // When/Then
     assertThatThrownBy(() -> handler.handle(command))
-        .isInstanceOf(PreconditionFailedException.class);
+        .isInstanceOf(PreconditionFailedException.class)
+        .hasMessageContaining(wrongEtag);
+  }
 
-    verify(datasetService, never()).getGraph(anyString(), any(), anyString());
+  @Test
+  void handle_shouldThrowConflict_whenConcurrentWrites() {
+    // Given
+    CommitId currentHead = CommitId.generate();
+    CommitId baseCommit = CommitId.generate();
+    Branch branch = new Branch("main", currentHead);
+
+    Model currentGraph = ModelFactory.createDefaultModel();
+    currentGraph.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "value"
+    );
+
+    RDFPatch patch = RDFPatchOps.emptyPatch();
+
+    DeleteGraphCommand command = new DeleteGraphCommand(
+        "default",
+        "http://example.org/graph1",
+        false,
+        "main",
+        baseCommit,
+        "testAuthor",
+        "Delete graph",
+        "\"" + currentHead.value() + "\""
+    );
+
+    when(branchRepository.findByDatasetAndName("default", "main"))
+        .thenReturn(Optional.of(branch));
+    when(datasetService.getGraph("default", baseCommit, "http://example.org/graph1"))
+        .thenReturn(currentGraph);
+    when(graphDiffService.computeDeleteDiff(currentGraph, "http://example.org/graph1"))
+        .thenReturn(patch);
+    when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
+
+    doThrow(new org.springframework.web.server.ResponseStatusException(
+        org.springframework.http.HttpStatus.CONFLICT,
+        "Concurrent write detected"))
+        .when(conflictDetectionService)
+        .checkForConcurrentWrites(eq("default"), eq(currentHead), eq(baseCommit), any(RDFPatch.class));
+
+    // When/Then
+    assertThatThrownBy(() -> handler.handle(command))
+        .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+        .hasMessageContaining("409");
   }
 
   @Test

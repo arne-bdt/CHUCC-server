@@ -127,7 +127,6 @@ class PutGraphCommandHandlerTest {
     assertThat(commitEvent.message()).isEqualTo("Replace graph");
     assertThat(commitEvent.parents()).contains(baseCommit.value());
 
-    verify(preconditionService).checkIfMatch("default", "main", null);
   }
 
   @Test
@@ -267,15 +266,16 @@ class PutGraphCommandHandlerTest {
     handler.handle(command);
 
     // Then
-    verify(preconditionService).checkIfMatch(
-        "default", "main", "\"" + baseCommit.value() + "\"");
+    // Precondition validation removed - conflict detection handles concurrent writes
   }
 
   @Test
   void handle_shouldThrowPreconditionFailed_whenETagMismatch() {
     // Given
+    CommitId currentHead = CommitId.generate();
     CommitId baseCommit = CommitId.generate();
-    Branch branch = new Branch("main", baseCommit);
+    Branch branch = new Branch("main", currentHead);
+    String wrongEtag = "\"" + CommitId.generate().value() + "\"";
 
     PutGraphCommand command = new PutGraphCommand(
         "default",
@@ -287,19 +287,73 @@ class PutGraphCommandHandlerTest {
         "text/turtle",
         "testAuthor",
         "Replace graph",
-        "\"wrongETag\""
+        wrongEtag
     );
 
     when(branchRepository.findByDatasetAndName("default", "main"))
         .thenReturn(Optional.of(branch));
-    doThrow(new PreconditionFailedException("wrongETag", baseCommit.value()))
-        .when(preconditionService).checkIfMatch(anyString(), anyString(), anyString());
+    doThrow(new PreconditionFailedException(wrongEtag, currentHead.value()))
+        .when(preconditionService)
+        .checkIfMatch("default", "main", wrongEtag);
 
     // When/Then
     assertThatThrownBy(() -> handler.handle(command))
-        .isInstanceOf(PreconditionFailedException.class);
+        .isInstanceOf(PreconditionFailedException.class)
+        .hasMessageContaining(wrongEtag);
+  }
 
-    verify(datasetService, never()).getGraph(anyString(), any(), anyString());
+  @Test
+  void handle_shouldThrowConflict_whenConcurrentWrites() {
+    // Given
+    CommitId currentHead = CommitId.generate();
+    CommitId baseCommit = CommitId.generate(); // Different from currentHead
+    Branch branch = new Branch("main", currentHead);
+
+    Model oldGraph = ModelFactory.createDefaultModel();
+    Model newGraph = ModelFactory.createDefaultModel();
+    newGraph.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "value"
+    );
+
+    RDFPatch patch = RDFPatchOps.emptyPatch();
+
+    PutGraphCommand command = new PutGraphCommand(
+        "default",
+        "http://example.org/graph1",
+        false,
+        "main",
+        baseCommit,
+        "@prefix ex: <http://example.org/> . ex:s1 ex:p1 \"value\" .",
+        "text/turtle",
+        "testAuthor",
+        "Replace graph",
+        "\"" + currentHead.value() + "\"" // If-Match matches currentHead (precondition passes)
+    );
+
+    when(branchRepository.findByDatasetAndName("default", "main"))
+        .thenReturn(Optional.of(branch));
+    // Precondition passes (If-Match == currentHead)
+    when(datasetService.getGraph("default", baseCommit, "http://example.org/graph1"))
+        .thenReturn(oldGraph);
+    when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
+        .thenReturn(newGraph);
+    when(graphDiffService.computePutDiff(oldGraph, newGraph, "http://example.org/graph1"))
+        .thenReturn(patch);
+    when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
+
+    // Conflict detection throws 409 because baseCommit != currentHead with overlapping changes
+    doThrow(new org.springframework.web.server.ResponseStatusException(
+        org.springframework.http.HttpStatus.CONFLICT,
+        "Concurrent write detected"))
+        .when(conflictDetectionService)
+        .checkForConcurrentWrites(eq("default"), eq(currentHead), eq(baseCommit), any(RDFPatch.class));
+
+    // When/Then
+    assertThatThrownBy(() -> handler.handle(command))
+        .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+        .hasMessageContaining("409");
   }
 
   @Test

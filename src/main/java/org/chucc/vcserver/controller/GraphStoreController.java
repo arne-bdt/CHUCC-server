@@ -49,6 +49,7 @@ public class GraphStoreController {
   private final org.chucc.vcserver.command.PutGraphCommandHandler putGraphCommandHandler;
   private final org.chucc.vcserver.command.PostGraphCommandHandler postGraphCommandHandler;
   private final org.chucc.vcserver.command.DeleteGraphCommandHandler deleteGraphCommandHandler;
+  private final org.chucc.vcserver.command.PatchGraphCommandHandler patchGraphCommandHandler;
 
   /**
    * Constructor for GraphStoreController.
@@ -60,6 +61,7 @@ public class GraphStoreController {
    * @param putGraphCommandHandler handler for PUT graph commands
    * @param postGraphCommandHandler handler for POST graph commands
    * @param deleteGraphCommandHandler handler for DELETE graph commands
+   * @param patchGraphCommandHandler handler for PATCH graph commands
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
@@ -71,7 +73,8 @@ public class GraphStoreController {
       org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService,
       org.chucc.vcserver.command.PutGraphCommandHandler putGraphCommandHandler,
       org.chucc.vcserver.command.PostGraphCommandHandler postGraphCommandHandler,
-      org.chucc.vcserver.command.DeleteGraphCommandHandler deleteGraphCommandHandler) {
+      org.chucc.vcserver.command.DeleteGraphCommandHandler deleteGraphCommandHandler,
+      org.chucc.vcserver.command.PatchGraphCommandHandler patchGraphCommandHandler) {
     this.vcProperties = vcProperties;
     this.datasetService = datasetService;
     this.serializationService = serializationService;
@@ -79,6 +82,7 @@ public class GraphStoreController {
     this.putGraphCommandHandler = putGraphCommandHandler;
     this.postGraphCommandHandler = postGraphCommandHandler;
     this.deleteGraphCommandHandler = deleteGraphCommandHandler;
+    this.patchGraphCommandHandler = patchGraphCommandHandler;
   }
 
   /**
@@ -777,13 +781,13 @@ public class GraphStoreController {
       content = @Content(mediaType = "application/problem+json")
   )
   @ApiResponse(
-      responseCode = "404",
-      description = "Not Found - Graph does not exist",
+      responseCode = "415",
+      description = "Unsupported Media Type - Content-Type not text/rdf-patch",
       content = @Content(mediaType = "application/problem+json")
   )
   @ApiResponse(
-      responseCode = "409",
-      description = "Conflict - Patch cannot be applied",
+      responseCode = "422",
+      description = "Unprocessable Entity - Patch cannot be applied",
       content = @Content(mediaType = "application/problem+json")
   )
   @ApiResponse(
@@ -791,13 +795,9 @@ public class GraphStoreController {
       description = "Precondition Failed - If-Match header mismatch",
       content = @Content(mediaType = "application/problem+json")
   )
-  @ApiResponse(
-      responseCode = "501",
-      description = "Not Implemented",
-      content = @Content(mediaType = "application/problem+json")
-  )
-  @SuppressWarnings("PMD.UseObjectForClearerAPI") // Method signature matches GSP spec
-  public ResponseEntity<ProblemDetail> patchGraph(
+  @SuppressWarnings({"PMD.UseObjectForClearerAPI", "PMD.LooseCoupling"})
+  // Method signature matches GSP spec; HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<?> patchGraph(
       @Parameter(description = "Named graph IRI")
       @RequestParam(required = false) String graph,
       @Parameter(description = "Default graph flag")
@@ -814,10 +814,86 @@ public class GraphStoreController {
       @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
       @Parameter(description = "Expected ETag for optimistic locking")
       @RequestHeader(name = "If-Match", required = false) String ifMatch,
+      @Parameter(description = "Content-Type must be text/rdf-patch")
+      @RequestHeader(name = HttpHeaders.CONTENT_TYPE, required = false) String contentType,
       @RequestBody String patchBody) {
 
+    // Validate graph parameter
     validateParameters(graph, isDefault, branch, commit, asOf);
-    return notImplemented("PATCH");
+
+    // Validate Content-Type
+    if (contentType == null || !contentType.contains("text/rdf-patch")) {
+      ProblemDetail problem = new ProblemDetail(
+          "Unsupported Content-Type. PATCH requires Content-Type: text/rdf-patch",
+          HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(),
+          "unsupported_media_type"
+      );
+      return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(problem);
+    }
+
+    // Validate write operation on read-only selectors
+    if (commit != null && !commit.isBlank()) {
+      ProblemDetail problem = new ProblemDetail(
+          "Cannot write to a specific commit. Use branch selector for write operations.",
+          HttpStatus.BAD_REQUEST.value(),
+          "write_on_readonly_selector"
+      );
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    if (asOf != null && !asOf.isBlank()) {
+      ProblemDetail problem = new ProblemDetail(
+          "Cannot write with asOf selector. Use branch selector for write operations.",
+          HttpStatus.BAD_REQUEST.value(),
+          "write_on_readonly_selector"
+      );
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    // Resolve selector to base commit
+    String effectiveBranch = (branch != null && !branch.isBlank()) ? branch : "main";
+    org.chucc.vcserver.domain.CommitId baseCommitId =
+        selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+
+    // Set default values for author and message
+    String effectiveAuthor = (author != null && !author.isBlank()) ? author : "anonymous";
+    String effectiveMessage = (message != null && !message.isBlank())
+        ? message : "PATCH graph operation";
+
+    // Create command
+    org.chucc.vcserver.command.PatchGraphCommand command =
+        new org.chucc.vcserver.command.PatchGraphCommand(
+            DATASET_NAME,
+            graph,
+            isDefault != null && isDefault,
+            effectiveBranch,
+            baseCommitId,
+            patchBody,
+            effectiveAuthor,
+            effectiveMessage,
+            ifMatch
+        );
+
+    // Handle command
+    org.chucc.vcserver.event.VersionControlEvent event = patchGraphCommandHandler.handle(command);
+
+    // Handle no-op (null event means no changes)
+    if (event == null) {
+      return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    // Handle successful commit creation
+    if (event instanceof org.chucc.vcserver.event.CommitCreatedEvent commitEvent) {
+      HttpHeaders headers = new HttpHeaders();
+      headers.set(HttpHeaders.LOCATION, "/version/commits/" + commitEvent.commitId());
+      headers.setETag("\"" + commitEvent.commitId() + "\"");
+      headers.set("SPARQL-Version-Control", "true");
+
+      return ResponseEntity.ok().headers(headers).build();
+    }
+
+    // Should not reach here
+    throw new IllegalStateException("Unexpected event type: " + event.getClass().getName());
   }
   // CPD-ON
 
@@ -892,18 +968,4 @@ public class GraphStoreController {
     return headers;
   }
 
-  /**
-   * Creates a 501 Not Implemented response.
-   *
-   * @param operation the operation name
-   * @return ResponseEntity with 501 status and problem detail
-   */
-  private ResponseEntity<ProblemDetail> notImplemented(String operation) {
-    ProblemDetail problem = new ProblemDetail(
-        operation + " operation not yet implemented",
-        HttpStatus.NOT_IMPLEMENTED.value(),
-        "not_implemented"
-    );
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(problem);
-  }
 }

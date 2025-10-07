@@ -17,9 +17,6 @@ build/
 *.swo
 *~
 
-# AI
-.claude/
-
 # OS
 .DS_Store
 Thumbs.db
@@ -69,3 +66,4 @@ temp/
 # virtual machine crash logs
 hs_err_pid*
 replay_pid*
+/.claude/settings.local.json

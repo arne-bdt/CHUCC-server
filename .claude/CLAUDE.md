@@ -142,42 +142,145 @@ This project uses Checkstyle and SpotBugs for static code analysis.
 
 **Token-Efficient Build Strategy:**
 
-To minimize token usage and catch issues early, follow this two-phase approach:
+To minimize token usage and catch issues early, follow this optimized three-phase approach:
 
-**Phase 1: Fast Static Analysis (before running tests)**
+**Phase 1: Fast Static Analysis (before running tests) - ~30 seconds**
 ```bash
+mvn -q clean compile checkstyle:check spotbugs:check pmd:check pmd:cpd-check
+```
+- Uses `-q` (quiet mode) to show only warnings/errors
+- Catches code quality issues without running tests
+- Stops immediately on first violation
+- **Only proceed if this succeeds with zero violations**
+
+**Phase 2a: Incremental Test Run (for new/modified code) - ~10-30 seconds**
+```bash
+mvn -q test -Dtest=NewTestClass,ModifiedTestClass
+```
+- Run only unit tests for new/modified classes
+- Uses `-q` to minimize output (only shows test failures)
+- Verifies new functionality in isolation
+- Skip this phase if only documentation or config changed
+
+**Phase 2b: Full Build (final verification) - ~2-3 minutes**
+```bash
+mvn -q clean install
+```
+- Runs all unit tests (698 tests) and integration tests (15 tests)
+- Uses `-q` to show only summary and failures
+- All quality gates enforced (checkstyle, spotbugs, pmd, jacoco)
+- **Success output is minimal (just "BUILD SUCCESS")**
+
+**When Failures Occur:**
+If a build fails with `-q`, re-run the same command WITHOUT `-q` to see full details:
+```bash
+# Re-run Phase 1 with full output
 mvn clean compile checkstyle:check spotbugs:check pmd:check pmd:cpd-check
-```
-This catches code quality issues (formatting, bugs, duplications) in ~30 seconds without running the full test suite.
 
-**Phase 2a: Incremental Test Run (for new/modified code)**
-```bash
-mvn clean install -Dtest=NewTestClass,ModifiedTestClass
-```
-Run only the added and modified tests first to verify new functionality.
+# Re-run failed test with full output
+mvn test -Dtest=FailingTestClass
 
-**Phase 2b: Full Build (final verification)**
-```bash
+# Re-run full build with full output
 mvn clean install
 ```
-Run all tests including integration tests. Fix any warnings or errors.
+
+**Token Usage Comparison:**
+- **Without `-q`**: ~50,000 tokens (full test output + build logs)
+- **With `-q`**: ~3,000 tokens (errors/warnings only)
+- **Savings**: ~94% token reduction for successful builds
+
+**Additional Optimization Strategies:**
+
+**Skip Unchanged Test Categories:**
+```bash
+# Skip integration tests if only unit code changed
+mvn -q clean test
+
+# Run only integration tests if needed
+mvn -q test-compile failsafe:integration-test failsafe:verify
+```
+
+**Parallel Builds (use with caution):**
+```bash
+# Use multiple cores for compilation (not tests - may cause flakiness)
+mvn -q -T 1C clean compile checkstyle:check
+```
+
+**Fast Feedback Loop:**
+```bash
+# Compile + checkstyle only (fastest feedback - ~10 seconds)
+mvn -q compile checkstyle:check
+
+# Add spotbugs for deeper analysis (~20 seconds)
+mvn -q compile checkstyle:check spotbugs:check
+```
 
 **Important Notes:**
 - `-DskipTests` is NEVER allowed
+- Always use `-q` for token efficiency
 - Fix issues in Phase 1 before proceeding to Phase 2
 - Fix issues in Phase 2a before proceeding to Phase 2b
 - A build is not complete until Phase 2b succeeds with zero violations
+- Re-run without `-q` only when investigating failures
 
-Build configuration:
-- Use "mvn clean install" for normal builds (batch mode enabled by default via .mvn/maven.config)
-- Use "mvn clean install -X" only when you need verbose/debug output to diagnose build issues
-- The logback-test.xml configuration reduces Spring Boot, Kafka, and Testcontainers noise during tests
+**Build Configuration:**
+- Batch mode is enabled by default via `.mvn/maven.config`
+- The `logback-test.xml` configuration reduces Spring Boot, Kafka, and Testcontainers noise during tests
+- Test configuration externalized in `src/test/resources/test.properties` for easy updates
+- Use test utilities (`IntegrationTestFixture`, `TestConstants`, `KafkaTestContainers`) to reduce boilerplate
+
+**Debug Mode (only when needed):**
+```bash
+# Full verbose output for troubleshooting
+mvn clean install -X
+
+# Verbose test output only
+mvn test -Dsurefire.printSummary=true
+```
+
+**Workflow Best Practices:**
+
+**Before Starting Implementation:**
+1. Read relevant code files to understand context
+2. Check existing tests for patterns
+3. Plan the approach (mention if task needs breakdown)
+
+**During Implementation:**
+1. Use `-q` for all Maven commands to save tokens
+2. Run Phase 1 (static analysis) before writing tests
+3. Write tests first (TDD approach)
+4. Run Phase 2a (incremental tests) after implementation
+5. Only run Phase 2b (full build) when ready to complete
+
+**For Large Tasks:**
+- Create a task breakdown in `.tasks/` folder with numbered markdown files
+- Each task file should be completable in one session
+- Reference: See `.tasks/gsp/` for example structure
+
+**Token Optimization Checklist:**
+- ✅ Use `mvn -q` for all commands
+- ✅ Use `Glob` and `Grep` tools instead of reading entire directories
+- ✅ Read specific file paths when you know them
+- ✅ Use `Read` with offset/limit for large files
+- ✅ Avoid `ls`, `find`, `cat` bash commands - use dedicated tools
+- ✅ Only re-run without `-q` when investigating failures
+- ✅ Reference test utilities instead of duplicating setup code
+
+**After Implementation:**
+Provide a git commit message following this format:
+```
+<type>: <short description>
+
+<detailed description>
+- Bullet points for key changes
+- Performance improvements
+- Breaking changes (if any)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`
 
 In the prompts I intentionally use words like "maybe" because I want to give you the opportunity to make alternative suggestions or propose variations if you think they are better.
-
-Whenever you think a task is too big for one step:
-- do not start right away to implement it, instead:
-- create a folder with an ordered list of broken down ai-agent-friendly tasks in separate markdown files, which are small enough to be executed in one session
-- making oversight easier and reducing token usage
-
-After an implementation task, please provide me with a proper git commit message including a short description of what you have done.

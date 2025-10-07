@@ -12,10 +12,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.chucc.vcserver.testutil.KafkaTestContainers;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.kafka.KafkaContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -46,8 +46,8 @@ class EventPublisherKafkaIT {
 
   @BeforeAll
   static void startKafka() {
-    // Use the official Apache Kafka image supported by Testcontainers
-    kafkaContainer = new KafkaContainer(DockerImageName.parse("apache/kafka:3.8.1"));
+    // Use centralized Kafka container configuration
+    kafkaContainer = KafkaTestContainers.createKafkaContainer();
     kafkaContainer.start();
   }
 

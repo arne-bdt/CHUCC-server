@@ -16,12 +16,12 @@ import org.chucc.vcserver.util.GraphCommandUtil;
 import org.springframework.stereotype.Component;
 
 /**
- * Handles PutGraphCommand by replacing entire graph content.
- * Computes diff between old and new graph states, creates an RDF Patch,
+ * Handles PostGraphCommand by merging RDF content into a graph.
+ * Computes additive diff (only ADD operations for new triples),
  * and produces a CommitCreatedEvent if changes are non-empty.
  */
 @Component
-public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
+public class PostGraphCommandHandler implements CommandHandler<PostGraphCommand> {
 
   private final BranchRepository branchRepository;
   private final DatasetService datasetService;
@@ -30,7 +30,7 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
   private final PreconditionService preconditionService;
 
   /**
-   * Constructs a PutGraphCommandHandler.
+   * Constructs a PostGraphCommandHandler.
    *
    * @param branchRepository the branch repository
    * @param datasetService the dataset service
@@ -42,7 +42,7 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
       value = "EI_EXPOSE_REP2",
       justification = "Repositories and services are Spring-managed beans "
           + "and are intentionally shared")
-  public PutGraphCommandHandler(
+  public PostGraphCommandHandler(
       BranchRepository branchRepository,
       DatasetService datasetService,
       RdfParsingService rdfParsingService,
@@ -56,7 +56,7 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
   }
 
   @Override
-  public VersionControlEvent handle(PutGraphCommand command) {
+  public VersionControlEvent handle(PostGraphCommand command) {
     // Validate branch exists
     branchRepository
         .findByDatasetAndName(command.dataset(), command.branch())
@@ -72,7 +72,7 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
     );
 
     // Get current graph state (or empty model if graph doesn't exist)
-    Model oldGraph = GraphCommandUtil.getCurrentGraph(
+    Model currentGraph = GraphCommandUtil.getCurrentGraph(
         datasetService,
         command.dataset(),
         command.baseCommit(),
@@ -81,15 +81,15 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
     );
 
     // Parse new RDF content
-    Model newGraph = rdfParsingService.parseRdf(
+    Model newContent = rdfParsingService.parseRdf(
         command.rdfContent(),
         command.contentType()
     );
 
-    // Compute diff (DELETE all old quads, ADD all new quads)
-    RDFPatch patch = graphDiffService.computePutDiff(
-        oldGraph,
-        newGraph,
+    // Compute additive diff (only ADD operations for new triples)
+    RDFPatch patch = graphDiffService.computePostDiff(
+        currentGraph,
+        newContent,
         command.isDefaultGraph() ? null : command.graphIri()
     );
 

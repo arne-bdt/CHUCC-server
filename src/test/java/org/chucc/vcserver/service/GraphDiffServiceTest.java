@@ -224,6 +224,161 @@ class GraphDiffServiceTest {
     assertThat(isEmpty).isFalse();
   }
 
+  @Test
+  void computePostDiff_shouldGenerateOnlyAdds_whenNewTriplesPresent() {
+    // Given
+    Model currentGraph = ModelFactory.createDefaultModel();
+    currentGraph.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "existingValue"
+    );
+
+    Model newContent = ModelFactory.createDefaultModel();
+    newContent.add(
+        ResourceFactory.createResource("http://example.org/s2"),
+        ResourceFactory.createProperty("http://example.org/p2"),
+        "newValue"
+    );
+
+    // When
+    RDFPatch patch = service.computePostDiff(
+        currentGraph, newContent, "http://example.org/graph1");
+
+    // Then
+    assertThat(patch).isNotNull();
+    String patchString = serializePatch(patch);
+    assertThat(patchString).contains("A <http://example.org/s2>");
+    assertThat(patchString).doesNotContain("D <"); // No deletes
+  }
+
+  @Test
+  void computePostDiff_shouldGenerateEmptyPatch_whenAllTriplesAlreadyPresent() {
+    // Given
+    Model currentGraph = ModelFactory.createDefaultModel();
+    currentGraph.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "value"
+    );
+
+    Model newContent = ModelFactory.createDefaultModel();
+    newContent.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "value"
+    );
+
+    // When
+    RDFPatch patch = service.computePostDiff(
+        currentGraph, newContent, "http://example.org/graph1");
+
+    // Then
+    assertThat(service.isPatchEmpty(patch)).isTrue();
+  }
+
+  @Test
+  void computePostDiff_shouldGenerateAdds_whenCurrentGraphEmpty() {
+    // Given
+    Model currentGraph = ModelFactory.createDefaultModel();
+
+    Model newContent = ModelFactory.createDefaultModel();
+    newContent.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "value"
+    );
+
+    // When
+    RDFPatch patch = service.computePostDiff(
+        currentGraph, newContent, "http://example.org/graph1");
+
+    // Then
+    assertThat(patch).isNotNull();
+    String patchString = serializePatch(patch);
+    assertThat(patchString).contains("A <http://example.org/s1>");
+    assertThat(patchString).doesNotContain("D <");
+  }
+
+  @Test
+  void computePostDiff_shouldHandleDefaultGraph_whenGraphIriNull() {
+    // Given
+    Model currentGraph = ModelFactory.createDefaultModel();
+
+    Model newContent = ModelFactory.createDefaultModel();
+    newContent.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "value"
+    );
+
+    // When
+    RDFPatch patch = service.computePostDiff(currentGraph, newContent, null);
+
+    // Then
+    assertThat(patch).isNotNull();
+    String patchString = serializePatch(patch);
+    // For default graph, quads should not have graph component
+    assertThat(patchString).contains("A <http://example.org/s1>");
+  }
+
+  @Test
+  void computePostDiff_shouldHandlePartialOverlap() {
+    // Given
+    Model currentGraph = ModelFactory.createDefaultModel();
+    currentGraph.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "existingValue"
+    );
+
+    Model newContent = ModelFactory.createDefaultModel();
+    newContent.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "existingValue"
+    );
+    newContent.add(
+        ResourceFactory.createResource("http://example.org/s2"),
+        ResourceFactory.createProperty("http://example.org/p2"),
+        "newValue"
+    );
+
+    // When
+    RDFPatch patch = service.computePostDiff(
+        currentGraph, newContent, "http://example.org/graph1");
+
+    // Then
+    assertThat(patch).isNotNull();
+    String patchString = serializePatch(patch);
+    // Should only add the new triple, not the existing one
+    assertThat(patchString).contains("A <http://example.org/s2>");
+    assertThat(patchString).doesNotContain("D <"); // No deletes
+    // Should not re-add existing triple
+    long addCount = patchString.lines().filter(line -> line.startsWith("A ")).count();
+    assertThat(addCount).isEqualTo(1);
+  }
+
+  @Test
+  void computePostDiff_shouldGenerateEmptyPatch_whenNewContentEmpty() {
+    // Given
+    Model currentGraph = ModelFactory.createDefaultModel();
+    currentGraph.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "value"
+    );
+
+    Model newContent = ModelFactory.createDefaultModel();
+
+    // When
+    RDFPatch patch = service.computePostDiff(
+        currentGraph, newContent, "http://example.org/graph1");
+
+    // Then
+    assertThat(service.isPatchEmpty(patch)).isTrue();
+  }
+
   /**
    * Helper to serialize patch for assertion inspection.
    *

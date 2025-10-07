@@ -68,6 +68,43 @@ public class GraphDiffService {
   }
 
   /**
+   * Computes an RDF Patch for POST operation (additive merge).
+   * Generates only ADD operations for triples in newContent that are not in currentGraph.
+   *
+   * @param currentGraph the current graph state
+   * @param newContent the RDF content to merge
+   * @param graphIri the graph IRI (null for default graph)
+   * @return the RDF Patch representing the additive merge
+   */
+  public RDFPatch computePostDiff(Model currentGraph, Model newContent, String graphIri) {
+    RDFChangesCollector collector = new RDFChangesCollector();
+
+    // Start transaction
+    collector.txnBegin();
+
+    Node graphNode = graphIri != null
+        ? NodeFactory.createURI(graphIri)
+        : org.apache.jena.sparql.core.Quad.defaultGraphNodeGenerated;
+
+    // Add only triples that are in newContent but not in currentGraph
+    for (Statement stmt : newContent.listStatements().toList()) {
+      if (!currentGraph.contains(stmt)) {
+        collector.add(
+            graphNode,
+            stmt.getSubject().asNode(),
+            stmt.getPredicate().asNode(),
+            stmt.getObject().asNode()
+        );
+      }
+    }
+
+    // Commit transaction
+    collector.txnCommit();
+
+    return collector.getRDFPatch();
+  }
+
+  /**
    * Checks if an RDF Patch is empty (has no add/delete operations).
    *
    * @param patch the patch to check

@@ -212,6 +212,43 @@ public class DatasetService {
   }
 
   /**
+   * Gets a named graph from a dataset at a specific commit.
+   *
+   * @param datasetName the dataset name
+   * @param commitId the commit ID
+   * @param graphIri the graph IRI
+   * @return the named graph as a Model, or null if the graph doesn't exist
+   * @throws IllegalArgumentException if the commit is not found
+   */
+  public org.apache.jena.rdf.model.Model getGraph(String datasetName, CommitId commitId,
+      String graphIri) {
+    DatasetGraph datasetGraph = materializeCommit(datasetName, commitId);
+    org.apache.jena.graph.Node graphNode =
+        org.apache.jena.graph.NodeFactory.createURI(graphIri);
+
+    if (!datasetGraph.containsGraph(graphNode)) {
+      return null;
+    }
+
+    org.apache.jena.graph.Graph graph = datasetGraph.getGraph(graphNode);
+    return org.apache.jena.rdf.model.ModelFactory.createModelForGraph(graph);
+  }
+
+  /**
+   * Gets the default graph from a dataset at a specific commit.
+   *
+   * @param datasetName the dataset name
+   * @param commitId the commit ID
+   * @return the default graph as a Model (never null, but may be empty)
+   * @throws IllegalArgumentException if the commit is not found
+   */
+  public org.apache.jena.rdf.model.Model getDefaultGraph(String datasetName, CommitId commitId) {
+    DatasetGraph datasetGraph = materializeCommit(datasetName, commitId);
+    org.apache.jena.graph.Graph graph = datasetGraph.getDefaultGraph();
+    return org.apache.jena.rdf.model.ModelFactory.createModelForGraph(graph);
+  }
+
+  /**
    * Clears the dataset cache for a specific dataset.
    *
    * @param datasetName the dataset name

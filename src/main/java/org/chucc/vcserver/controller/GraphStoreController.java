@@ -37,16 +37,36 @@ import org.springframework.web.bind.annotation.RestController;
     description = "SPARQL 1.2 Graph Store Protocol operations with version control")
 public class GraphStoreController {
 
+  private static final String DATASET_NAME = "default";
+
   @SuppressFBWarnings(
       value = "URF_UNREAD_FIELD",
       justification = "Field reserved for future implementation of write operations")
   private final VersionControlProperties vcProperties;
+  private final org.chucc.vcserver.service.DatasetService datasetService;
+  private final org.chucc.vcserver.service.GraphSerializationService serializationService;
+  private final org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService;
 
+  /**
+   * Constructor for GraphStoreController.
+   *
+   * @param vcProperties version control configuration properties
+   * @param datasetService service for dataset operations
+   * @param serializationService service for RDF serialization
+   * @param selectorResolutionService service for resolving version selectors
+   */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
-      justification = "Spring-managed config bean, not modified")
-  public GraphStoreController(VersionControlProperties vcProperties) {
+      justification = "Spring-managed beans are intentionally shared references")
+  public GraphStoreController(
+      VersionControlProperties vcProperties,
+      org.chucc.vcserver.service.DatasetService datasetService,
+      org.chucc.vcserver.service.GraphSerializationService serializationService,
+      org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService) {
     this.vcProperties = vcProperties;
+    this.datasetService = datasetService;
+    this.serializationService = serializationService;
+    this.selectorResolutionService = selectorResolutionService;
   }
 
   /**
@@ -147,8 +167,9 @@ public class GraphStoreController {
       description = "Not Implemented",
       content = @Content(mediaType = "application/problem+json")
   )
-  @SuppressWarnings("PMD.UseObjectForClearerAPI") // Method signature matches GSP spec
-  public ResponseEntity<ProblemDetail> getGraph(
+  @SuppressWarnings({"PMD.UseObjectForClearerAPI", "PMD.LooseCoupling"})
+  // Method signature matches GSP spec; HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<String> getGraph(
       @Parameter(description = "Named graph IRI")
       @RequestParam(required = false) String graph,
       @Parameter(description = "Default graph flag")
@@ -158,10 +179,41 @@ public class GraphStoreController {
       @Parameter(description = "Target commit (read-only)")
       @RequestParam(required = false) String commit,
       @Parameter(description = "Query state at or before this timestamp (ISO8601)")
-      @RequestParam(required = false) String asOf) {
+      @RequestParam(required = false) String asOf,
+      @Parameter(description = "Requested RDF format")
+      @RequestHeader(name = HttpHeaders.ACCEPT, required = false,
+          defaultValue = "text/turtle") String accept) {
 
+    // Validate parameters
     validateParameters(graph, isDefault, branch, commit, asOf);
-    return notImplemented("GET");
+
+    // Resolve selector to CommitId
+    org.chucc.vcserver.domain.CommitId commitId =
+        selectorResolutionService.resolve(DATASET_NAME, branch, commit, asOf);
+
+    // Get the graph from the dataset
+    org.apache.jena.rdf.model.Model model;
+    if (isDefault != null && isDefault) {
+      model = datasetService.getDefaultGraph(DATASET_NAME, commitId);
+    } else {
+      model = datasetService.getGraph(DATASET_NAME, commitId, graph);
+      if (model == null) {
+        throw new org.chucc.vcserver.exception.GraphNotFoundException(graph);
+      }
+    }
+
+    // Build response with headers
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(org.springframework.http.MediaType.parseMediaType(
+        serializationService.getContentType(
+            org.apache.jena.riot.RDFLanguages.contentTypeToLang(accept))));
+    headers.setETag("\"" + commitId.value() + "\"");
+    headers.set("SPARQL-Version-Control", "true");
+
+    // Serialize the graph
+    String serialized = serializationService.serializeGraph(model, accept);
+
+    return ResponseEntity.ok().headers(headers).body(serialized);
   }
   // CPD-ON
 

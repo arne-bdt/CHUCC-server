@@ -46,6 +46,7 @@ public class GraphStoreController {
   private final org.chucc.vcserver.service.DatasetService datasetService;
   private final org.chucc.vcserver.service.GraphSerializationService serializationService;
   private final org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService;
+  private final org.chucc.vcserver.command.PutGraphCommandHandler putGraphCommandHandler;
 
   /**
    * Constructor for GraphStoreController.
@@ -54,6 +55,7 @@ public class GraphStoreController {
    * @param datasetService service for dataset operations
    * @param serializationService service for RDF serialization
    * @param selectorResolutionService service for resolving version selectors
+   * @param putGraphCommandHandler handler for PUT graph commands
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
@@ -62,11 +64,13 @@ public class GraphStoreController {
       VersionControlProperties vcProperties,
       org.chucc.vcserver.service.DatasetService datasetService,
       org.chucc.vcserver.service.GraphSerializationService serializationService,
-      org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService) {
+      org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService,
+      org.chucc.vcserver.command.PutGraphCommandHandler putGraphCommandHandler) {
     this.vcProperties = vcProperties;
     this.datasetService = datasetService;
     this.serializationService = serializationService;
     this.selectorResolutionService = selectorResolutionService;
+    this.putGraphCommandHandler = putGraphCommandHandler;
   }
 
   /**
@@ -339,8 +343,9 @@ public class GraphStoreController {
       description = "Not Implemented",
       content = @Content(mediaType = "application/problem+json")
   )
-  @SuppressWarnings("PMD.UseObjectForClearerAPI") // Method signature matches GSP spec
-  public ResponseEntity<ProblemDetail> putGraph(
+  @SuppressWarnings({"PMD.UseObjectForClearerAPI", "PMD.LooseCoupling"})
+  // Method signature matches GSP spec; HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<?> putGraph(
       @Parameter(description = "Named graph IRI")
       @RequestParam(required = false) String graph,
       @Parameter(description = "Default graph flag")
@@ -357,10 +362,77 @@ public class GraphStoreController {
       @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
       @Parameter(description = "Expected ETag for optimistic locking")
       @RequestHeader(name = "If-Match", required = false) String ifMatch,
+      @Parameter(description = "Content-Type of RDF data")
+      @RequestHeader(name = HttpHeaders.CONTENT_TYPE, required = false) String contentType,
       @RequestBody String body) {
 
+    // Validate graph parameter
     validateParameters(graph, isDefault, branch, commit, asOf);
-    return notImplemented("PUT");
+
+    // Validate write operation on read-only selectors
+    if (commit != null && !commit.isBlank()) {
+      ProblemDetail problem = new ProblemDetail(
+          "Cannot write to a specific commit. Use branch selector for write operations.",
+          HttpStatus.BAD_REQUEST.value(),
+          "write_on_readonly_selector"
+      );
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    if (asOf != null && !asOf.isBlank()) {
+      ProblemDetail problem = new ProblemDetail(
+          "Cannot write with asOf selector. Use branch selector for write operations.",
+          HttpStatus.BAD_REQUEST.value(),
+          "write_on_readonly_selector"
+      );
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    // Resolve selector to base commit
+    String effectiveBranch = (branch != null && !branch.isBlank()) ? branch : "main";
+    org.chucc.vcserver.domain.CommitId baseCommitId =
+        selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+
+    // Set default values for author and message
+    String effectiveAuthor = (author != null && !author.isBlank()) ? author : "anonymous";
+    String effectiveMessage = (message != null && !message.isBlank())
+        ? message : "PUT graph operation";
+
+    // Create command
+    org.chucc.vcserver.command.PutGraphCommand command =
+        new org.chucc.vcserver.command.PutGraphCommand(
+            DATASET_NAME,
+            graph,
+            isDefault != null && isDefault,
+            effectiveBranch,
+            baseCommitId,
+            body,
+            contentType,
+            effectiveAuthor,
+            effectiveMessage,
+            ifMatch
+        );
+
+    // Handle command
+    org.chucc.vcserver.event.VersionControlEvent event = putGraphCommandHandler.handle(command);
+
+    // Handle no-op (null event means no changes)
+    if (event == null) {
+      return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    // Handle successful commit creation
+    if (event instanceof org.chucc.vcserver.event.CommitCreatedEvent commitEvent) {
+      HttpHeaders headers = new HttpHeaders();
+      headers.set(HttpHeaders.LOCATION, "/version/commits/" + commitEvent.commitId());
+      headers.setETag("\"" + commitEvent.commitId() + "\"");
+      headers.set("SPARQL-Version-Control", "true");
+
+      return ResponseEntity.ok().headers(headers).build();
+    }
+
+    // Should not reach here
+    throw new IllegalStateException("Unexpected event type: " + event.getClass().getName());
   }
   // CPD-ON
 

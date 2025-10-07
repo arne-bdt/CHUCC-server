@@ -379,6 +379,101 @@ class GraphDiffServiceTest {
     assertThat(service.isPatchEmpty(patch)).isTrue();
   }
 
+  @Test
+  void computeDeleteDiff_shouldGenerateOnlyDeletes_whenGraphHasTriples() {
+    // Given
+    Model currentGraph = ModelFactory.createDefaultModel();
+    currentGraph.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "value1"
+    );
+    currentGraph.add(
+        ResourceFactory.createResource("http://example.org/s2"),
+        ResourceFactory.createProperty("http://example.org/p2"),
+        "value2"
+    );
+
+    // When
+    RDFPatch patch = service.computeDeleteDiff(
+        currentGraph, "http://example.org/graph1");
+
+    // Then
+    assertThat(patch).isNotNull();
+    String patchString = serializePatch(patch);
+    assertThat(patchString).contains("D <http://example.org/s1>");
+    assertThat(patchString).contains("D <http://example.org/s2>");
+    assertThat(patchString).doesNotContain("A <"); // No adds
+  }
+
+  @Test
+  void computeDeleteDiff_shouldGenerateEmptyPatch_whenGraphIsEmpty() {
+    // Given
+    Model currentGraph = ModelFactory.createDefaultModel();
+
+    // When
+    RDFPatch patch = service.computeDeleteDiff(
+        currentGraph, "http://example.org/graph1");
+
+    // Then
+    assertThat(service.isPatchEmpty(patch)).isTrue();
+  }
+
+  @Test
+  void computeDeleteDiff_shouldHandleDefaultGraph_whenGraphIriNull() {
+    // Given
+    Model currentGraph = ModelFactory.createDefaultModel();
+    currentGraph.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "value"
+    );
+
+    // When
+    RDFPatch patch = service.computeDeleteDiff(currentGraph, null);
+
+    // Then
+    assertThat(patch).isNotNull();
+    String patchString = serializePatch(patch);
+    // For default graph, quads should not have graph component
+    assertThat(patchString).contains("D <http://example.org/s1>");
+  }
+
+  @Test
+  void computeDeleteDiff_shouldDeleteAllTriples_whenMultipleTriples() {
+    // Given
+    Model currentGraph = ModelFactory.createDefaultModel();
+    currentGraph.add(
+        ResourceFactory.createResource("http://example.org/s1"),
+        ResourceFactory.createProperty("http://example.org/p1"),
+        "value1"
+    );
+    currentGraph.add(
+        ResourceFactory.createResource("http://example.org/s2"),
+        ResourceFactory.createProperty("http://example.org/p2"),
+        "value2"
+    );
+    currentGraph.add(
+        ResourceFactory.createResource("http://example.org/s3"),
+        ResourceFactory.createProperty("http://example.org/p3"),
+        "value3"
+    );
+
+    // When
+    RDFPatch patch = service.computeDeleteDiff(
+        currentGraph, "http://example.org/graph1");
+
+    // Then
+    assertThat(patch).isNotNull();
+    String patchString = serializePatch(patch);
+    assertThat(patchString).contains("D <http://example.org/s1>");
+    assertThat(patchString).contains("D <http://example.org/s2>");
+    assertThat(patchString).contains("D <http://example.org/s3>");
+    // Count delete operations
+    long deleteCount = patchString.lines().filter(line -> line.startsWith("D ")).count();
+    assertThat(deleteCount).isEqualTo(3);
+  }
+
   /**
    * Helper to serialize patch for assertion inspection.
    *

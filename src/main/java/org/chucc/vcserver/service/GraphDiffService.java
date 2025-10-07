@@ -105,6 +105,40 @@ public class GraphDiffService {
   }
 
   /**
+   * Computes an RDF Patch for DELETE operation (remove entire graph).
+   * Generates only DELETE operations for all triples in currentGraph.
+   *
+   * @param currentGraph the current graph state to delete
+   * @param graphIri the graph IRI (null for default graph)
+   * @return the RDF Patch representing the deletion
+   */
+  public RDFPatch computeDeleteDiff(Model currentGraph, String graphIri) {
+    RDFChangesCollector collector = new RDFChangesCollector();
+
+    // Start transaction
+    collector.txnBegin();
+
+    Node graphNode = graphIri != null
+        ? NodeFactory.createURI(graphIri)
+        : org.apache.jena.sparql.core.Quad.defaultGraphNodeGenerated;
+
+    // Delete all triples in the graph
+    for (Statement stmt : currentGraph.listStatements().toList()) {
+      collector.delete(
+          graphNode,
+          stmt.getSubject().asNode(),
+          stmt.getPredicate().asNode(),
+          stmt.getObject().asNode()
+      );
+    }
+
+    // Commit transaction
+    collector.txnCommit();
+
+    return collector.getRDFPatch();
+  }
+
+  /**
    * Checks if an RDF Patch is empty (has no add/delete operations).
    *
    * @param patch the patch to check

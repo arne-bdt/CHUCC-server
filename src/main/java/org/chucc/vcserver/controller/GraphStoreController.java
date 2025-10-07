@@ -48,6 +48,7 @@ public class GraphStoreController {
   private final org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService;
   private final org.chucc.vcserver.command.PutGraphCommandHandler putGraphCommandHandler;
   private final org.chucc.vcserver.command.PostGraphCommandHandler postGraphCommandHandler;
+  private final org.chucc.vcserver.command.DeleteGraphCommandHandler deleteGraphCommandHandler;
 
   /**
    * Constructor for GraphStoreController.
@@ -58,6 +59,7 @@ public class GraphStoreController {
    * @param selectorResolutionService service for resolving version selectors
    * @param putGraphCommandHandler handler for PUT graph commands
    * @param postGraphCommandHandler handler for POST graph commands
+   * @param deleteGraphCommandHandler handler for DELETE graph commands
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
@@ -68,13 +70,15 @@ public class GraphStoreController {
       org.chucc.vcserver.service.GraphSerializationService serializationService,
       org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService,
       org.chucc.vcserver.command.PutGraphCommandHandler putGraphCommandHandler,
-      org.chucc.vcserver.command.PostGraphCommandHandler postGraphCommandHandler) {
+      org.chucc.vcserver.command.PostGraphCommandHandler postGraphCommandHandler,
+      org.chucc.vcserver.command.DeleteGraphCommandHandler deleteGraphCommandHandler) {
     this.vcProperties = vcProperties;
     this.datasetService = datasetService;
     this.serializationService = serializationService;
     this.selectorResolutionService = selectorResolutionService;
     this.putGraphCommandHandler = putGraphCommandHandler;
     this.postGraphCommandHandler = postGraphCommandHandler;
+    this.deleteGraphCommandHandler = deleteGraphCommandHandler;
   }
 
   /**
@@ -648,8 +652,9 @@ public class GraphStoreController {
       description = "Not Implemented",
       content = @Content(mediaType = "application/problem+json")
   )
-  @SuppressWarnings("PMD.UseObjectForClearerAPI") // Method signature matches GSP spec
-  public ResponseEntity<ProblemDetail> deleteGraph(
+  @SuppressWarnings({"PMD.UseObjectForClearerAPI", "PMD.LooseCoupling"})
+  // Method signature matches GSP spec; HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<?> deleteGraph(
       @Parameter(description = "Named graph IRI")
       @RequestParam(required = false) String graph,
       @Parameter(description = "Default graph flag")
@@ -667,8 +672,72 @@ public class GraphStoreController {
       @Parameter(description = "Expected ETag for optimistic locking")
       @RequestHeader(name = "If-Match", required = false) String ifMatch) {
 
+    // Validate graph parameter
     validateParameters(graph, isDefault, branch, commit, asOf);
-    return notImplemented("DELETE");
+
+    // Validate write operation on read-only selectors
+    if (commit != null && !commit.isBlank()) {
+      ProblemDetail problem = new ProblemDetail(
+          "Cannot write to a specific commit. Use branch selector for write operations.",
+          HttpStatus.BAD_REQUEST.value(),
+          "write_on_readonly_selector"
+      );
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    if (asOf != null && !asOf.isBlank()) {
+      ProblemDetail problem = new ProblemDetail(
+          "Cannot write with asOf selector. Use branch selector for write operations.",
+          HttpStatus.BAD_REQUEST.value(),
+          "write_on_readonly_selector"
+      );
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    // Resolve selector to base commit
+    String effectiveBranch = (branch != null && !branch.isBlank()) ? branch : "main";
+    org.chucc.vcserver.domain.CommitId baseCommitId =
+        selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+
+    // Set default values for author and message
+    String effectiveAuthor = (author != null && !author.isBlank()) ? author : "anonymous";
+    String effectiveMessage = (message != null && !message.isBlank())
+        ? message : "DELETE graph operation";
+
+    // Create command
+    org.chucc.vcserver.command.DeleteGraphCommand command =
+        new org.chucc.vcserver.command.DeleteGraphCommand(
+            DATASET_NAME,
+            graph,
+            isDefault != null && isDefault,
+            effectiveBranch,
+            baseCommitId,
+            effectiveAuthor,
+            effectiveMessage,
+            ifMatch
+        );
+
+    // Handle command
+    org.chucc.vcserver.event.VersionControlEvent event = deleteGraphCommandHandler.handle(command);
+
+    // Handle no-op (null event means graph was already empty)
+    if (event == null) {
+      return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    // Handle successful commit creation
+    if (event instanceof org.chucc.vcserver.event.CommitCreatedEvent commitEvent) {
+      HttpHeaders headers = new HttpHeaders();
+      headers.set(HttpHeaders.LOCATION, "/version/commits/" + commitEvent.commitId());
+      headers.setETag("\"" + commitEvent.commitId() + "\"");
+      headers.set("SPARQL-Version-Control", "true");
+
+      // Per HTTP spec, DELETE returns 204 No Content on success
+      return ResponseEntity.status(HttpStatus.NO_CONTENT).headers(headers).build();
+    }
+
+    // Should not reach here
+    throw new IllegalStateException("Unexpected event type: " + event.getClass().getName());
   }
   // CPD-ON
 

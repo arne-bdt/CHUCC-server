@@ -1,0 +1,588 @@
+package org.chucc.vcserver.controller;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.chucc.vcserver.config.VersionControlProperties;
+import org.chucc.vcserver.dto.ProblemDetail;
+import org.chucc.vcserver.util.GraphParameterValidator;
+import org.chucc.vcserver.util.SelectorValidator;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * SPARQL 1.2 Graph Store Protocol endpoint with version control support.
+ * Implements graph-level operations per SPARQL 1.2 GSP specification.
+ */
+@RestController
+@RequestMapping("/data")
+@Tag(name = "Graph Store Protocol",
+    description = "SPARQL 1.2 Graph Store Protocol operations with version control")
+public class GraphStoreController {
+
+  @SuppressFBWarnings(
+      value = "URF_UNREAD_FIELD",
+      justification = "Field reserved for future implementation of write operations")
+  private final VersionControlProperties vcProperties;
+
+  @SuppressFBWarnings(
+      value = "EI_EXPOSE_REP2",
+      justification = "Spring-managed config bean, not modified")
+  public GraphStoreController(VersionControlProperties vcProperties) {
+    this.vcProperties = vcProperties;
+  }
+
+  /**
+   * OPTIONS method for capability discovery.
+   * Returns headers advertising supported methods and version control features.
+   *
+   * @return response with capability headers
+   */
+  @RequestMapping(method = RequestMethod.OPTIONS)
+  @Operation(
+      summary = "Discover Graph Store Protocol capabilities",
+      description = "Returns headers advertising supported HTTP methods, "
+          + "RDF Patch support, and version control capabilities."
+  )
+  @ApiResponse(
+      responseCode = "200",
+      description = "Capabilities advertised via headers",
+      headers = {
+          @Header(
+              name = "Allow",
+              description = "Supported HTTP methods",
+              schema = @Schema(type = "string",
+                  example = "GET, PUT, POST, DELETE, HEAD, PATCH, OPTIONS")
+          ),
+          @Header(
+              name = "Accept-Patch",
+              description = "Supported patch formats",
+              schema = @Schema(type = "string", example = "text/rdf-patch")
+          ),
+          @Header(
+              name = "SPARQL-Version-Control",
+              description = "Version control protocol version",
+              schema = @Schema(type = "string", example = "1.0")
+          ),
+          @Header(
+              name = "Link",
+              description = "Link to version control endpoint",
+              schema = @Schema(type = "string", example = "</version>; rel=\"version-control\"")
+          )
+      }
+  )
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<Void> options() {
+    HttpHeaders headers = new HttpHeaders();
+    headers.set(HttpHeaders.ALLOW, "GET, PUT, POST, DELETE, HEAD, PATCH, OPTIONS");
+    headers.set(HttpHeaders.ACCEPT_PATCH, "text/rdf-patch");
+    headers.set("SPARQL-Version-Control", "1.0");
+    headers.set(HttpHeaders.LINK, "</version>; rel=\"version-control\"");
+
+    return ResponseEntity.ok().headers(headers).build();
+  }
+
+  /**
+   * GET method to retrieve a graph.
+   *
+   * @param graph the graph IRI parameter
+   * @param isDefault the default flag parameter
+   * @param branch target branch
+   * @param commit target commit
+   * @param asOf timestamp for time-travel query
+   * @return 501 Not Implemented (stub)
+   */
+  // CPD-OFF - Method signature follows GSP spec, duplication is intentional
+  @GetMapping(produces = {
+      "text/turtle",
+      "application/rdf+xml",
+      "application/n-triples",
+      "application/ld+json",
+      "text/n3"
+  })
+  @Operation(
+      summary = "GET graph",
+      description = "Retrieve RDF graph content. Use ?graph=IRI for named graphs or "
+          + "?default=true for the default graph. "
+          + "Version control: branch, commit, or asOf parameters select the dataset state."
+  )
+  @ApiResponse(
+      responseCode = "200",
+      description = "Graph content returned",
+      headers = @Header(
+          name = "ETag",
+          description = "Commit ID of the graph state",
+          schema = @Schema(type = "string")
+      )
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request - Invalid parameters",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "404",
+      description = "Not Found - Graph does not exist",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "501",
+      description = "Not Implemented",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @SuppressWarnings("PMD.UseObjectForClearerAPI") // Method signature matches GSP spec
+  public ResponseEntity<ProblemDetail> getGraph(
+      @Parameter(description = "Named graph IRI")
+      @RequestParam(required = false) String graph,
+      @Parameter(description = "Default graph flag")
+      @RequestParam(name = "default", required = false) Boolean isDefault,
+      @Parameter(description = "Target branch")
+      @RequestParam(required = false) String branch,
+      @Parameter(description = "Target commit (read-only)")
+      @RequestParam(required = false) String commit,
+      @Parameter(description = "Query state at or before this timestamp (ISO8601)")
+      @RequestParam(required = false) String asOf) {
+
+    validateParameters(graph, isDefault, branch, commit, asOf);
+    return notImplemented("GET");
+  }
+  // CPD-ON
+
+  /**
+   * HEAD method to retrieve graph metadata without content.
+   *
+   * @param graph the graph IRI parameter
+   * @param isDefault the default flag parameter
+   * @param branch target branch
+   * @param commit target commit
+   * @param asOf timestamp for time-travel query
+   * @return 501 Not Implemented (stub)
+   */
+  // CPD-OFF - Method signature follows GSP spec, duplication is intentional
+  @RequestMapping(method = RequestMethod.HEAD)
+  @Operation(
+      summary = "HEAD graph",
+      description = "Check graph existence and retrieve metadata without content. "
+          + "Returns same headers as GET but no body."
+  )
+  @ApiResponse(
+      responseCode = "200",
+      description = "Graph exists",
+      headers = @Header(
+          name = "ETag",
+          description = "Commit ID of the graph state",
+          schema = @Schema(type = "string")
+      )
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request - Invalid parameters"
+  )
+  @ApiResponse(
+      responseCode = "404",
+      description = "Not Found - Graph does not exist"
+  )
+  @ApiResponse(
+      responseCode = "501",
+      description = "Not Implemented"
+  )
+  @SuppressWarnings("PMD.UseObjectForClearerAPI") // Method signature matches GSP spec
+  public ResponseEntity<Void> headGraph(
+      @Parameter(description = "Named graph IRI")
+      @RequestParam(required = false) String graph,
+      @Parameter(description = "Default graph flag")
+      @RequestParam(name = "default", required = false) Boolean isDefault,
+      @Parameter(description = "Target branch")
+      @RequestParam(required = false) String branch,
+      @Parameter(description = "Target commit (read-only)")
+      @RequestParam(required = false) String commit,
+      @Parameter(description = "Query state at or before this timestamp (ISO8601)")
+      @RequestParam(required = false) String asOf) {
+
+    validateParameters(graph, isDefault, branch, commit, asOf);
+    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+  }
+  // CPD-ON
+
+  /**
+   * PUT method to create or replace a graph.
+   *
+   * @param graph the graph IRI parameter
+   * @param isDefault the default flag parameter
+   * @param branch target branch
+   * @param commit target commit
+   * @param asOf timestamp for time-travel query
+   * @param author commit author from header
+   * @param message commit message from header
+   * @param ifMatch precondition header for optimistic locking
+   * @param body RDF graph content
+   * @return 501 Not Implemented (stub)
+   */
+  // CPD-OFF - Method signature follows GSP spec, duplication is intentional
+  @PutMapping(consumes = {
+      "text/turtle",
+      "application/rdf+xml",
+      "application/n-triples",
+      "application/ld+json",
+      "text/n3"
+  })
+  @Operation(
+      summary = "PUT graph",
+      description = "Create or replace graph content. Creates a new commit on the target branch."
+  )
+  @ApiResponse(
+      responseCode = "201",
+      description = "Graph created",
+      headers = {
+          @Header(
+              name = "Location",
+              description = "URI of the created graph",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "ETag",
+              description = "Commit ID of the new state",
+              schema = @Schema(type = "string")
+          )
+      }
+  )
+  @ApiResponse(
+      responseCode = "204",
+      description = "Graph replaced",
+      headers = @Header(
+          name = "ETag",
+          description = "Commit ID of the new state",
+          schema = @Schema(type = "string")
+      )
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request - Invalid parameters or content",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "412",
+      description = "Precondition Failed - If-Match header mismatch",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "501",
+      description = "Not Implemented",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @SuppressWarnings("PMD.UseObjectForClearerAPI") // Method signature matches GSP spec
+  public ResponseEntity<ProblemDetail> putGraph(
+      @Parameter(description = "Named graph IRI")
+      @RequestParam(required = false) String graph,
+      @Parameter(description = "Default graph flag")
+      @RequestParam(name = "default", required = false) Boolean isDefault,
+      @Parameter(description = "Target branch")
+      @RequestParam(required = false) String branch,
+      @Parameter(description = "Target commit (read-only)")
+      @RequestParam(required = false) String commit,
+      @Parameter(description = "Query state at or before this timestamp (ISO8601)")
+      @RequestParam(required = false) String asOf,
+      @Parameter(description = "Commit author")
+      @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
+      @Parameter(description = "Commit message")
+      @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
+      @Parameter(description = "Expected ETag for optimistic locking")
+      @RequestHeader(name = "If-Match", required = false) String ifMatch,
+      @RequestBody String body) {
+
+    validateParameters(graph, isDefault, branch, commit, asOf);
+    return notImplemented("PUT");
+  }
+  // CPD-ON
+
+  /**
+   * POST method to merge data into a graph.
+   *
+   * @param graph the graph IRI parameter
+   * @param isDefault the default flag parameter
+   * @param branch target branch
+   * @param commit target commit
+   * @param asOf timestamp for time-travel query
+   * @param author commit author from header
+   * @param message commit message from header
+   * @param ifMatch precondition header for optimistic locking
+   * @param body RDF data to merge
+   * @return 501 Not Implemented (stub)
+   */
+  // CPD-OFF - Method signature follows GSP spec, duplication is intentional
+  @PostMapping(consumes = {
+      "text/turtle",
+      "application/rdf+xml",
+      "application/n-triples",
+      "application/ld+json",
+      "text/n3"
+  })
+  @Operation(
+      summary = "POST graph",
+      description = "Merge RDF data into existing graph. Adds triples to the graph. "
+          + "Creates a new commit on the target branch."
+  )
+  @ApiResponse(
+      responseCode = "200",
+      description = "Data merged successfully",
+      headers = @Header(
+          name = "ETag",
+          description = "Commit ID of the new state",
+          schema = @Schema(type = "string")
+      )
+  )
+  @ApiResponse(
+      responseCode = "201",
+      description = "Graph created with initial data",
+      headers = {
+          @Header(
+              name = "Location",
+              description = "URI of the created graph",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "ETag",
+              description = "Commit ID of the new state",
+              schema = @Schema(type = "string")
+          )
+      }
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request - Invalid parameters or content",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "412",
+      description = "Precondition Failed - If-Match header mismatch",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "501",
+      description = "Not Implemented",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @SuppressWarnings("PMD.UseObjectForClearerAPI") // Method signature matches GSP spec
+  public ResponseEntity<ProblemDetail> postGraph(
+      @Parameter(description = "Named graph IRI")
+      @RequestParam(required = false) String graph,
+      @Parameter(description = "Default graph flag")
+      @RequestParam(name = "default", required = false) Boolean isDefault,
+      @Parameter(description = "Target branch")
+      @RequestParam(required = false) String branch,
+      @Parameter(description = "Target commit (read-only)")
+      @RequestParam(required = false) String commit,
+      @Parameter(description = "Query state at or before this timestamp (ISO8601)")
+      @RequestParam(required = false) String asOf,
+      @Parameter(description = "Commit author")
+      @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
+      @Parameter(description = "Commit message")
+      @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
+      @Parameter(description = "Expected ETag for optimistic locking")
+      @RequestHeader(name = "If-Match", required = false) String ifMatch,
+      @RequestBody String body) {
+
+    validateParameters(graph, isDefault, branch, commit, asOf);
+    return notImplemented("POST");
+  }
+  // CPD-ON
+
+  /**
+   * DELETE method to remove a graph.
+   *
+   * @param graph the graph IRI parameter
+   * @param isDefault the default flag parameter
+   * @param branch target branch
+   * @param commit target commit
+   * @param asOf timestamp for time-travel query
+   * @param author commit author from header
+   * @param message commit message from header
+   * @param ifMatch precondition header for optimistic locking
+   * @return 501 Not Implemented (stub)
+   */
+  // CPD-OFF - Method signature follows GSP spec, duplication is intentional
+  @DeleteMapping
+  @Operation(
+      summary = "DELETE graph",
+      description = "Remove all triples from a graph. Creates a new commit on the target branch."
+  )
+  @ApiResponse(
+      responseCode = "204",
+      description = "Graph deleted successfully",
+      headers = @Header(
+          name = "ETag",
+          description = "Commit ID of the new state",
+          schema = @Schema(type = "string")
+      )
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request - Invalid parameters",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "404",
+      description = "Not Found - Graph does not exist",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "412",
+      description = "Precondition Failed - If-Match header mismatch",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "501",
+      description = "Not Implemented",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @SuppressWarnings("PMD.UseObjectForClearerAPI") // Method signature matches GSP spec
+  public ResponseEntity<ProblemDetail> deleteGraph(
+      @Parameter(description = "Named graph IRI")
+      @RequestParam(required = false) String graph,
+      @Parameter(description = "Default graph flag")
+      @RequestParam(name = "default", required = false) Boolean isDefault,
+      @Parameter(description = "Target branch")
+      @RequestParam(required = false) String branch,
+      @Parameter(description = "Target commit (read-only)")
+      @RequestParam(required = false) String commit,
+      @Parameter(description = "Query state at or before this timestamp (ISO8601)")
+      @RequestParam(required = false) String asOf,
+      @Parameter(description = "Commit author")
+      @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
+      @Parameter(description = "Commit message")
+      @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
+      @Parameter(description = "Expected ETag for optimistic locking")
+      @RequestHeader(name = "If-Match", required = false) String ifMatch) {
+
+    validateParameters(graph, isDefault, branch, commit, asOf);
+    return notImplemented("DELETE");
+  }
+  // CPD-ON
+
+  /**
+   * PATCH method to apply RDF Patch to a graph.
+   *
+   * @param graph the graph IRI parameter
+   * @param isDefault the default flag parameter
+   * @param branch target branch
+   * @param commit target commit
+   * @param asOf timestamp for time-travel query
+   * @param author commit author from header
+   * @param message commit message from header
+   * @param ifMatch precondition header for optimistic locking
+   * @param patchBody RDF Patch content
+   * @return 501 Not Implemented (stub)
+   */
+  // CPD-OFF - Method signature follows GSP spec, duplication is intentional
+  @PatchMapping(consumes = "text/rdf-patch")
+  @Operation(
+      summary = "PATCH graph",
+      description = "Apply RDF Patch to a graph. Version control extension. "
+          + "Creates a new commit on the target branch."
+  )
+  @ApiResponse(
+      responseCode = "200",
+      description = "Patch applied successfully",
+      headers = @Header(
+          name = "ETag",
+          description = "Commit ID of the new state",
+          schema = @Schema(type = "string")
+      )
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request - Invalid patch or parameters",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "404",
+      description = "Not Found - Graph does not exist",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "409",
+      description = "Conflict - Patch cannot be applied",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "412",
+      description = "Precondition Failed - If-Match header mismatch",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "501",
+      description = "Not Implemented",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @SuppressWarnings("PMD.UseObjectForClearerAPI") // Method signature matches GSP spec
+  public ResponseEntity<ProblemDetail> patchGraph(
+      @Parameter(description = "Named graph IRI")
+      @RequestParam(required = false) String graph,
+      @Parameter(description = "Default graph flag")
+      @RequestParam(name = "default", required = false) Boolean isDefault,
+      @Parameter(description = "Target branch")
+      @RequestParam(required = false) String branch,
+      @Parameter(description = "Target commit (read-only)")
+      @RequestParam(required = false) String commit,
+      @Parameter(description = "Query state at or before this timestamp (ISO8601)")
+      @RequestParam(required = false) String asOf,
+      @Parameter(description = "Commit author")
+      @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
+      @Parameter(description = "Commit message")
+      @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
+      @Parameter(description = "Expected ETag for optimistic locking")
+      @RequestHeader(name = "If-Match", required = false) String ifMatch,
+      @RequestBody String patchBody) {
+
+    validateParameters(graph, isDefault, branch, commit, asOf);
+    return notImplemented("PATCH");
+  }
+  // CPD-ON
+
+  /**
+   * Validates graph and selector parameters.
+   *
+   * @param graph the graph IRI parameter
+   * @param isDefault the default flag parameter
+   * @param branch the branch selector
+   * @param commit the commit selector
+   * @param asOf the asOf selector
+   */
+  private void validateParameters(String graph, Boolean isDefault, String branch,
+      String commit, String asOf) {
+    GraphParameterValidator.validateGraphParameter(graph, isDefault);
+    SelectorValidator.validateMutualExclusion(branch, commit, asOf);
+  }
+
+  /**
+   * Creates a 501 Not Implemented response.
+   *
+   * @param operation the operation name
+   * @return ResponseEntity with 501 status and problem detail
+   */
+  private ResponseEntity<ProblemDetail> notImplemented(String operation) {
+    ProblemDetail problem = new ProblemDetail(
+        operation + " operation not yet implemented",
+        HttpStatus.NOT_IMPLEMENTED.value(),
+        "not_implemented"
+    );
+    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(problem);
+  }
+}

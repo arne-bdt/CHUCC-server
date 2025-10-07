@@ -88,7 +88,7 @@ class SquashCommandHandlerTest {
     afterState.getDefaultGraph().add(
         NodeFactory.createURI("http://example.org/s"),
         NodeFactory.createURI("http://example.org/p"),
-        NodeFactory.createLiteral("combined-value")
+        NodeFactory.createLiteralString("combined-value")
     );
 
     when(datasetService.materializeCommit("test-dataset", idA))

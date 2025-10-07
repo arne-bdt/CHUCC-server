@@ -19,9 +19,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
@@ -47,8 +47,7 @@ import static org.awaitility.Awaitility.await;
 class ReadModelProjectorIT {
 
   @Container
-  static final KafkaContainer kafka = new KafkaContainer(
-      DockerImageName.parse("confluentinc/cp-kafka:7.6.0"))
+  static final KafkaContainer kafka = new KafkaContainer("confluentinc/cp-kafka:7.6.0")
       .withReuse(false);
 
   @DynamicPropertySource

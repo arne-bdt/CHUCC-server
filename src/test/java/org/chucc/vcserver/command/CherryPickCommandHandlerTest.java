@@ -255,7 +255,7 @@ class CherryPickCommandHandlerTest {
     Node g = NodeFactory.createURI("http://example.org/g");
     Node s = NodeFactory.createURI("http://example.org/s");
     Node p = NodeFactory.createURI("http://example.org/p");
-    Node o = NodeFactory.createLiteral("value");
+    Node o = NodeFactory.createLiteralString("value");
 
     RDFChangesCollector sourceCollector = new RDFChangesCollector();
     sourceCollector.start();

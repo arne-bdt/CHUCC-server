@@ -277,7 +277,7 @@ class RebaseCommandHandlerTest {
     Node g = NodeFactory.createURI("http://example.org/g");
     Node s = NodeFactory.createURI(subject);
     Node p = NodeFactory.createURI("http://example.org/p");
-    Node o = NodeFactory.createLiteral(value);
+    Node o = NodeFactory.createLiteralString(value);
 
     RDFChangesCollector collector = new RDFChangesCollector();
     collector.start();

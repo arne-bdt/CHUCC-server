@@ -80,7 +80,7 @@ class CherryPickIntegrationTest {
     Node g = NodeFactory.createURI("http://example.org/g");
     Node s = NodeFactory.createURI("http://example.org/alice");
     Node p = NodeFactory.createURI("http://example.org/name");
-    Node o = NodeFactory.createLiteral("Alice");
+    Node o = NodeFactory.createLiteralString("Alice");
     collector.add(g, s, p, o);
     collector.finish();
     RDFPatch branchACommit2Patch = collector.getRDFPatch();
@@ -209,7 +209,7 @@ class CherryPickIntegrationTest {
     Node g = NodeFactory.createURI("http://example.org/g");
     Node s = NodeFactory.createURI("http://example.org/alice");
     Node p = NodeFactory.createURI("http://example.org/name");
-    Node o = NodeFactory.createLiteral("Alice");  // Same triple, will conflict
+    Node o = NodeFactory.createLiteralString("Alice");  // Same triple, will conflict
     collector.delete(g, s, p, o);  // Deletes same triple that source adds
     collector.finish();
     RDFPatch conflictingPatch = collector.getRDFPatch();

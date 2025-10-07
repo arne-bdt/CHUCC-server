@@ -127,7 +127,8 @@ public class GraphStoreController {
    * @param branch target branch
    * @param commit target commit
    * @param asOf timestamp for time-travel query
-   * @return 501 Not Implemented (stub)
+   * @param accept requested RDF format
+   * @return response with graph content
    */
   // CPD-OFF - Method signature follows GSP spec, duplication is intentional
   @GetMapping(produces = {
@@ -184,31 +185,19 @@ public class GraphStoreController {
       @RequestHeader(name = HttpHeaders.ACCEPT, required = false,
           defaultValue = "text/turtle") String accept) {
 
-    // Validate parameters
-    validateParameters(graph, isDefault, branch, commit, asOf);
-
-    // Resolve selector to CommitId
+    // Validate parameters and resolve selector
     org.chucc.vcserver.domain.CommitId commitId =
-        selectorResolutionService.resolve(DATASET_NAME, branch, commit, asOf);
+        resolveGraphSelector(graph, isDefault, branch, commit, asOf);
 
-    // Get the graph from the dataset
-    org.apache.jena.rdf.model.Model model;
-    if (isDefault != null && isDefault) {
-      model = datasetService.getDefaultGraph(DATASET_NAME, commitId);
-    } else {
-      model = datasetService.getGraph(DATASET_NAME, commitId, graph);
-      if (model == null) {
-        throw new org.chucc.vcserver.exception.GraphNotFoundException(graph);
-      }
-    }
+    // Get the graph from the dataset (throws GraphNotFoundException if not found)
+    org.apache.jena.rdf.model.Model model = getModelFromDataset(graph, isDefault, commitId);
 
-    // Build response with headers
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(org.springframework.http.MediaType.parseMediaType(
+    // Build response headers
+    HttpHeaders headers = buildResponseHeaders(
+        commitId,
         serializationService.getContentType(
-            org.apache.jena.riot.RDFLanguages.contentTypeToLang(accept))));
-    headers.setETag("\"" + commitId.value() + "\"");
-    headers.set("SPARQL-Version-Control", "true");
+            org.apache.jena.riot.RDFLanguages.contentTypeToLang(accept))
+    );
 
     // Serialize the graph
     String serialized = serializationService.serializeGraph(model, accept);
@@ -225,7 +214,7 @@ public class GraphStoreController {
    * @param branch target branch
    * @param commit target commit
    * @param asOf timestamp for time-travel query
-   * @return 501 Not Implemented (stub)
+   * @return response with headers but no body
    */
   // CPD-OFF - Method signature follows GSP spec, duplication is intentional
   @RequestMapping(method = RequestMethod.HEAD)
@@ -255,7 +244,8 @@ public class GraphStoreController {
       responseCode = "501",
       description = "Not Implemented"
   )
-  @SuppressWarnings("PMD.UseObjectForClearerAPI") // Method signature matches GSP spec
+  @SuppressWarnings({"PMD.UseObjectForClearerAPI", "PMD.LooseCoupling"})
+  // Method signature matches GSP spec; HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<Void> headGraph(
       @Parameter(description = "Named graph IRI")
       @RequestParam(required = false) String graph,
@@ -268,8 +258,18 @@ public class GraphStoreController {
       @Parameter(description = "Query state at or before this timestamp (ISO8601)")
       @RequestParam(required = false) String asOf) {
 
-    validateParameters(graph, isDefault, branch, commit, asOf);
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    // Validate parameters and resolve selector (reuse GET logic)
+    org.chucc.vcserver.domain.CommitId commitId =
+        resolveGraphSelector(graph, isDefault, branch, commit, asOf);
+
+    // Check graph existence (throws GraphNotFoundException if not found)
+    getModelFromDataset(graph, isDefault, commitId);
+
+    // Build response headers (same as GET, but default to text/turtle for content-type)
+    HttpHeaders headers = buildResponseHeaders(commitId, "text/turtle");
+
+    // Return headers with no body
+    return ResponseEntity.ok().headers(headers).build();
   }
   // CPD-ON
 
@@ -621,6 +621,62 @@ public class GraphStoreController {
       String commit, String asOf) {
     GraphParameterValidator.validateGraphParameter(graph, isDefault);
     SelectorValidator.validateMutualExclusion(branch, commit, asOf);
+  }
+
+  /**
+   * Resolves graph selector to a CommitId.
+   *
+   * @param graph the graph IRI parameter
+   * @param isDefault the default flag parameter
+   * @param branch the branch selector
+   * @param commit the commit selector
+   * @param asOf the asOf selector
+   * @return the resolved CommitId
+   */
+  private org.chucc.vcserver.domain.CommitId resolveGraphSelector(
+      String graph, Boolean isDefault, String branch, String commit, String asOf) {
+    validateParameters(graph, isDefault, branch, commit, asOf);
+    return selectorResolutionService.resolve(DATASET_NAME, branch, commit, asOf);
+  }
+
+  /**
+   * Retrieves model from dataset.
+   *
+   * @param graph the graph IRI parameter
+   * @param isDefault the default flag parameter
+   * @param commitId the resolved commit ID
+   * @return the retrieved model
+   * @throws org.chucc.vcserver.exception.GraphNotFoundException if named graph not found
+   */
+  private org.apache.jena.rdf.model.Model getModelFromDataset(
+      String graph, Boolean isDefault, org.chucc.vcserver.domain.CommitId commitId) {
+    if (isDefault != null && isDefault) {
+      return datasetService.getDefaultGraph(DATASET_NAME, commitId);
+    } else {
+      org.apache.jena.rdf.model.Model model =
+          datasetService.getGraph(DATASET_NAME, commitId, graph);
+      if (model == null) {
+        throw new org.chucc.vcserver.exception.GraphNotFoundException(graph);
+      }
+      return model;
+    }
+  }
+
+  /**
+   * Builds response headers for graph operations.
+   *
+   * @param commitId the commit ID to include in ETag
+   * @param contentType the content type for the response
+   * @return the built HttpHeaders
+   */
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  private HttpHeaders buildResponseHeaders(
+      org.chucc.vcserver.domain.CommitId commitId, String contentType) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(org.springframework.http.MediaType.parseMediaType(contentType));
+    headers.setETag("\"" + commitId.value() + "\"");
+    headers.set("SPARQL-Version-Control", "true");
+    return headers;
   }
 
   /**

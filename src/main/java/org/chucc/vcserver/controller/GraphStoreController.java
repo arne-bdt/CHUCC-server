@@ -158,7 +158,18 @@ public class GraphStoreController {
       summary = "GET graph",
       description = "Retrieve RDF graph content. Use ?graph=IRI for named graphs or "
           + "?default=true for the default graph. "
-          + "Version control: branch, commit, or asOf parameters select the dataset state."
+          + "Version control: branch, commit, or asOf parameters select the dataset state.\n\n"
+          + "**Time-Travel Queries (asOf):**\n"
+          + "- `asOf` parameter accepts RFC 3339 timestamps (e.g., 2025-10-01T12:00:00Z)\n"
+          + "- Timestamp is **inclusive**: commits at the exact timestamp are selected\n"
+          + "- Returns most recent commit at or before the specified time\n"
+          + "- Can be combined with `branch` to time-travel on a specific branch\n"
+          + "- Can be used without `branch` for global time-travel across all commits\n"
+          + "- Future timestamps return the latest commit\n"
+          + "- Timestamps before any commit return 404\n\n"
+          + "Examples:\n"
+          + "- `GET /data?graph=http://ex.org/g&branch=main&asOf=2025-10-01T12:00:00Z`\n"
+          + "- `GET /data?default=true&asOf=2025-10-01T12:00:00Z`"
   )
   @ApiResponse(
       responseCode = "200",
@@ -241,7 +252,8 @@ public class GraphStoreController {
   @Operation(
       summary = "HEAD graph",
       description = "Check graph existence and retrieve metadata without content. "
-          + "Returns same headers as GET but no body."
+          + "Returns same headers as GET but no body.\n\n"
+          + "Supports time-travel queries via `asOf` parameter (see GET for details)."
   )
   @ApiResponse(
       responseCode = "200",

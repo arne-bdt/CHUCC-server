@@ -123,6 +123,7 @@ public class EventPublisher {
       case SnapshotCreatedEvent e -> e.branchName(); // Snapshots partition by branch
       case CherryPickedEvent e -> e.branch(); // Cherry-picks partition by target branch
       case CommitsSquashedEvent e -> e.branch(); // Squash partition by branch
+      case BatchGraphsCompletedEvent e -> event.dataset(); // Batch ops partition by dataset
     };
   }
 
@@ -198,6 +199,11 @@ public class EventPublisher {
             e.newCommitId().getBytes(StandardCharsets.UTF_8)));
         headers.add(new RecordHeader(EventHeaders.CONTENT_TYPE,
             EventHeaders.RDF_PATCH_CONTENT_TYPE.getBytes(StandardCharsets.UTF_8)));
+      }
+      case BatchGraphsCompletedEvent e -> {
+        // Add header with number of commits created
+        headers.add(new RecordHeader("commit-count",
+            String.valueOf(e.commits().size()).getBytes(StandardCharsets.UTF_8)));
       }
     }
   }

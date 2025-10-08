@@ -9,6 +9,7 @@ import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.event.BatchGraphsCompletedEvent;
 import org.chucc.vcserver.event.BranchCreatedEvent;
 import org.chucc.vcserver.event.BranchRebasedEvent;
 import org.chucc.vcserver.event.BranchResetEvent;
@@ -89,6 +90,7 @@ public class ReadModelProjector {
         case SnapshotCreatedEvent e -> handleSnapshotCreated(e);
         case CherryPickedEvent e -> handleCherryPicked(e);
         case CommitsSquashedEvent e -> handleCommitsSquashed(e);
+        case BatchGraphsCompletedEvent e -> handleBatchGraphsCompleted(e);
       }
 
       logger.info("Successfully projected event: {} for dataset: {}",
@@ -357,6 +359,24 @@ public class ReadModelProjector {
     // Trigger snapshot check after branch update
     snapshotService.recordCommit(event.dataset(), event.branch(),
         CommitId.of(event.newCommitId()));
+  }
+
+  /**
+   * Handles BatchGraphsCompletedEvent by processing each commit in the batch.
+   *
+   * @param event the batch graphs completed event
+   */
+  void handleBatchGraphsCompleted(BatchGraphsCompletedEvent event) {
+    logger.debug("Processing BatchGraphsCompletedEvent: dataset={}, commitCount={}",
+        event.dataset(), event.commits().size());
+
+    // Process each commit in the batch
+    for (CommitCreatedEvent commitEvent : event.commits()) {
+      handleCommitCreated(commitEvent);
+    }
+
+    logger.info("Processed batch with {} commits in dataset: {}",
+        event.commits().size(), event.dataset());
   }
 
   /**

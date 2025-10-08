@@ -9,6 +9,7 @@ The basic technology stack is:
 
 Prefer JUnit and Mockito for testing.
 Use a test-driven development (TDD) approach. Write unit tests and integration tests for each feature before implementing it.
+The idea ist that you first switch into the user perspective how the feature should work and then you implement it.
 You may add additional tests after implementing a feature to increase coverage.
 
 **Test Quality Guidelines - Avoiding Superficial Tests:**

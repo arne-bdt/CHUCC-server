@@ -177,7 +177,8 @@ class ETagIntegrationTest {
     JsonNode json = objectMapper.readTree(response.getBody());
     assertThat(json.get("status").asInt()).isEqualTo(412);
     assertThat(json.get("code").asText()).isEqualTo("precondition_failed");
-    assertThat(json.get("title").asText())
+    assertThat(json.get("title").asText()).isEqualTo("Precondition Failed");
+    assertThat(json.get("detail").asText())
         .contains("If-Match precondition failed")
         .contains("01936c7f-8a2e-7890-abcd-ef1234567890");
   }

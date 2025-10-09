@@ -68,7 +68,7 @@ class ErrorResponseIntegrationTest {
 
         assertThat(json.get("status").asInt()).isEqualTo(400);
         assertThat(json.get("code").asText()).isEqualTo("selector_conflict");
-        assertThat(json.get("title").asText()).isEqualTo("Multiple mutually exclusive selectors provided");
+        assertThat(json.get("title").asText()).isEqualTo("Bad Request");
     }
 
     @Test

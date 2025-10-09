@@ -2,6 +2,7 @@ package org.chucc.vcserver.exception;
 
 import org.chucc.vcserver.dto.ConflictProblemDetail;
 import org.chucc.vcserver.dto.ProblemDetail;
+import org.chucc.vcserver.util.ErrorResponseBuilder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -119,6 +120,65 @@ public class VcExceptionHandler {
         ex.getCode()
     );
     return new ResponseEntity<>(problem, headers, HttpStatus.valueOf(ex.getStatus()));
+  }
+
+  /**
+   * Handle precondition failed exceptions with detailed information.
+   *
+   * @param ex the precondition failed exception
+   * @return RFC 7807 problem+json response with expected and actual values
+   */
+  @ExceptionHandler(PreconditionFailedException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<ProblemDetail> handlePreconditionFailed(
+      PreconditionFailedException ex) {
+    ProblemDetail problem = ErrorResponseBuilder.buildPreconditionFailed(
+        ex.getExpected(),
+        ex.getActual()
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+
+    return new ResponseEntity<>(problem, headers, HttpStatus.PRECONDITION_FAILED);
+  }
+
+  /**
+   * Handle graph not found exceptions.
+   *
+   * @param ex the graph not found exception
+   * @return RFC 7807 problem+json response
+   */
+  @ExceptionHandler(GraphNotFoundException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<ProblemDetail> handleGraphNotFound(GraphNotFoundException ex) {
+    // Extract graph IRI from message if available
+    String message = ex.getMessage();
+    String graphIri = message.substring(message.lastIndexOf(":") + 1).trim();
+
+    ProblemDetail problem = ErrorResponseBuilder.buildGraphNotFound(graphIri);
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+
+    return new ResponseEntity<>(problem, headers, HttpStatus.NOT_FOUND);
+  }
+
+  /**
+   * Handle selector conflict exceptions with helpful hints.
+   *
+   * @param ex the selector conflict exception
+   * @return RFC 7807 problem+json response
+   */
+  @ExceptionHandler(SelectorConflictException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<ProblemDetail> handleSelectorConflict(SelectorConflictException ex) {
+    ProblemDetail problem = ErrorResponseBuilder.buildSelectorConflict(ex.getMessage());
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+
+    return new ResponseEntity<>(problem, headers, HttpStatus.BAD_REQUEST);
   }
 
   /**

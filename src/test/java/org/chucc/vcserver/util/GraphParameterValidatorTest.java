@@ -144,4 +144,25 @@ class GraphParameterValidatorTest {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Invalid IRI");
   }
+
+  @Test
+  void validateGraphIri_shouldRejectTooLongIri() {
+    // Create an IRI that exceeds MAX_IRI_LENGTH (2048)
+    String baseIri = "http://example.org/";
+    String tooLongIri = baseIri + "a".repeat(2050);
+
+    assertThatThrownBy(() -> GraphParameterValidator.validateGraphIri(tooLongIri))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("exceeds maximum length");
+  }
+
+  @Test
+  void validateGraphIri_shouldAcceptMaxLengthIri() {
+    // Create an IRI at exactly MAX_IRI_LENGTH (2048)
+    String baseIri = "http://example.org/";
+    String maxLengthIri = baseIri + "a".repeat(2048 - baseIri.length());
+
+    assertThatCode(() -> GraphParameterValidator.validateGraphIri(maxLengthIri))
+        .doesNotThrowAnyException();
+  }
 }

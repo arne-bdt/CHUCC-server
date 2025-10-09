@@ -4,7 +4,8 @@ import java.util.Objects;
 import org.chucc.vcserver.domain.CommitId;
 
 /**
- * Validator for graph command parameters.
+ * Validator for graph command parameters with security-focused input validation.
+ * Ensures all user-provided inputs are properly validated and sanitized.
  */
 public final class GraphCommandValidator {
 
@@ -14,6 +15,7 @@ public final class GraphCommandValidator {
 
   /**
    * Validates common graph command parameters.
+   * Performs null checks, blank checks, and security sanitization.
    *
    * @param dataset the dataset name
    * @param graphIri the graph IRI
@@ -22,8 +24,8 @@ public final class GraphCommandValidator {
    * @param baseCommit the base commit
    * @param rdfContent the RDF content
    * @param contentType the content type
-   * @param author the author
-   * @param message the message
+   * @param author the author (will be sanitized)
+   * @param message the message (will be sanitized)
    * @throws IllegalArgumentException if validation fails
    */
   public static void validateGraphCommand(
@@ -42,24 +44,22 @@ public final class GraphCommandValidator {
     Objects.requireNonNull(baseCommit, "Base commit cannot be null");
     Objects.requireNonNull(rdfContent, "RDF content cannot be null");
     Objects.requireNonNull(contentType, "Content type cannot be null");
-    Objects.requireNonNull(author, "Author cannot be null");
-    Objects.requireNonNull(message, "Message cannot be null");
 
-    if (dataset.isBlank()) {
-      throw new IllegalArgumentException("Dataset cannot be blank");
-    }
-    if (branch.isBlank()) {
-      throw new IllegalArgumentException("Branch cannot be blank");
-    }
+    // Validate and sanitize dataset name
+    InputSanitizer.sanitizeName(dataset);
+
+    // Validate and sanitize branch name
+    InputSanitizer.sanitizeName(branch);
+
     if (contentType.isBlank()) {
       throw new IllegalArgumentException("Content type cannot be blank");
     }
-    if (author.isBlank()) {
-      throw new IllegalArgumentException("Author cannot be blank");
-    }
-    if (message.isBlank()) {
-      throw new IllegalArgumentException("Message cannot be blank");
-    }
+
+    // Validate and sanitize author (throws if invalid)
+    InputSanitizer.sanitizeAuthor(author);
+
+    // Validate and sanitize message (throws if invalid)
+    InputSanitizer.sanitizeMessage(message);
 
     // Validate graph IRI constraint
     if (!isDefaultGraph && (graphIri == null || graphIri.isBlank())) {
@@ -72,3 +72,4 @@ public final class GraphCommandValidator {
     }
   }
 }
+

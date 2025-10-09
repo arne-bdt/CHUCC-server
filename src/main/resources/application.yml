@@ -3,10 +3,20 @@ spring:
     name: vc-server
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  # Security: Limit multipart file uploads
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 server:
   port: 8080
   shutdown: graceful
+  # Security: Limit request body size to prevent DoS attacks
+  tomcat:
+    max-http-form-post-size: 10MB
+    max-swallow-size: 10MB
+  max-http-request-header-size: 16KB
 
 springdoc:
   api-docs:

@@ -50,13 +50,36 @@ public final class GraphParameterValidator {
   }
 
   /**
+   * Maximum allowed length for a graph IRI to prevent resource exhaustion.
+   */
+  private static final int MAX_IRI_LENGTH = 2048;
+
+  /**
    * Validates a graph IRI according to RFC 3986/3987.
    *
    * @param iri the IRI to validate
-   * @throws IllegalArgumentException if the IRI is null, blank, or invalid
+   * @throws NullPointerException if the IRI is null
+   * @throws IllegalArgumentException if the IRI is blank, invalid, or too long
    */
   public static void validateGraphIri(String iri) {
-    // Delegate to GraphIdentifier for validation
+    // Check for null first
+    if (iri == null) {
+      throw new NullPointerException("IRI cannot be null");
+    }
+
+    // Check for blank
+    if (iri.isBlank()) {
+      throw new IllegalArgumentException("IRI cannot be blank");
+    }
+
+    // Check length limit to prevent resource exhaustion
+    if (iri.length() > MAX_IRI_LENGTH) {
+      throw new IllegalArgumentException(
+          "Graph IRI exceeds maximum length of " + MAX_IRI_LENGTH + " characters"
+      );
+    }
+
+    // Delegate to GraphIdentifier for RFC 3986/3987 validation
     GraphIdentifier.named(iri);
   }
 }

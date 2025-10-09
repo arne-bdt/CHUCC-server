@@ -1,5 +1,6 @@
 package org.chucc.vcserver.service;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
@@ -27,7 +28,8 @@ class DatasetServiceTest {
   void setUp() {
     branchRepository = new BranchRepository();
     commitRepository = new CommitRepository();
-    service = new DatasetService(branchRepository, commitRepository);
+    // Use SimpleMeterRegistry for testing - provides metrics without external dependencies
+    service = new DatasetService(branchRepository, commitRepository, new SimpleMeterRegistry());
   }
 
   @Test

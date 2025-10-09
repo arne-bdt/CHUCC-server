@@ -1,6 +1,8 @@
 package org.chucc.vcserver.service;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.jena.query.Dataset;
@@ -21,6 +23,10 @@ import org.springframework.stereotype.Service;
  * Service for managing Jena in-memory datasets with version control.
  * Provides datasets for specific branches or commit snapshots.
  * Thread-safe for concurrent read operations.
+ *
+ * <p>Performance: Uses a simple ConcurrentHashMap cache for materialized datasets.
+ * In-memory RDF patch application is fast, so sophisticated caching is deferred
+ * until performance data indicates it's needed.
  */
 @Service
 public class DatasetService {
@@ -28,14 +34,28 @@ public class DatasetService {
   private final CommitRepository commitRepository;
 
   // Cache of materialized dataset graphs per commit
+  // Simple ConcurrentHashMap is sufficient for current needs
   private final Map<String, Map<CommitId, DatasetGraphInMemory>> datasetCache =
       new ConcurrentHashMap<>();
 
+  /**
+   * Creates a new DatasetService with observability support.
+   *
+   * @param branchRepository the branch repository
+   * @param commitRepository the commit repository
+   * @param meterRegistry the meter registry for metrics
+   */
   @SuppressFBWarnings(value = "EI_EXPOSE_REP2",
       justification = "Repositories are Spring-managed beans and are intentionally shared")
-  public DatasetService(BranchRepository branchRepository, CommitRepository commitRepository) {
+  public DatasetService(BranchRepository branchRepository, CommitRepository commitRepository,
+      MeterRegistry meterRegistry) {
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
+
+    // Register cache size gauge for observability
+    Gauge.builder("dataset.cache.size", datasetCache, Map::size)
+        .description("Number of datasets in the materialization cache")
+        .register(meterRegistry);
   }
 
   /**

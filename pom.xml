@@ -11,6 +11,7 @@
 
     <name>vc-server</name>
     <description>SPARQL 1.2 Protocol with Version Control Extension</description>
+    <url>https://github.com/chucc/vc-server</url>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -229,12 +230,34 @@
                     <rulesets>
                         <ruleset>/rulesets/java/quickstart.xml</ruleset>
                     </rulesets>
+                    <skipEmptyReport>true</skipEmptyReport>
                 </configuration>
                 <executions>
                     <execution>
+                        <id>pmd-check</id>
                         <goals>
                             <goal>check</goal>
                             <goal>cpd-check</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Suppress HTML report generation during checks to avoid parent URL warning -->
+                            <format>xml</format>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- JXR Plugin for source cross-references (used by PMD reports) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jxr-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>generate-xref</id>
+                        <phase>process-sources</phase>
+                        <goals>
+                            <goal>jxr</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -374,6 +397,30 @@
             </plugin>
         </plugins>
     </build>
+
+    <reporting>
+        <plugins>
+            <!-- JXR Plugin for source cross-references -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jxr-plugin</artifactId>
+                <version>3.6.0</version>
+            </plugin>
+
+            <!-- PMD Report Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>${maven-pmd-plugin.version}</version>
+                <configuration>
+                    <linkXRef>true</linkXRef>
+                    <rulesets>
+                        <ruleset>/rulesets/java/quickstart.xml</ruleset>
+                    </rulesets>
+                </configuration>
+            </plugin>
+        </plugins>
+    </reporting>
 
     <profiles>
         <!-- Development Profile -->

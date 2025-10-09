@@ -39,6 +39,7 @@ class EventPublisherTest {
   private EventPublisher eventPublisher;
 
   @BeforeEach
+  @SuppressWarnings("unchecked") // ProducerRecord with generics, safe for mocking
   void setUp() {
     kafkaProperties = new KafkaProperties();
     kafkaProperties.setTopicTemplate("vc.{dataset}.events");

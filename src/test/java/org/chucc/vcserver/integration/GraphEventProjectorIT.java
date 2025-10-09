@@ -11,9 +11,9 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.chucc.vcserver.config.KafkaProperties;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
-import org.chucc.vcserver.testutil.IntegrationTestFixture;
 import org.chucc.vcserver.testutil.KafkaTestContainers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,16 +22,22 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
-
 /**
  * Integration test for Graph Store Protocol event projection.
  *
  * <p>Verifies that the ReadModelProjector can handle events from GSP operations:
- * 1. CommitCreatedEvent (from PUT, POST, DELETE, PATCH operations)
- * 2. BatchGraphsCompletedEvent (from batch graph operations)
+ * <ul>
+ *   <li>CommitCreatedEvent (from PUT, POST, DELETE, PATCH operations)
+ *   <li>BatchGraphsCompletedEvent (from batch graph operations)
+ * </ul>
+ *
+ * <p><strong>Note:</strong> This test explicitly enables the ReadModelProjector
+ * via {@code @TestPropertySource(properties = "projector.kafka-listener.enabled=true")}
+ * because projector is disabled by default in integration tests for test isolation.
  *
  * <p>This test manually publishes events to verify projector readiness.
  * When controllers are updated to publish events to Kafka, the complete
@@ -43,10 +49,13 @@ import org.testcontainers.kafka.KafkaContainer;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
 @Testcontainers
-class GraphEventProjectorIT extends IntegrationTestFixture {
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")
+class GraphEventProjectorIT {
+
+  private static final String DEFAULT_DATASET = "default";
 
   @Container
-  static final KafkaContainer kafka = KafkaTestContainers.createKafkaContainerNoReuse();
+  private static KafkaContainer kafka = KafkaTestContainers.createKafkaContainerNoReuse();
 
   @DynamicPropertySource
   static void kafkaProperties(DynamicPropertyRegistry registry) {
@@ -66,14 +75,11 @@ class GraphEventProjectorIT extends IntegrationTestFixture {
   @Autowired
   private KafkaProperties kafkaProperties;
 
+  private CommitId initialCommitId;
+
   private static final String PATCH_CONTENT = "TX .\n"
       + "A <http://example.org/s> <http://example.org/p> \"value\" .\n"
       + "TC .";
-
-  @Override
-  protected boolean shouldCreateInitialSetup() {
-    return false; // We'll create our own setup with Kafka topic
-  }
 
   /**
    * Set up test environment with Kafka topic.
@@ -88,7 +94,9 @@ class GraphEventProjectorIT extends IntegrationTestFixture {
     ensureTopicExists(DEFAULT_DATASET);
 
     // Create initial commit and branch for testing
-    createInitialCommitAndBranch(DEFAULT_DATASET);
+    initialCommitId = CommitId.generate();
+    Branch mainBranch = new Branch("main", initialCommitId);
+    branchRepository.save(DEFAULT_DATASET, mainBranch);
   }
 
   /**

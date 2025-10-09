@@ -73,7 +73,8 @@ public class ReadModelProjector {
   @KafkaListener(
       topicPattern = "vc\\..*\\.events",
       groupId = "read-model-projector",
-      containerFactory = "kafkaListenerContainerFactory"
+      containerFactory = "kafkaListenerContainerFactory",
+      autoStartup = "${projector.kafka-listener.enabled:true}"
   )
   public void handleEvent(VersionControlEvent event) {
     logger.debug("Received event: {} for dataset: {}",

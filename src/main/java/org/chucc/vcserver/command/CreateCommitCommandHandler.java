@@ -15,11 +15,14 @@ import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.util.RdfPatchUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -28,8 +31,12 @@ import org.springframework.stereotype.Component;
  * Includes optimistic concurrency control via patch intersection.
  */
 @Component
+@SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCommand> {
 
+  private static final Logger logger = LoggerFactory.getLogger(CreateCommitCommandHandler.class);
+
+  private final EventPublisher eventPublisher;
   private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
   private final DatasetService datasetService;
@@ -37,6 +44,7 @@ public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCo
   /**
    * Constructs a CreateCommitCommandHandler.
    *
+   * @param eventPublisher the event publisher
    * @param branchRepository the branch repository
    * @param commitRepository the commit repository
    * @param datasetService the dataset service
@@ -46,9 +54,11 @@ public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCo
       justification = "Repositories and services are Spring-managed beans "
           + "and are intentionally shared")
   public CreateCommitCommandHandler(
+      EventPublisher eventPublisher,
       BranchRepository branchRepository,
       CommitRepository commitRepository,
       DatasetService datasetService) {
+    this.eventPublisher = eventPublisher;
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
     this.datasetService = datasetService;
@@ -115,7 +125,7 @@ public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCo
     String patchString = serializePatch(newPatch);
 
     // Produce event
-    return new CommitCreatedEvent(
+    VersionControlEvent event = new CommitCreatedEvent(
         command.dataset(),
         commitId.value(),
         List.of(parentCommitId.value()),
@@ -123,6 +133,16 @@ public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCo
         command.author(),
         Instant.now(),
         patchString);
+
+    // Publish event to Kafka (fire-and-forget, async)
+    eventPublisher.publish(event)
+        .exceptionally(ex -> {
+          logger.error("Failed to publish event {}: {}",
+              event.getClass().getSimpleName(), ex.getMessage(), ex);
+          return null;
+        });
+
+    return event;
   }
 
   /**

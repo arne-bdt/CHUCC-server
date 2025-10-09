@@ -9,6 +9,7 @@ import org.testcontainers.utility.DockerImageName;
 /**
  * Centralized Kafka container configuration for integration tests.
  * Reads configuration from test.properties for maintainability.
+ * Uses singleton pattern to share one container across all tests.
  */
 public final class KafkaTestContainers {
 
@@ -21,19 +22,36 @@ public final class KafkaTestContainers {
       TEST_PROPERTIES.getProperty("testcontainers.kafka.reuse", "false")
   );
 
+  private static KafkaContainer sharedContainer;
+  private static boolean containerStarted = false;
+
   private KafkaTestContainers() {
     // Utility class - prevent instantiation
   }
 
   /**
-   * Creates a new Kafka container with standard configuration.
+   * Gets the shared Kafka container instance, creating and starting it if needed.
+   * All integration tests share this single container to avoid resource exhaustion.
    * Container is configured with KRaft mode and standard ports.
    * Configuration is loaded from test.properties.
    *
-   * @return configured KafkaContainer instance
+   * @return shared KafkaContainer instance
    */
-  public static KafkaContainer createKafkaContainer() {
-    return new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE));
+  public static synchronized KafkaContainer createKafkaContainer() {
+    if (sharedContainer == null) {
+      sharedContainer = new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE));
+    }
+    if (!containerStarted) {
+      sharedContainer.start();
+      containerStarted = true;
+      // Register shutdown hook to stop container when JVM exits
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        if (sharedContainer != null && sharedContainer.isRunning()) {
+          sharedContainer.stop();
+        }
+      }));
+    }
+    return sharedContainer;
   }
 
   /**

@@ -10,11 +10,14 @@ import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.CommitsSquashedEvent;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.util.RdfPatchUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -22,8 +25,12 @@ import org.springframework.stereotype.Component;
  * and producing a CommitsSquashedEvent.
  */
 @Component
+@SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class SquashCommandHandler implements CommandHandler<SquashCommand> {
 
+  private static final Logger logger = LoggerFactory.getLogger(SquashCommandHandler.class);
+
+  private final EventPublisher eventPublisher;
   private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
   private final DatasetService datasetService;
@@ -31,6 +38,7 @@ public class SquashCommandHandler implements CommandHandler<SquashCommand> {
   /**
    * Constructs a SquashCommandHandler.
    *
+   * @param eventPublisher the event publisher
    * @param branchRepository the branch repository
    * @param commitRepository the commit repository
    * @param datasetService the dataset service for materializing commit states
@@ -39,9 +47,11 @@ public class SquashCommandHandler implements CommandHandler<SquashCommand> {
       value = "EI_EXPOSE_REP2",
       justification = "Repositories are Spring-managed beans and are intentionally shared")
   public SquashCommandHandler(
+      EventPublisher eventPublisher,
       BranchRepository branchRepository,
       CommitRepository commitRepository,
       DatasetService datasetService) {
+    this.eventPublisher = eventPublisher;
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
     this.datasetService = datasetService;
@@ -104,7 +114,7 @@ public class SquashCommandHandler implements CommandHandler<SquashCommand> {
     branchRepository.save(command.dataset(), branch);
 
     // 11. Produce event
-    return new CommitsSquashedEvent(
+    VersionControlEvent event = new CommitsSquashedEvent(
         command.dataset(),
         command.branch(),
         newCommitId.value(),
@@ -114,6 +124,16 @@ public class SquashCommandHandler implements CommandHandler<SquashCommand> {
         Instant.now(),
         previousHead
     );
+
+    // Publish event to Kafka (fire-and-forget, async)
+    eventPublisher.publish(event)
+        .exceptionally(ex -> {
+          logger.error("Failed to publish event {}: {}",
+              event.getClass().getSimpleName(), ex.getMessage(), ex);
+          return null;
+        });
+
+    return event;
   }
 
   /**

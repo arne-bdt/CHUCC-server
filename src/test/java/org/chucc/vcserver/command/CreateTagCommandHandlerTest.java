@@ -1,6 +1,8 @@
 package org.chucc.vcserver.command;
 
+import java.util.concurrent.CompletableFuture;
 import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.TagCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.CommitRepository;
@@ -13,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
@@ -22,13 +25,19 @@ import static org.mockito.Mockito.when;
 class CreateTagCommandHandlerTest {
 
   @Mock
+  private EventPublisher eventPublisher;
+
+  @Mock
   private CommitRepository commitRepository;
 
   private CreateTagCommandHandler handler;
 
   @BeforeEach
   void setUp() {
-    handler = new CreateTagCommandHandler(commitRepository);
+    // Mock EventPublisher.publish() to return completed future (lenient for tests that don't publish)
+    lenient().when(eventPublisher.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
+
+    handler = new CreateTagCommandHandler(eventPublisher, commitRepository);
   }
 
   @Test

@@ -8,6 +8,8 @@ import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.testutil.KafkaTestContainers;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.kafka.KafkaContainer;
 
 /**
  * Integration tests for Graph Store Protocol HEAD operation.
@@ -27,6 +32,8 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
 class GraphStoreHeadIntegrationTest {
+
+  private static KafkaContainer kafkaContainer;
 
   @Autowired
   private TestRestTemplate restTemplate;
@@ -41,6 +48,21 @@ class GraphStoreHeadIntegrationTest {
 
   private CommitId commit1Id;
   private CommitId commit2Id;
+
+  @BeforeAll
+  static void startKafka() {
+    kafkaContainer = KafkaTestContainers.createKafkaContainer();
+    // Container is started by KafkaTestContainers - shared across all tests
+  }
+
+  @DynamicPropertySource
+  static void configureKafka(DynamicPropertyRegistry registry) {
+    registry.add("kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
+    registry.add("spring.kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
+    // Unique consumer group per test class to prevent cross-test event consumption
+    registry.add("spring.kafka.consumer.group-id",
+        () -> "test-" + System.currentTimeMillis() + "-" + Math.random());
+  }
 
   @BeforeEach
   void setUp() {

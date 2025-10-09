@@ -1,9 +1,12 @@
 package org.chucc.vcserver.command;
 
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.RevertCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
@@ -14,11 +17,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
@@ -26,6 +28,9 @@ import static org.mockito.Mockito.when;
  */
 @ExtendWith(MockitoExtension.class)
 class RevertCommitCommandHandlerTest {
+
+  @Mock
+  private EventPublisher eventPublisher;
 
   @Mock
   private BranchRepository branchRepository;
@@ -37,7 +42,10 @@ class RevertCommitCommandHandlerTest {
 
   @BeforeEach
   void setUp() {
-    handler = new RevertCommitCommandHandler(branchRepository, commitRepository);
+    // Mock EventPublisher.publish() to return completed future (lenient for tests that don't publish)
+    lenient().when(eventPublisher.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
+
+    handler = new RevertCommitCommandHandler(eventPublisher, branchRepository, commitRepository);
   }
 
   @Test

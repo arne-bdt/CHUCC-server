@@ -9,10 +9,12 @@ import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.service.ConflictDetectionService;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.GraphDiffService;
+import org.slf4j.Logger;
 
 /**
  * Utility methods for graph command handlers.
@@ -110,5 +112,60 @@ public final class GraphCommandUtil {
         Instant.now(),
         patchString
     );
+  }
+
+  /**
+   * Finalizes a graph command and publishes the resulting event to Kafka.
+   * Combines finalization (conflict checking, event creation) with event publishing.
+   * Returns null if the patch is empty (no-op).
+   *
+   * @param dataset the dataset name
+   * @param patch the RDF patch
+   * @param graphDiffService the graph diff service
+   * @param conflictDetectionService the conflict detection service
+   * @param currentHead the current branch head commit ID
+   * @param baseCommit the base commit ID
+   * @param message the commit message
+   * @param author the commit author
+   * @param eventPublisher the event publisher
+   * @param logger the logger for error logging
+   * @return the commit created event, or null if no-op
+   */
+  @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
+  public static VersionControlEvent finalizeAndPublishGraphCommand(
+      String dataset,
+      RDFPatch patch,
+      GraphDiffService graphDiffService,
+      ConflictDetectionService conflictDetectionService,
+      CommitId currentHead,
+      CommitId baseCommit,
+      String message,
+      String author,
+      EventPublisher eventPublisher,
+      Logger logger) {
+
+    // Finalize command (check for no-op, conflicts, and create commit event)
+    VersionControlEvent event = finalizeGraphCommand(
+        dataset,
+        patch,
+        graphDiffService,
+        conflictDetectionService,
+        currentHead,
+        baseCommit,
+        message,
+        author
+    );
+
+    // Publish event to Kafka (fire-and-forget, async)
+    if (event != null) {
+      eventPublisher.publish(event)
+          .exceptionally(ex -> {
+            logger.error("Failed to publish event {}: {}",
+                event.getClass().getSimpleName(), ex.getMessage(), ex);
+            return null;
+          });
+    }
+
+    return event;
   }
 }

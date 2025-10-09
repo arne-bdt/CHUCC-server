@@ -6,11 +6,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.ResourceFactory;
@@ -19,6 +21,7 @@ import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.exception.PreconditionFailedException;
 import org.chucc.vcserver.repository.BranchRepository;
@@ -38,6 +41,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
  */
 @ExtendWith(MockitoExtension.class)
 class PostGraphCommandHandlerTest {
+
+  @Mock
+  private EventPublisher eventPublisher;
 
   @Mock
   private BranchRepository branchRepository;
@@ -61,7 +67,11 @@ class PostGraphCommandHandlerTest {
 
   @BeforeEach
   void setUp() {
+    // Mock EventPublisher.publish() to return completed future (lenient for tests that don't publish)
+    lenient().when(eventPublisher.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
+
     handler = new PostGraphCommandHandler(
+        eventPublisher,
         branchRepository,
         datasetService,
         rdfParsingService,

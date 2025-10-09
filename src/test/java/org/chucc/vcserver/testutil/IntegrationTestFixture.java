@@ -9,17 +9,36 @@ import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.chucc.vcserver.repository.TagRepository;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.kafka.KafkaContainer;
 
 /**
  * Base class for integration tests providing common setup and cleanup.
- * Handles repository cleanup and initial commit/branch creation.
+ * Handles repository cleanup, initial commit/branch creation, and Kafka setup.
  *
- * <p>Tests can extend this class to get automatic repository cleanup
- * and initial dataset setup before each test.
+ * <p>Tests can extend this class to get automatic repository cleanup,
+ * initial dataset setup, and Kafka Testcontainer configuration before each test.
+ *
+ * <p><strong>Event Projection:</strong> By default, the ReadModelProjector
+ * (KafkaListener) is DISABLED in integration tests to ensure test isolation.
+ * Most integration tests verify the HTTP API layer (command side) without
+ * async event projection (query side).
+ *
+ * <p>Tests that specifically need to verify event projection should:
+ * <ul>
+ *   <li>Add {@code @TestPropertySource(properties = "projector.kafka-listener.enabled=true")}
+ *   <li>Use {@code await().atMost(...)} to wait for async projection
+ *   <li>See {@link org.chucc.vcserver.integration.GraphEventProjectorIT} for examples
+ * </ul>
  */
 public abstract class IntegrationTestFixture {
+
+  // Initialize Kafka container eagerly so it's started before @DynamicPropertySource runs
+  protected static KafkaContainer kafkaContainer = KafkaTestContainers.createKafkaContainer();
 
   @Autowired(required = false)
   protected BranchRepository branchRepository;
@@ -38,10 +57,25 @@ public abstract class IntegrationTestFixture {
   protected CommitId initialCommitId;
 
   /**
+   * Configures Kafka bootstrap servers from Testcontainer.
+   * Each test class gets a unique consumer group to ensure test isolation.
+   *
+   * @param registry dynamic property registry
+   */
+  @DynamicPropertySource
+  static void configureKafkaProperties(DynamicPropertyRegistry registry) {
+    registry.add("kafka.bootstrap-servers", () -> kafkaContainer.getBootstrapServers());
+    registry.add("spring.kafka.bootstrap-servers", () -> kafkaContainer.getBootstrapServers());
+    // Unique consumer group per test class to prevent cross-test event consumption
+    registry.add("spring.kafka.consumer.group-id",
+        () -> "test-" + IntegrationTestFixture.class.getSimpleName() + "-" + System.nanoTime());
+  }
+
+  /**
    * Gets the dataset name for this test.
    * Override to use a different dataset name.
    *
-   * @return dataset name (defaults to "default")
+   * @return dataset name (defaults to DEFAULT_DATASET)
    */
   protected String getDatasetName() {
     return DEFAULT_DATASET;

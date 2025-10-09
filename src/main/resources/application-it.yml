@@ -4,7 +4,7 @@ spring:
   kafka:
     consumer:
       group-id: vc-server-it
-      auto-offset-reset: earliest
+      auto-offset-reset: latest
     producer:
       acks: all
 
@@ -12,6 +12,11 @@ spring:
 # Testcontainers Kafka doesn't require transactions and simplifies testing
 kafka:
   transactional-id-prefix: ""
+
+# Disable ReadModelProjector in integration tests for test isolation
+projector:
+  kafka-listener:
+    enabled: false
 
 management:
   endpoint:

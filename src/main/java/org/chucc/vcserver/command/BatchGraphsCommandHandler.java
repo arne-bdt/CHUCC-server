@@ -14,6 +14,7 @@ import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.BatchGraphsCompletedEvent;
 import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.service.ConflictDetectionService;
@@ -22,6 +23,8 @@ import org.chucc.vcserver.service.GraphDiffService;
 import org.chucc.vcserver.service.RdfParsingService;
 import org.chucc.vcserver.service.RdfPatchService;
 import org.chucc.vcserver.util.GraphCommandUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -31,8 +34,12 @@ import org.springframework.stereotype.Component;
  * - "multiple": Each operation creates a separate commit
  */
 @Component
+@SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsCommand> {
 
+  private static final Logger logger = LoggerFactory.getLogger(BatchGraphsCommandHandler.class);
+
+  private final EventPublisher eventPublisher;
   private final BranchRepository branchRepository;
   private final DatasetService datasetService;
   private final RdfParsingService rdfParsingService;
@@ -43,6 +50,7 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
   /**
    * Constructs a BatchGraphsCommandHandler.
    *
+   * @param eventPublisher the event publisher
    * @param branchRepository the branch repository
    * @param datasetService the dataset service
    * @param rdfParsingService the RDF parsing service
@@ -55,12 +63,14 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
       justification = "Repositories and services are Spring-managed beans "
           + "and are intentionally shared")
   public BatchGraphsCommandHandler(
+      EventPublisher eventPublisher,
       BranchRepository branchRepository,
       DatasetService datasetService,
       RdfParsingService rdfParsingService,
       RdfPatchService rdfPatchService,
       GraphDiffService graphDiffService,
       ConflictDetectionService conflictDetectionService) {
+    this.eventPublisher = eventPublisher;
     this.branchRepository = branchRepository;
     this.datasetService = datasetService;
     this.rdfParsingService = rdfParsingService;
@@ -78,11 +88,24 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
             "Branch not found: " + command.branch()
                 + " in dataset: " + command.dataset()));
 
+    VersionControlEvent event;
     if ("single".equals(command.mode())) {
-      return handleSingleMode(command, branch);
+      event = handleSingleMode(command, branch);
     } else {
-      return handleMultipleMode(command, branch);
+      event = handleMultipleMode(command, branch);
     }
+
+    // Publish event to Kafka (fire-and-forget, async)
+    if (event != null) {
+      eventPublisher.publish(event)
+          .exceptionally(ex -> {
+            logger.error("Failed to publish event {}: {}",
+                event.getClass().getSimpleName(), ex.getMessage(), ex);
+            return null;
+          });
+    }
+
+    return event;
   }
 
   private VersionControlEvent handleSingleMode(BatchGraphsCommand command, Branch branch) {

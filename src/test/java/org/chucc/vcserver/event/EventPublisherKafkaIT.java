@@ -6,13 +6,12 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.chucc.vcserver.config.KafkaProperties;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.chucc.vcserver.testutil.KafkaTestContainers;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.kafka.KafkaContainer;
@@ -34,29 +33,17 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests transactional event publishing with real Kafka infrastructure.
  */
 @SpringBootTest
+@ActiveProfiles("it")
 class EventPublisherKafkaIT {
 
-  private static KafkaContainer kafkaContainer;
+  // Eager initialization - container must be started before @DynamicPropertySource
+  private static KafkaContainer kafkaContainer = KafkaTestContainers.createKafkaContainer();
 
   @Autowired
   private EventPublisher eventPublisher;
 
   @Autowired
   private KafkaProperties kafkaProperties;
-
-  @BeforeAll
-  static void startKafka() {
-    // Use centralized Kafka container configuration
-    kafkaContainer = KafkaTestContainers.createKafkaContainer();
-    kafkaContainer.start();
-  }
-
-  @AfterAll
-  static void stopKafka() {
-    if (kafkaContainer != null) {
-      kafkaContainer.stop();
-    }
-  }
 
   @DynamicPropertySource
   static void configureKafka(DynamicPropertyRegistry registry) {

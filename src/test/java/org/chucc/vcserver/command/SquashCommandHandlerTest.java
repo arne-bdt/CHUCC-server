@@ -3,6 +3,7 @@ package org.chucc.vcserver.command;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.rdfpatch.RDFPatch;
@@ -13,6 +14,7 @@ import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.CommitsSquashedEvent;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
@@ -27,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +38,9 @@ import static org.mockito.Mockito.when;
  */
 @ExtendWith(MockitoExtension.class)
 class SquashCommandHandlerTest {
+
+  @Mock
+  private EventPublisher eventPublisher;
 
   @Mock
   private BranchRepository branchRepository;
@@ -49,7 +55,11 @@ class SquashCommandHandlerTest {
 
   @BeforeEach
   void setUp() {
-    handler = new SquashCommandHandler(branchRepository, commitRepository, datasetService);
+    // Mock EventPublisher.publish() to return completed future (lenient for tests that don't publish)
+    lenient().when(eventPublisher.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
+
+    handler = new SquashCommandHandler(
+        eventPublisher, branchRepository, commitRepository, datasetService);
   }
 
   @Test

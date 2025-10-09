@@ -104,6 +104,116 @@ void synchronousOperation_shouldUpdateImmediately() {
 ```
 Example: Tag operations in `TagOperationsIntegrationTest`
 
+**Integration Testing with Kafka Event Projection:**
+
+**CRITICAL: ReadModelProjector (KafkaListener) is DISABLED by default in integration tests** (as of 2025-10-09).
+
+This ensures proper test isolation in our CQRS + Event Sourcing architecture:
+- Commands create events and return immediately (fire-and-forget)
+- Events are published to Kafka (all tests share same Kafka topics)
+- ReadModelProjector updates repositories asynchronously
+- With projector enabled everywhere, tests consume each other's events (cross-contamination)
+
+**Solution:** Projector disabled by default, enabled only in dedicated projector tests via:
+```java
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")
+```
+
+**When to Enable Projector:**
+- ✅ **Enable**: When testing ReadModelProjector event handlers (GraphEventProjectorIT)
+- ✅ **Enable**: When testing complete CQRS flow (command → event → projection)
+- ❌ **Disable** (default): When testing HTTP API layer (command side only)
+- ❌ **Disable** (default): When testing validation, error handling, headers
+
+**Testing Patterns:**
+
+**Pattern 1: API Layer Test** (90% of integration tests)
+```java
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("it")
+class MyApiTest extends IntegrationTestFixture {
+  // Projector is DISABLED by default - no @TestPropertySource needed
+
+  @Test
+  void operation_shouldReturnCorrectResponse() {
+    // Act: Make HTTP request (creates event, returns immediately)
+    ResponseEntity<String> response = restTemplate.exchange(...);
+
+    // Assert: Verify synchronous API response ONLY
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getHeaders().getFirst("Location")).isNotNull();
+
+    // ❌ DO NOT query repositories - projector is disabled!
+    // ❌ DO NOT use await() - no async processing!
+
+    // ✅ Add comment explaining:
+    // Note: Repository updates handled by ReadModelProjector (disabled in this test)
+  }
+}
+```
+
+**Pattern 2: Projector Test** (dedicated test class)
+```java
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("it")
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")  // ← Enable projector!
+class GraphEventProjectorIT extends IntegrationTestFixture {
+
+  @Autowired
+  private EventPublisher eventPublisher;
+
+  @Test
+  void commitCreatedEvent_shouldBeProjected() throws Exception {
+    // Arrange: Create event
+    CommitCreatedEvent event = new CommitCreatedEvent(...);
+
+    // Act: Publish event to Kafka
+    eventPublisher.publish(event).get();
+
+    // Assert: Wait for async projection, then verify repository
+    await().atMost(Duration.ofSeconds(10))
+        .untilAsserted(() -> {
+          var commit = commitRepository.findById(commitId);
+          assertThat(commit).isPresent();
+          assertThat(commit.get().author()).isEqualTo("Alice");
+        });
+  }
+}
+```
+
+**Common Mistakes:**
+
+❌ **Mistake 1:** Querying repository immediately after HTTP request
+```java
+ResponseEntity<String> response = restTemplate.exchange(...);
+var commit = commitRepository.findById(id);  // ❌ Will not find it!
+```
+**Why:** Projector disabled, repository not updated.
+**Fix:** Either enable projector + await(), or don't query repository.
+
+❌ **Mistake 2:** Using await() without enabling projector
+```java
+await().until(() -> commitRepository.findById(id).isPresent());  // ❌ Timeout!
+```
+**Why:** Projector disabled, repository never updated.
+**Fix:** Add `@TestPropertySource(properties = "projector.kafka-listener.enabled=true")`.
+
+❌ **Mistake 3:** Not using await() when projector is enabled
+```java
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")
+class MyTest {
+  @Test
+  void test() {
+    eventPublisher.publish(event).get();
+    var commit = commitRepository.findById(id);  // ❌ Race condition!
+  }
+}
+```
+**Why:** Async projection not complete yet.
+**Fix:** Use `await()` to wait for projection.
+
+**Reference:** See `GraphEventProjectorIT` for complete projector test examples.
+
 This project uses Checkstyle and SpotBugs for static code analysis.
 
 **Checkstyle Rules:**
@@ -310,3 +420,6 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`
 
 In the prompts I intentionally use words like "maybe" because I want to give you the opportunity to make alternative suggestions or propose variations if you think they are better.
+
+Assume that when you get a new task the project had no build errors before. So if you find any build errors or warnings, you should fix them as part of the task and they most likely are cause by the not yet committed changes you made.
+Also: If you find a bug and fix it, you should reflect that it might have a pattern and the same bug as well as the fix is to be applied to similar places in the code base.

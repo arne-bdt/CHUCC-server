@@ -6,9 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdfpatch.RDFPatch;
@@ -17,6 +19,7 @@ import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
@@ -32,6 +35,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
  */
 @ExtendWith(MockitoExtension.class)
 class CreateCommitCommandHandlerTest {
+
+  @Mock
+  private EventPublisher eventPublisher;
 
   @Mock
   private BranchRepository branchRepository;
@@ -51,7 +57,11 @@ class CreateCommitCommandHandlerTest {
 
   @BeforeEach
   void setUp() {
+    // Mock EventPublisher.publish() to return completed future (lenient for tests that don't publish)
+    lenient().when(eventPublisher.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
+
     handler = new CreateCommitCommandHandler(
+        eventPublisher,
         branchRepository,
         commitRepository,
         datasetService);

@@ -14,10 +14,13 @@ import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.BranchRebasedEvent;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.chucc.vcserver.repository.TagRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -25,8 +28,12 @@ import org.springframework.stereotype.Component;
  * and producing a BranchRebasedEvent.
  */
 @Component
+@SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class RebaseCommandHandler implements CommandHandler<RebaseCommand> {
 
+  private static final Logger logger = LoggerFactory.getLogger(RebaseCommandHandler.class);
+
+  private final EventPublisher eventPublisher;
   private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
   private final TagRepository tagRepository;
@@ -34,6 +41,7 @@ public class RebaseCommandHandler implements CommandHandler<RebaseCommand> {
   /**
    * Constructs a RebaseCommandHandler.
    *
+   * @param eventPublisher the event publisher
    * @param branchRepository the branch repository
    * @param commitRepository the commit repository
    * @param tagRepository the tag repository
@@ -42,9 +50,11 @@ public class RebaseCommandHandler implements CommandHandler<RebaseCommand> {
       value = "EI_EXPOSE_REP2",
       justification = "Repositories are Spring-managed beans and are intentionally shared")
   public RebaseCommandHandler(
+      EventPublisher eventPublisher,
       BranchRepository branchRepository,
       CommitRepository commitRepository,
       TagRepository tagRepository) {
+    this.eventPublisher = eventPublisher;
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
     this.tagRepository = tagRepository;
@@ -131,7 +141,7 @@ public class RebaseCommandHandler implements CommandHandler<RebaseCommand> {
     branchRepository.save(command.dataset(), branch);
 
     // 9. Produce event
-    return new BranchRebasedEvent(
+    VersionControlEvent event = new BranchRebasedEvent(
         command.dataset(),
         command.branch(),
         currentCommitId.value(),
@@ -140,6 +150,16 @@ public class RebaseCommandHandler implements CommandHandler<RebaseCommand> {
         command.author(),
         Instant.now()
     );
+
+    // Publish event to Kafka (fire-and-forget, async)
+    eventPublisher.publish(event)
+        .exceptionally(ex -> {
+          logger.error("Failed to publish event {}: {}",
+              event.getClass().getSimpleName(), ex.getMessage(), ex);
+          return null;
+        });
+
+    return event;
   }
 
   /**

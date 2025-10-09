@@ -16,6 +16,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.chucc.vcserver.testutil.KafkaTestContainers;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -36,6 +37,7 @@ import static org.awaitility.Awaitility.await;
 @SpringBootTest
 @ActiveProfiles("it")
 @Testcontainers
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")
 class SnapshotServiceIT {
 
   @Container

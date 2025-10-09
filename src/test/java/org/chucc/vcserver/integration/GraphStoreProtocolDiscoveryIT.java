@@ -2,6 +2,8 @@ package org.chucc.vcserver.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.chucc.vcserver.testutil.KafkaTestContainers;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,6 +14,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.kafka.KafkaContainer;
 
 /**
  * Integration test for Graph Store Protocol OPTIONS endpoint.
@@ -21,8 +26,20 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("it")
 class GraphStoreProtocolDiscoveryIT {
 
+  // Eager initialization - container must be started before @DynamicPropertySource
+  private static KafkaContainer kafkaContainer = KafkaTestContainers.createKafkaContainer();
+
   @Autowired
   private TestRestTemplate restTemplate;
+
+  @DynamicPropertySource
+  static void configureKafka(DynamicPropertyRegistry registry) {
+    registry.add("kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
+    registry.add("spring.kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
+    // Unique consumer group per test class to prevent cross-test event consumption
+    registry.add("spring.kafka.consumer.group-id",
+        () -> "test-" + System.currentTimeMillis() + "-" + Math.random());
+  }
 
   @Test
   void optionsEndpoint_shouldAdvertiseAllCapabilities() {

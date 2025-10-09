@@ -3,6 +3,7 @@ package org.chucc.vcserver.command;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.chucc.vcserver.domain.Branch;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.service.ConflictDetectionService;
@@ -11,6 +12,8 @@ import org.chucc.vcserver.service.GraphDiffService;
 import org.chucc.vcserver.service.PreconditionService;
 import org.chucc.vcserver.service.RdfParsingService;
 import org.chucc.vcserver.util.GraphCommandUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,8 +22,12 @@ import org.springframework.stereotype.Component;
  * and produces a CommitCreatedEvent if changes are non-empty.
  */
 @Component
+@SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class PostGraphCommandHandler implements CommandHandler<PostGraphCommand> {
 
+  private static final Logger logger = LoggerFactory.getLogger(PostGraphCommandHandler.class);
+
+  private final EventPublisher eventPublisher;
   private final BranchRepository branchRepository;
   private final DatasetService datasetService;
   private final RdfParsingService rdfParsingService;
@@ -31,6 +38,7 @@ public class PostGraphCommandHandler implements CommandHandler<PostGraphCommand>
   /**
    * Constructs a PostGraphCommandHandler.
    *
+   * @param eventPublisher the event publisher
    * @param branchRepository the branch repository
    * @param datasetService the dataset service
    * @param rdfParsingService the RDF parsing service
@@ -43,12 +51,14 @@ public class PostGraphCommandHandler implements CommandHandler<PostGraphCommand>
       justification = "Repositories and services are Spring-managed beans "
           + "and are intentionally shared")
   public PostGraphCommandHandler(
+      EventPublisher eventPublisher,
       BranchRepository branchRepository,
       DatasetService datasetService,
       RdfParsingService rdfParsingService,
       GraphDiffService graphDiffService,
       PreconditionService preconditionService,
       ConflictDetectionService conflictDetectionService) {
+    this.eventPublisher = eventPublisher;
     this.branchRepository = branchRepository;
     this.datasetService = datasetService;
     this.rdfParsingService = rdfParsingService;
@@ -96,8 +106,8 @@ public class PostGraphCommandHandler implements CommandHandler<PostGraphCommand>
         command.isDefaultGraph() ? null : command.graphIri()
     );
 
-    // Finalize command (check for no-op, conflicts, and create commit event)
-    return GraphCommandUtil.finalizeGraphCommand(
+    // Finalize command and publish event to Kafka
+    return GraphCommandUtil.finalizeAndPublishGraphCommand(
         command.dataset(),
         patch,
         graphDiffService,
@@ -105,7 +115,9 @@ public class PostGraphCommandHandler implements CommandHandler<PostGraphCommand>
         branch.getCommitId(),
         command.baseCommit(),
         command.message(),
-        command.author()
+        command.author(),
+        eventPublisher,
+        logger
     );
   }
 }

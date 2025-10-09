@@ -3,6 +3,7 @@ package org.chucc.vcserver.command;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.chucc.vcserver.domain.Branch;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.exception.GraphNotFoundException;
 import org.chucc.vcserver.repository.BranchRepository;
@@ -11,6 +12,8 @@ import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.GraphDiffService;
 import org.chucc.vcserver.service.PreconditionService;
 import org.chucc.vcserver.util.GraphCommandUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,8 +22,12 @@ import org.springframework.stereotype.Component;
  * and produces a CommitCreatedEvent if changes are non-empty.
  */
 @Component
+@SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class DeleteGraphCommandHandler implements CommandHandler<DeleteGraphCommand> {
 
+  private static final Logger logger = LoggerFactory.getLogger(DeleteGraphCommandHandler.class);
+
+  private final EventPublisher eventPublisher;
   private final BranchRepository branchRepository;
   private final DatasetService datasetService;
   private final GraphDiffService graphDiffService;
@@ -30,6 +37,7 @@ public class DeleteGraphCommandHandler implements CommandHandler<DeleteGraphComm
   /**
    * Constructs a DeleteGraphCommandHandler.
    *
+   * @param eventPublisher the event publisher
    * @param branchRepository the branch repository
    * @param datasetService the dataset service
    * @param graphDiffService the graph diff service
@@ -41,11 +49,13 @@ public class DeleteGraphCommandHandler implements CommandHandler<DeleteGraphComm
       justification = "Repositories and services are Spring-managed beans "
           + "and are intentionally shared")
   public DeleteGraphCommandHandler(
+      EventPublisher eventPublisher,
       BranchRepository branchRepository,
       DatasetService datasetService,
       GraphDiffService graphDiffService,
       PreconditionService preconditionService,
       ConflictDetectionService conflictDetectionService) {
+    this.eventPublisher = eventPublisher;
     this.branchRepository = branchRepository;
     this.datasetService = datasetService;
     this.graphDiffService = graphDiffService;
@@ -79,8 +89,8 @@ public class DeleteGraphCommandHandler implements CommandHandler<DeleteGraphComm
         command.isDefaultGraph() ? null : command.graphIri()
     );
 
-    // Finalize command (check for no-op, conflicts, and create commit event)
-    return GraphCommandUtil.finalizeGraphCommand(
+    // Finalize command and publish event to Kafka
+    return GraphCommandUtil.finalizeAndPublishGraphCommand(
         command.dataset(),
         patch,
         graphDiffService,
@@ -88,7 +98,9 @@ public class DeleteGraphCommandHandler implements CommandHandler<DeleteGraphComm
         branch.getCommitId(),
         command.baseCommit(),
         command.message(),
-        command.author()
+        command.author(),
+        eventPublisher,
+        logger
     );
   }
 

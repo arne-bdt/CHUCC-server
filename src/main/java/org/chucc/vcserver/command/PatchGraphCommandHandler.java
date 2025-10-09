@@ -7,6 +7,7 @@ import org.apache.jena.rdfpatch.RDFPatch;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.service.ConflictDetectionService;
@@ -15,6 +16,8 @@ import org.chucc.vcserver.service.GraphDiffService;
 import org.chucc.vcserver.service.PreconditionService;
 import org.chucc.vcserver.service.RdfPatchService;
 import org.chucc.vcserver.util.GraphCommandUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
@@ -24,8 +27,12 @@ import org.springframework.web.server.ResponseStatusException;
  * Validates patch syntax and applicability before creating a commit.
  */
 @Component
+@SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class PatchGraphCommandHandler implements CommandHandler<PatchGraphCommand> {
 
+  private static final Logger logger = LoggerFactory.getLogger(PatchGraphCommandHandler.class);
+
+  private final EventPublisher eventPublisher;
   private final BranchRepository branchRepository;
   private final DatasetService datasetService;
   private final RdfPatchService rdfPatchService;
@@ -36,6 +43,7 @@ public class PatchGraphCommandHandler implements CommandHandler<PatchGraphComman
   /**
    * Constructs a PatchGraphCommandHandler.
    *
+   * @param eventPublisher the event publisher
    * @param branchRepository the branch repository
    * @param datasetService the dataset service
    * @param rdfPatchService the RDF patch service
@@ -48,12 +56,14 @@ public class PatchGraphCommandHandler implements CommandHandler<PatchGraphComman
       justification = "Repositories and services are Spring-managed beans "
           + "and are intentionally shared")
   public PatchGraphCommandHandler(
+      EventPublisher eventPublisher,
       BranchRepository branchRepository,
       DatasetService datasetService,
       RdfPatchService rdfPatchService,
       GraphDiffService graphDiffService,
       PreconditionService preconditionService,
       ConflictDetectionService conflictDetectionService) {
+    this.eventPublisher = eventPublisher;
     this.branchRepository = branchRepository;
     this.datasetService = datasetService;
     this.rdfPatchService = rdfPatchService;
@@ -120,7 +130,7 @@ public class PatchGraphCommandHandler implements CommandHandler<PatchGraphComman
     String patchString = GraphCommandUtil.serializePatch(filteredPatch);
 
     // Produce event
-    return new CommitCreatedEvent(
+    VersionControlEvent event = new CommitCreatedEvent(
         command.dataset(),
         commitId.value(),
         List.of(command.baseCommit().value()),
@@ -129,5 +139,15 @@ public class PatchGraphCommandHandler implements CommandHandler<PatchGraphComman
         Instant.now(),
         patchString
     );
+
+    // Publish event to Kafka (fire-and-forget, async)
+    eventPublisher.publish(event)
+        .exceptionally(ex -> {
+          logger.error("Failed to publish event {}: {}",
+              event.getClass().getSimpleName(), ex.getMessage(), ex);
+          return null;
+        });
+
+    return event;
   }
 }

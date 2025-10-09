@@ -212,7 +212,62 @@ class MyTest {
 **Why:** Async projection not complete yet.
 **Fix:** Use `await()` to wait for projection.
 
-**Reference:** See `GraphEventProjectorIT` for complete projector test examples.
+**Reference:** See `GraphEventProjectorIT`, `VersionControlProjectorIT`, and
+`AdvancedOperationsProjectorIT` for complete projector test examples.
+
+**Testing Decision Table:**
+
+| I want to test... | Test Type | Enable Projector? | Use await()? | Example |
+|-------------------|-----------|-------------------|--------------|---------|
+| HTTP status codes | API Layer | ❌ No | ❌ No | GraphStorePutIntegrationTest |
+| HTTP headers | API Layer | ❌ No | ❌ No | ETagIntegrationTest |
+| Validation errors | API Layer | ❌ No | ❌ No | ErrorResponseIntegrationTest |
+| Command handler logic | API Layer | ❌ No | ❌ No | BatchGraphsIntegrationTest |
+| Event projection | Projector | ✅ Yes (@TestPropertySource) | ✅ Yes | GraphEventProjectorIT |
+| ReadModelProjector handlers | Projector | ✅ Yes (@TestPropertySource) | ✅ Yes | VersionControlProjectorIT |
+| Full CQRS flow | Full System | ✅ Yes (@TestPropertySource) | ✅ Yes | (rare, avoid if possible) |
+
+**Test Class Organization:**
+
+The project organizes projector tests by feature area for better maintainability:
+- **GraphEventProjectorIT**: Tests GSP (Graph Store Protocol) event handlers
+  - `handleCommitCreated` (from PUT/POST/DELETE/PATCH graph operations)
+  - `handleBatchGraphsCompleted` (from batch operations)
+- **VersionControlProjectorIT**: Tests version control operation event handlers
+  - `handleBranchRebased` (branch rebase operations)
+  - `handleRevertCreated` (commit revert operations)
+  - `handleSnapshotCreated` (dataset snapshot events)
+- **AdvancedOperationsProjectorIT**: Tests advanced operation event handlers
+  - `handleTagCreated` (tag creation operations)
+  - `handleCherryPicked` (cherry-pick operations)
+  - `handleCommitsSquashed` (squash operations)
+- **ReadModelProjectorIT**: Tests basic projector functionality and event ordering
+  - `handleCommitCreated`, `handleBranchCreated` (core events)
+
+**Troubleshooting:**
+
+**Q: My test expects repository to be updated but it's not?**
+A: Projector is disabled by default. Add
+`@TestPropertySource(properties = "projector.kafka-listener.enabled=true")` and use `await()`.
+
+**Q: I see "Branch not found" errors in logs from other tests?**
+A: Cross-test contamination detected. Verify projector is disabled by default in
+`application-it.yml` (should have `projector.kafka-listener.enabled: false`).
+
+**Q: My projector test times out waiting for projection?**
+A: Check:
+1. Kafka topic exists (ensureTopicExists() in test setup)
+2. Event is actually published (check eventPublisher.publish().get() succeeds)
+3. Event handler has no exceptions (check logs for projection errors)
+4. Increase await timeout if processing is genuinely slow
+
+**Q: Should I test both API and projection in same test?**
+A: No - separate concerns. API layer tests verify HTTP contract (commands),
+projector tests verify async event processing (queries). Use different test classes.
+
+**Q: When should I use @DirtiesContext?**
+A: Rarely. Only use when you need to restart the Spring context (e.g., testing
+projector recovery after restart). Most tests should avoid it for performance.
 
 This project uses Checkstyle and SpotBugs for static code analysis.
 

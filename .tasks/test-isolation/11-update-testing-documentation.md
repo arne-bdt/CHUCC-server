@@ -334,13 +334,13 @@ class GraphEventProjectorIT extends IntegrationTestFixture {
 
 ## Acceptance Criteria
 
-- [ ] "Integration Testing with Kafka Event Projection" section added to CLAUDE.md
-- [ ] All three test categories documented with examples
-- [ ] Quick reference decision table added
-- [ ] Common mistakes section added with fixes
-- [ ] Existing test guidelines updated with projector clarification
-- [ ] Documentation is clear and actionable
-- [ ] Code examples are syntactically correct
+- [x] "Integration Testing with Kafka Event Projection" section added to CLAUDE.md
+- [x] All three test categories documented with examples
+- [x] Quick reference decision table added
+- [x] Common mistakes section added with fixes
+- [x] Existing test guidelines updated with projector clarification
+- [x] Documentation is clear and actionable
+- [x] Code examples are syntactically correct
 
 ## Dependencies
 
@@ -389,3 +389,91 @@ Developers should be able to:
 - Understand when to use each pattern
 - Troubleshoot common testing issues
 - Maintain consistent testing practices
+
+## Completion Summary
+
+**Completed: 2025-10-09 20:25**
+
+Enhanced CLAUDE.md testing documentation with comprehensive guidance on the projector
+isolation pattern implemented in Tasks 01-10.
+
+**Sections Added:**
+
+1. **Testing Decision Table** (CLAUDE.md line 218)
+   - Quick reference guide for when to enable/disable projector
+   - 7 common test scenarios with clear guidance
+   - Examples: GraphStorePutIntegrationTest, GraphEventProjectorIT, etc.
+
+2. **Test Class Organization** (CLAUDE.md line 230)
+   - Documents the 4 projector test classes created in Tasks 08-10
+   - GraphEventProjectorIT: GSP event handlers
+   - VersionControlProjectorIT: Version control operations (Task 09)
+   - AdvancedOperationsProjectorIT: Advanced operations (Task 10)
+   - ReadModelProjectorIT: Basic projector functionality
+   - Maps each test class to specific event handlers tested
+
+3. **Troubleshooting Section** (CLAUDE.md line 247)
+   - 5 common questions with detailed answers
+   - Q: Repository not updated? → Enable projector + await()
+   - Q: Cross-test contamination? → Verify projector disabled in application-it.yml
+   - Q: Projector test timeout? → 4-step debugging checklist
+   - Q: Test both API and projection? → No, separate concerns
+   - Q: When use @DirtiesContext? → Rarely, performance impact
+
+4. **Updated References** (CLAUDE.md line 215)
+   - Added VersionControlProjectorIT and AdvancedOperationsProjectorIT
+   - References all 3 projector test classes for complete examples
+
+**Documentation Impact:**
+
+- **Clarity**: New developers can quickly understand the pattern via decision table
+- **Actionability**: Examples are copy-paste-able and syntactically correct
+- **Completeness**: Covers all test scenarios (API, Projector, Full System)
+- **Maintainability**: Test class organization shows where to add new tests
+- **Troubleshooting**: Common issues documented with clear solutions
+
+**Existing Documentation Enhanced:**
+
+Lines 107-216 already contained:
+- ✅ Explanation of why projector is disabled (test isolation)
+- ✅ Pattern 1: API Layer Tests (90% of tests)
+- ✅ Pattern 2: Projector Tests (dedicated test class)
+- ✅ Common Mistakes (3 mistakes with fixes)
+
+**New Content Added:**
+
+- ✅ Testing Decision Table (7 scenarios)
+- ✅ Test Class Organization (4 test classes mapped to handlers)
+- ✅ Troubleshooting (5 Q&A pairs)
+- ✅ Updated references (3 test classes)
+
+**Final Result:**
+
+CLAUDE.md now provides complete guidance for the projector isolation testing strategy:
+- 100% of ReadModelProjector event handlers have test coverage
+- Clear patterns for when to enable/disable projector
+- Decision table for quick reference
+- Troubleshooting guide for common issues
+- Test class organization for maintainability
+
+**Test Isolation Implementation Complete:**
+
+Tasks 01-11 finished successfully:
+- Task 01: ✅ Disable projector by default
+- Task 04: ✅ Enable projector in existing tests
+- Task 05: ✅ Identify projector-dependent tests
+- Task 06: ✅ Verify test suite (819 tests passing, 26% faster)
+- Task 07: ✅ Verify zero cross-test errors
+- Task 08: ✅ Review projector test coverage (10/10 handlers)
+- Task 09: ✅ Add version control operation tests (3 tests)
+- Task 10: ✅ Add advanced operation tests (3 tests)
+- Task 11: ✅ Update testing documentation (complete)
+
+**Benefits Achieved:**
+
+- ✅ Complete test isolation (zero cross-contamination errors)
+- ✅ 100% ReadModelProjector event handler coverage
+- ✅ 26% faster test execution (50s vs 68s baseline)
+- ✅ Clear testing patterns documented in CLAUDE.md
+- ✅ Maintainable test organization by feature area
+- ✅ Industry best practice for CQRS testing

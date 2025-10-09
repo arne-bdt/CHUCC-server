@@ -105,16 +105,21 @@ Interactive API documentation (when server is running):
 
 ## Protocol Documentation
 
-- [SPARQL 1.2 Protocol with Version Control Extension](./protocol/SPARQL_1_2_Protocol_Version_Control_Extension.md)
+- [SPARQL 1.2 Protocol with Version Control Extension](./.claude/protocol/SPARQL_1_2_Protocol_Version_Control_Extension.md)
 
 ## Project Structure
 
 ```
 api/                    # OpenAPI specification and JSON schemas
 protocol/               # Protocol documentation
-src/                    # Source code (to be implemented)
+src/                    # Source code
+docs/                   # Comprehensive documentation (see docs/README.md)
+  architecture/         # System architecture (C4 model, CQRS guide)
+  api/                  # API documentation (OpenAPI, error codes)
+  development/          # Development guides (contributing, quality tools)
+  operations/           # Operations guides (performance, deployment)
+  conformance/          # Protocol conformance documentation
 tests/                  # Test suites
-docs/                   # Additional documentation
 ```
 
 
@@ -183,9 +188,20 @@ To temporarily increase test logging, override in your test:
 - [ ] Storage backend
 - [ ] Test suite
 
+## Documentation
+
+Comprehensive documentation is available in the [`docs/`](./docs/) directory:
+
+- **[Documentation Index](./docs/README.md)** - Start here for navigation
+- **[Architecture Guide](./docs/architecture/README.md)** - For AI agents and developers
+- **[C4 Model](./docs/architecture/)** - System architecture diagrams
+- **[API Documentation](./docs/api/)** - OpenAPI, error codes, extensions
+- **[Development Guides](./docs/development/)** - Contributing, quality tools
+- **[Operations Guides](./docs/operations/)** - Performance, deployment
+
 ## Contributing
 
-Contributions welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+Contributions welcome! Please see [Contributing Guide](./docs/development/contributing.md) for guidelines.
 
 ## License
 

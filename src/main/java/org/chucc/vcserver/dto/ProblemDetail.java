@@ -2,6 +2,7 @@ package org.chucc.vcserver.dto;
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -10,14 +11,62 @@ import java.util.Map;
  * Used for all error responses in the SPARQL 1.2 Protocol Version Control Extension.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(
+    description = "RFC 7807 Problem Details for HTTP API errors. "
+        + "Provides structured error information with machine-readable codes "
+        + "and human-readable messages.",
+    example = "{\"type\":\"about:blank\",\"title\":\"Bad Request\","
+        + "\"status\":400,"
+        + "\"detail\":\"Parameters 'graph' and 'default' are mutually exclusive\","
+        + "\"instance\":\"/errors/550e8400-e29b-41d4-a716-446655440000\","
+        + "\"code\":\"selector_conflict\","
+        + "\"hint\":\"Ensure exactly one of graph/default "
+        + "and one of branch/commit/asOf is provided\"}"
+)
 public class ProblemDetail {
 
+  @Schema(
+      description = "URI reference identifying the problem type",
+      example = "about:blank",
+      defaultValue = "about:blank"
+  )
   private String type = "about:blank";
+
+  @Schema(
+      description = "Human-readable summary of the problem type",
+      example = "Bad Request",
+      required = true
+  )
   private String title;
+
+  @Schema(
+      description = "HTTP status code",
+      example = "400",
+      required = true
+  )
   private int status;
+
+  @Schema(
+      description = "Detailed explanation of the specific problem occurrence",
+      example = "Parameters 'graph' and 'default' are mutually exclusive"
+  )
   private String detail;
+
+  @Schema(
+      description = "URI reference identifying the specific occurrence of the problem",
+      example = "/errors/550e8400-e29b-41d4-a716-446655440000"
+  )
   private String instance;
+
+  @Schema(
+      description = "Machine-readable error code for programmatic handling",
+      example = "selector_conflict"
+  )
   private String code;
+
+  @Schema(
+      description = "Additional extension fields specific to this error type"
+  )
   private Map<String, Object> extras;
 
   /**

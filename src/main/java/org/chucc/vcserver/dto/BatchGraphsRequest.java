@@ -1,6 +1,7 @@
 package org.chucc.vcserver.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,12 +11,55 @@ import java.util.List;
  * executed atomically or sequentially.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(
+    description = "Batch graph operations request. "
+        + "Executes multiple graph operations in a single request, "
+        + "creating either one commit (single mode) or multiple commits (multiple mode).",
+    example = "{\"mode\":\"single\","
+        + "\"branch\":\"main\","
+        + "\"author\":\"Alice\","
+        + "\"message\":\"Batch update\","
+        + "\"operations\":[{\"method\":\"PUT\","
+        + "\"graph\":\"http://example.org/graph1\","
+        + "\"data\":\"<http://ex.org/s> <http://ex.org/p> \\\"value\\\" .\","
+        + "\"contentType\":\"text/turtle\"}]}"
+)
 public class BatchGraphsRequest {
 
+  @Schema(
+      description = "Batch mode: 'single' (one commit for all operations) or "
+          + "'multiple' (one commit per operation)",
+      example = "single",
+      required = true,
+      allowableValues = {"single", "multiple"}
+  )
   private String mode;
+
+  @Schema(
+      description = "Target branch name",
+      example = "main",
+      required = true
+  )
   private String branch;
+
+  @Schema(
+      description = "Commit author",
+      example = "Alice",
+      required = true
+  )
   private String author;
+
+  @Schema(
+      description = "Commit message",
+      example = "Batch update",
+      required = true
+  )
   private String message;
+
+  @Schema(
+      description = "List of graph operations to execute",
+      required = true
+  )
   private List<GraphOperation> operations;
 
   /**
@@ -124,12 +168,45 @@ public class BatchGraphsRequest {
    * Nested class representing a single graph operation.
    */
   @JsonInclude(JsonInclude.Include.NON_NULL)
+  @Schema(
+      description = "Single graph operation within a batch request",
+      example = "{\"method\":\"PUT\","
+          + "\"graph\":\"http://example.org/graph1\","
+          + "\"data\":\"<http://ex.org/s> <http://ex.org/p> \\\"value\\\" .\","
+          + "\"contentType\":\"text/turtle\"}"
+  )
   public static class GraphOperation {
 
+    @Schema(
+        description = "HTTP method for the operation",
+        example = "PUT",
+        required = true,
+        allowableValues = {"PUT", "POST", "PATCH", "DELETE"}
+    )
     private String method;
+
+    @Schema(
+        description = "Graph IRI (null for default graph)",
+        example = "http://example.org/graph1"
+    )
     private String graph;
+
+    @Schema(
+        description = "RDF content for PUT/POST operations",
+        example = "<http://ex.org/s> <http://ex.org/p> \"value\" ."
+    )
     private String data;
+
+    @Schema(
+        description = "Content type for the RDF data or patch",
+        example = "text/turtle"
+    )
     private String contentType;
+
+    @Schema(
+        description = "RDF Patch content for PATCH operations",
+        example = "TX .\\nA <http://ex.org/s> <http://ex.org/p> \"value\" .\\nTC ."
+    )
     private String patch;
 
     /**

@@ -1,6 +1,7 @@
 package org.chucc.vcserver.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,8 +10,18 @@ import java.util.List;
  * Contains the list of commits created by the batch operation.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(
+    description = "Response for batch graph operations. "
+        + "Contains the list of commits created during the batch execution.",
+    example = "{\"commits\":[{\"id\":\"01936c7f-8a2e-7890-abcd-ef1234567890\","
+        + "\"operations\":[\"PUT http://example.org/graph1\"]}]}"
+)
 public class BatchGraphsResponse {
 
+  @Schema(
+      description = "List of commits created by the batch operation",
+      required = true
+  )
   private List<BatchCommit> commits;
 
   /**
@@ -41,9 +52,24 @@ public class BatchGraphsResponse {
    * Nested class representing a commit in the batch response.
    */
   @JsonInclude(JsonInclude.Include.NON_NULL)
+  @Schema(
+      description = "Commit created during batch operation execution",
+      example = "{\"id\":\"01936c7f-8a2e-7890-abcd-ef1234567890\","
+          + "\"operations\":[\"PUT http://example.org/graph1\"]}"
+  )
   public static class BatchCommit {
 
+    @Schema(
+        description = "Commit ID (UUIDv7)",
+        example = "01936c7f-8a2e-7890-abcd-ef1234567890",
+        required = true
+    )
     private String id;
+
+    @Schema(
+        description = "List of operation descriptions included in this commit",
+        example = "[\"PUT http://example.org/graph1\",\"POST http://example.org/graph2\"]"
+    )
     private List<String> operations;
 
     /**

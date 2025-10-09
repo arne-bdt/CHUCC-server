@@ -265,7 +265,19 @@ mvn clean install                    # Full build output
 2. Run Phase 1 (static analysis) before tests
 3. Write tests first (TDD)
 4. Run Phase 2a (incremental) after implementation
-5. Run Phase 2b (full build) when ready to complete
+5. **Invoke specialized agents for verification** (see below)
+6. Run Phase 2b (full build) when ready to complete
+
+### Specialized Agent Verification
+
+After implementing features, invoke specialized agents:
+
+- **After command/projector changes:** `@cqrs-compliance-checker`
+- **After writing tests:** `@test-isolation-validator`
+- **After modifying events:** `@event-schema-evolution-checker`
+- **Before completing large tasks:** `@documentation-sync-agent`
+
+See [Agent Guide](./.claude/agents/README.md) for details
 
 ### For Large Tasks
 

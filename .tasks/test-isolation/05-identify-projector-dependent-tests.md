@@ -83,57 +83,105 @@ Create three categories:
 
 ### Tests Using await()
 
-*To be filled in during task execution:*
+**Search completed: 2025-10-09**
 
+Command used:
+```bash
+grep -r "await()" src/test/java/org/chucc/vcserver/integration/
 ```
-# Example format:
-# File: GraphEventProjectorIT.java
-# Category: B (Projector Required)
-# Status: Already handled in Task 04 ✅
-# Lines: Multiple test methods use await()
-# Purpose: Verify ReadModelProjector processes events correctly
 
-# Add findings here...
-```
+**Results: 6 files found**
+
+#### 1. GraphEventProjectorIT.java
+- **Category**: B (Projector Required)
+- **Status**: ✅ Already correctly configured in Task 04
+- **Lines**: 6 uses of await() across multiple test methods
+- **Purpose**: Verify ReadModelProjector processes events correctly
+- **Configuration**: Has `@TestPropertySource(properties = "projector.kafka-listener.enabled=true")` on line 52
+- **Action**: None needed - already correct
+
+#### 2. GraphStorePutIntegrationTest.java
+- **Category**: C (No Change Needed)
+- **Status**: ✅ No action required
+- **Lines**: await() usage on lines 376, 402 (both in commented-out code)
+- **Purpose**: Tests HTTP API responses for PUT operations
+- **Configuration**: No @TestPropertySource (projector disabled)
+- **Action**: None needed - await() is not active code
+
+#### 3. GraphStorePostIntegrationTest.java
+- **Category**: C (No Change Needed)
+- **Status**: ✅ No action required
+- **Lines**: await() usage on lines 115, 394, 432 (all in commented-out code)
+- **Purpose**: Tests HTTP API responses for POST operations
+- **Configuration**: No @TestPropertySource (projector disabled)
+- **Action**: None needed - await() is not active code
+
+#### 4. GraphStorePatchIntegrationTest.java
+- **Category**: C (No Change Needed)
+- **Status**: ✅ No action required
+- **Lines**: await() usage on lines 347, 354 (in commented-out TODO examples)
+- **Purpose**: Tests HTTP API responses for PATCH operations
+- **Configuration**: No @TestPropertySource (projector disabled)
+- **Action**: None needed - await() is not active code
+
+#### 5. GraphStoreDeleteIntegrationTest.java
+- **Category**: C (No Change Needed)
+- **Status**: ✅ No action required
+- **Lines**: await() usage on lines 47, 115, 265, 288, 314, 331 (all in commented-out code)
+- **Purpose**: Tests HTTP API responses for DELETE operations
+- **Configuration**: No @TestPropertySource (projector disabled)
+- **Action**: None needed - await() is not active code
+
+#### 6. ConcurrentGraphOperationsIntegrationTest.java
+- **Category**: B (Projector Required - Currently Disabled)
+- **Status**: ⚠️ Test is @Disabled (line 34)
+- **Lines**: 8 uses of await() for verifying async projection in conflict detection
+- **Purpose**: Tests concurrent write conflict detection via async projection
+- **Configuration**: No @TestPropertySource (would need it if re-enabled)
+- **Action**: If re-enabled, add `@TestPropertySource(properties = "projector.kafka-listener.enabled=true")`
 
 ### Analysis Summary
 
-*To be filled in during task execution:*
+**Completed: 2025-10-09**
 
-```
-# Example format:
-# Total tests using await(): X
-# Category A (Remove await): Y tests
-# Category B (Enable projector): Z tests
-# Category C (No change): W tests
+- **Total files using await()**: 6 files
+- **Category A (Remove await)**: 0 tests - None found
+- **Category B (Enable projector)**: 2 tests
+  - GraphEventProjectorIT.java ✅ (already correctly configured)
+  - ConcurrentGraphOperationsIntegrationTest.java ⚠️ (disabled, would need @TestPropertySource if re-enabled)
+- **Category C (No change)**: 4 tests
+  - All GraphStore*IntegrationTest files have await() only in commented-out code
 
-# Add summary here...
-```
+**Key Finding**: Only 1 active test uses await() (GraphEventProjectorIT), and it's already correctly configured with `@TestPropertySource(properties = "projector.kafka-listener.enabled=true")`.
+
+**Impact Assessment**:
+- ✅ Zero API layer tests incorrectly depend on async projection
+- ✅ All active tests are correctly configured
+- ✅ Commented-out code serves as documentation/examples (no action needed)
+- ✅ Test isolation implementation is working as designed
 
 ### Required Actions
 
-*To be filled in during task execution:*
+**None required for currently active tests.**
 
-```
-# Example format:
-# 1. Test: SomeIntegrationTest
-#    Action: Remove await(), test only verifies HTTP response
-#    Estimated effort: 5 minutes
-#
-# 2. Test: AnotherIntegrationTest
-#    Action: Add @TestPropertySource, test verifies projection
-#    Estimated effort: 10 minutes
+All integration tests are correctly configured:
+- API layer tests (GraphStorePutIntegrationTest, GraphStorePostIntegrationTest, GraphStorePatchIntegrationTest, GraphStoreDeleteIntegrationTest) do not actively use await() and have projector disabled
+- Projector test (GraphEventProjectorIT) correctly enables projector with @TestPropertySource
+- Commented-out code does not affect test execution
 
-# Add action items here...
-```
+**Future action (if ConcurrentGraphOperationsIntegrationTest is re-enabled)**:
+1. Test: ConcurrentGraphOperationsIntegrationTest
+   Action: Add `@TestPropertySource(properties = "projector.kafka-listener.enabled=true")`
+   Estimated effort: 2 minutes (add annotation, verify test passes)
+   Justification: Test verifies async conflict detection via ReadModelProjector
 
 ## Acceptance Criteria
 
-- [ ] Search completed for all integration tests
-- [ ] Each test using await() is analyzed and categorized
-- [ ] Findings section filled with detailed analysis
-- [ ] Action items identified for any tests needing changes
-- [ ] Analysis summary provides clear overview
+- [x] Search completed for all integration tests
+- [x] Each test using await() is analyzed and categorized
+- [x] Findings section filled with detailed analysis
+- [x] Action items identified for any tests needing changes
+- [x] Analysis summary provides clear overview
 
 ## Dependencies
 

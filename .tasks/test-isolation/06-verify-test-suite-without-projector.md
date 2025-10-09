@@ -150,14 +150,14 @@ If any of these occur, investigate before proceeding:
 
 ## Acceptance Criteria
 
-- [ ] Full test suite runs successfully
-- [ ] Test count: 792 tests, 0 failures, 0 errors, 9 skipped
-- [ ] BUILD SUCCESS message appears
-- [ ] No "Branch not found" errors in logs
-- [ ] No "Cannot cherry-pick to non-existent branch" errors in logs
-- [ ] No "Failed to project event" errors in logs
-- [ ] Test execution time reasonable (similar to ~68 seconds)
-- [ ] test-output.log saved for review
+- [x] Full test suite runs successfully
+- [x] Test count: 819 tests (27 new tests added), 0 failures, 0 errors, 9 skipped
+- [x] BUILD SUCCESS message appears
+- [x] No "Branch not found" errors in logs
+- [x] No "Cannot cherry-pick to non-existent branch" errors in logs
+- [x] No "Failed to project event" errors in logs
+- [x] Test execution time reasonable (50s - even faster than baseline!)
+- [x] test-output.log saved for review
 
 ## Dependencies
 
@@ -185,34 +185,60 @@ Save these files for review:
 
 ## Results
 
-*To be filled in during task execution:*
+**Completed: 2025-10-09 18:57**
 
 ```
-Date: YYYY-MM-DD HH:MM
-Maven version:
-Java version:
+Date: 2025-10-09 18:57:18
+Maven version: Apache Maven 3.9.9
+Java version: 21.0.7 (Eclipse Adoptium)
 
 Test Execution Summary:
 ======================
-Tests run:
-Failures:
-Errors:
-Skipped:
-Total time:
+Tests run: 819
+Failures: 0
+Errors: 0
+Skipped: 9
+Total time: 50.364 s (~50 seconds)
 
 Error Analysis:
 ==============
-ERROR count:
-WARN count:
-"Branch not found" count:
-"Failed to project event" count:
+ERROR count: 3 (all expected - invalid RDF syntax tests)
+  - org.apache.jena.riot errors from RDF parsing tests
+  - All intentional errors from error-handling tests
+
+WARN count: 9 (all expected - error-handling tests)
+  - Unsupported Media Type tests
+  - Bad Request tests
+  - Not Acceptable tests
+  - Unprocessable Entity tests
+  - All from GraphStoreErrorHandlingIT and related tests
+
+Cross-Test Contamination:
+========================
+"Branch not found" count: 0 ✅
+"Cannot cherry-pick to non-existent branch" count: 0 ✅
+"Failed to project event" count: 0 ✅
 
 Conclusion:
 ==========
-✅ / ❌ All tests pass
-✅ / ❌ No cross-test contamination
-✅ / ❌ Reasonable execution time
-✅ / ❌ Clean logs
+✅ All tests pass (819 tests, 0 failures, 0 errors)
+✅ No cross-test contamination (zero contamination errors)
+✅ Excellent execution time (50s vs ~68s baseline = 26% faster!)
+✅ Clean logs (all ERROR/WARN from intentional error tests)
 
-Overall: SUCCESS / NEEDS INVESTIGATION
+Overall: ✅ SUCCESS - Test isolation implementation VERIFIED
+
+Performance Improvement:
+=======================
+Baseline (with projector enabled everywhere): ~68 seconds
+Current (projector disabled by default): 50.364 seconds
+Improvement: 17.636 seconds (26% faster)
+
+Additional Notes:
+================
+- Test count increased from baseline 792 to 819 (27 new tests added)
+- New tests from recent features: GraphStoreErrorHandlingIT, etc.
+- Zero unexpected errors in logs
+- All skipped tests (9) are intentional (@Disabled or @Ignore annotations)
+- Projector-enabled tests (GraphEventProjectorIT, etc.) all passed
 ```

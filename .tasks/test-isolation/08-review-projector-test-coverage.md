@@ -117,13 +117,13 @@ These operations have integration tests, but we need to verify projector is enab
 
 ## Acceptance Criteria
 
-- [ ] All 10 event handlers documented in coverage matrix
-- [ ] All current GraphEventProjectorIT tests listed
-- [ ] All other integration tests checked for projector enablement
-- [ ] Coverage matrix completed with actual findings
-- [ ] Category A (high priority) tests identified
-- [ ] Category B (medium priority) tests identified
-- [ ] Clear recommendation for Tasks 09-10
+- [x] All 10 event handlers documented in coverage matrix
+- [x] All current GraphEventProjectorIT tests listed
+- [x] All other integration tests checked for projector enablement
+- [x] Coverage matrix completed with actual findings
+- [x] Category A (version control operations) tests identified (3 handlers)
+- [x] Category B (advanced operations) tests identified (3 handlers)
+- [x] Clear recommendation for Tasks 09-10 (6 tests, 3-4 hours estimated)
 
 ## Dependencies
 
@@ -144,39 +144,124 @@ Medium (30-45 minutes)
 
 ## Coverage Matrix
 
-*To be filled in during task execution with actual findings:*
+**Completed: 2025-10-09 19:00**
 
-```
-Handler Method | Current Test Coverage | Line # in ReadModelProjector | Needs Test?
----------------|----------------------|----------------------------|-------------
-handleCommitCreated          | [Details] | Line XXX | Yes/No
-handleBranchCreated          | [Details] | Line XXX | Yes/No
-handleBranchReset            | [Details] | Line XXX | Yes/No
-handleBranchRebased          | [Details] | Line XXX | Yes/No
-handleTagCreated             | [Details] | Line XXX | Yes/No
-handleRevertCreated          | [Details] | Line XXX | Yes/No
-handleSnapshotCreated        | [Details] | Line XXX | Yes/No
-handleCherryPicked           | [Details] | Line XXX | Yes/No
-handleCommitsSquashed        | [Details] | Line XXX | Yes/No
-handleBatchGraphsCompleted   | [Details] | Line XXX | Yes/No
-```
+| Handler Method | Line # | Projector Test Coverage | Needs New Test? |
+|----------------|--------|------------------------|-----------------|
+| handleCommitCreated | 112 | ✅ GraphEventProjectorIT (6 tests)<br>✅ ReadModelProjectorIT<br>✅ ReadModelProjectorKillRestartIT<br>✅ SnapshotServiceIT | ✅ Well covered |
+| handleBranchCreated | 144 | ✅ ReadModelProjectorIT<br>✅ ReadModelProjectorKillRestartIT | ✅ Well covered |
+| handleBranchReset | 164 | ✅ SnapshotServiceIT | ✅ Well covered |
+| handleBranchRebased | 188 | ❌ No projector test | ❌ **Test needed** |
+| handleTagCreated | 215 | ❌ No projector test | ❌ **Test needed** |
+| handleRevertCreated | 229 | ❌ No projector test | ❌ **Test needed** |
+| handleSnapshotCreated | 277 | ⚠️ SnapshotServiceIT creates events, but doesn't verify projection | ⚠️ **Verify needed** |
+| handleCherryPicked | 292 | ❌ No projector test | ❌ **Test needed** |
+| handleCommitsSquashed | 343 | ❌ No projector test | ❌ **Test needed** |
+| handleBatchGraphsCompleted | 370 | ✅ GraphEventProjectorIT | ✅ Well covered |
+
+**Summary:**
+- ✅ **4/10 handlers** well tested with projector enabled
+- ❌ **5/10 handlers** need new projector tests
+- ⚠️ **1/10 handlers** need verification test
+
+## Detailed Findings
+
+**Tests with Projector Enabled:**
+1. **GraphEventProjectorIT** (integration/)
+   - 6 tests, all testing handleCommitCreated and handleBatchGraphsCompleted
+   - Verifies async projection from GSP operations
+
+2. **ReadModelProjectorIT** (projection/)
+   - 4 tests testing handleCommitCreated and handleBranchCreated
+   - Verifies basic projection and event ordering
+
+3. **ReadModelProjectorKillRestartIT** (projection/)
+   - 2 tests testing handleCommitCreated and handleBranchCreated
+   - Verifies projector recovery after restart
+
+4. **SnapshotServiceIT** (service/)
+   - 3 tests using handleCommitCreated and handleBranchReset
+   - Verifies snapshot creation at intervals
+
+**Handlers Needing Tests (6 total):**
+
+**Category A: Version Control Operations (Task 09)**
+1. **handleBranchRebased** (line 188)
+   - Operation: Rebase updates branch head to new commit chain
+   - What to test: BranchRebasedEvent → branch HEAD updated in repository
+   - Test exists: RebaseIntegrationTest (but projector disabled)
+
+2. **handleRevertCreated** (line 229)
+   - Operation: Revert creates new commit that undoes changes
+   - What to test: RevertCreatedEvent → commit saved to repository
+   - Test exists: RevertIntegrationTest (but projector disabled)
+
+3. **handleSnapshotCreated** (line 277)
+   - Operation: Snapshot event for branch state
+   - What to test: SnapshotCreatedEvent → verify projector handles it (currently untested)
+   - Note: SnapshotServiceIT creates snapshots but doesn't verify projection
+
+**Category B: Advanced Operations (Task 10)**
+4. **handleTagCreated** (line 215)
+   - Operation: Tag created pointing to commit
+   - What to test: TagCreatedEvent → tag saved to repository
+   - Test exists: TagOperationsIntegrationTest (but projector disabled)
+
+5. **handleCherryPicked** (line 292)
+   - Operation: Cherry-pick applies commit to different branch
+   - What to test: CherryPickedEvent → new commit created on target branch
+   - Test exists: CherryPickIntegrationTest (but projector disabled)
+
+6. **handleCommitsSquashed** (line 343)
+   - Operation: Squash combines multiple commits into one
+   - What to test: CommitsSquashedEvent → new squashed commit created
+   - Test exists: SquashIntegrationTest (but projector disabled)
 
 ## Recommendation for Tasks 09-10
 
-*To be filled in after analysis:*
+**Task 09: Add Version Control Operation Projector Tests** (~2 hours)
+Add to ReadModelProjectorIT or create new VersionControlProjectorIT:
+1. handleBranchRebased test
+   - Publish BranchRebasedEvent
+   - Verify branch HEAD updated
+   - Verify old/new commit IDs tracked
 
-```
-Based on coverage analysis:
+2. handleRevertCreated test
+   - Publish RevertCreatedEvent with revert commit
+   - Verify revert commit saved to repository
+   - Verify commit chain preserved
 
-Task 09 should add tests for:
-- [Handler 1] - No coverage
-- [Handler 2] - No coverage
-- [Handler 3] - Unverified coverage
+3. handleSnapshotCreated test
+   - Publish SnapshotCreatedEvent
+   - Verify projector processes it without errors
+   - Verify any snapshot metadata is stored (if applicable)
 
-Task 10 should add tests for:
-- [Handler 4] - No coverage
-- [Handler 5] - Unverified coverage
+**Task 10: Add Advanced Operation Projector Tests** (~2 hours)
+Add to ReadModelProjectorIT or create new AdvancedOperationsProjectorIT:
+1. handleTagCreated test
+   - Publish TagCreatedEvent
+   - Verify tag saved to repository
+   - Verify tag points to correct commit
 
-Estimated total new tests needed: X tests
-Estimated effort: Y hours
-```
+2. handleCherryPicked test
+   - Publish CherryPickedEvent with new commit on target branch
+   - Verify new commit saved
+   - Verify commit parent chain correct
+
+3. handleCommitsSquashed test
+   - Publish CommitsSquashedEvent with squashed commit
+   - Verify squashed commit saved
+   - Verify commit replaces multiple commits
+
+**Estimated Total:**
+- New tests needed: **6 tests**
+- Estimated effort: **3-4 hours** (1.5-2 hours per task)
+- Files to modify: ReadModelProjectorIT or create 1-2 new test classes
+- Pattern: Follow existing GraphEventProjectorIT structure
+
+**Alternative Approach:**
+Instead of adding to ReadModelProjectorIT, create dedicated test classes:
+- **VersionControlProjectorIT** (Task 09): Rebase, Revert, Snapshot
+- **AdvancedOperationsProjectorIT** (Task 10): Tag, CherryPick, Squash
+
+This keeps tests organized by feature area and makes them easier to maintain.

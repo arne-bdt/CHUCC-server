@@ -13,7 +13,7 @@ This directory contains detailed implementation tasks for CHUCC Server enhanceme
 | 01 | [Enable Skipped Tests](./01-enable-skipped-tests.md) | High | Ready | 2-3 hours | Remove outdated @Disabled annotations |
 | 02 | [Validate SPARQL Query](./02-validate-sparql-query-implementation.md) | Critical | ✅ COMPLETE | 30 min | Documentation only |
 | 03 | [SPARQL Query via POST](./03-optional-sparql-query-via-post.md) | Low | Optional | 4-6 hours | Optional feature, low usage |
-| 04 | [Observability](./04-observability-implementation.md) | Medium | Ready | 1-2 days | Metrics, health checks, dashboards |
+| 04 | [Observability](./04-observability-implementation.md) | Medium | Ready | 2-3 hours | Annotation-based metrics, tracing |
 
 ## Quick Start
 
@@ -24,9 +24,9 @@ This directory contains detailed implementation tasks for CHUCC Server enhanceme
    - Validates no-op detection for SPARQL updates
    - Result: 863 passing tests (up from 859)
 
-2. **Task 04**: Add Observability (1-2 days)
-   - Production-critical monitoring
-   - Metrics for performance analysis
+2. **Task 04**: Add Observability (2-3 hours)
+   - Annotation-based metrics (no code pollution)
+   - Log-based tracing via MDC
    - Health checks for operations
 
 3. **Task 03**: SPARQL Query via POST (OPTIONAL, 4-6 hours)
@@ -37,19 +37,19 @@ This directory contains detailed implementation tasks for CHUCC Server enhanceme
 ### For Completeness
 
 If you want 100% SPARQL 1.1 Protocol compliance:
-1. Complete Task 01 (enable tests)
-2. Complete Task 03 (query via POST)
-3. Complete Task 04 (observability)
+1. Complete Task 01 (enable tests) - 2-3 hours
+2. Complete Task 03 (query via POST) - 4-6 hours
+3. Complete Task 04 (observability) - 2-3 hours
 
-Total effort: 1.5-3 days
+Total effort: 8-12 hours (1-1.5 days)
 
 ### For Production Readiness
 
 If you just need production-ready system:
 1. Complete Task 01 (enable tests) - 2-3 hours
-2. Complete Task 04 (observability) - 1-2 days
+2. Complete Task 04 (observability) - 2-3 hours
 
-Total effort: 1.5-2.5 days
+Total effort: 4-6 hours
 *Task 03 can be skipped - GET queries work for 99% of use cases*
 
 ## Current System Status
@@ -140,24 +140,23 @@ Total effort: 1.5-2.5 days
 
 ### Task 04: Observability Implementation
 
-**Why Important**: Production monitoring and operational insights
+**Why Important**: Production monitoring with zero business logic changes
 
 **What's Needed**:
-- Add Spring Boot Actuator + Micrometer
-- Implement 6 custom metric types:
-  1. RDF patch application time
-  2. SPARQL query performance (by type, format)
-  3. SPARQL update performance
-  4. Event projector lag
-  5. Commit creation rate
-  6. Dataset cache metrics
-- Add health indicators (repositories, Kafka)
-- Create Grafana dashboards (optional)
+- Add Spring Boot Actuator + Micrometer (3 dependencies)
+- Enable AOP support for `@Timed` and `@Counted` annotations
+- Annotate 6 key methods (SPARQL query/update, RDF patch, event processing)
+- Add trace ID filter for request correlation (MDC-based)
+- Add repository health indicator
+- Write integration tests
 
-**Result**: Production-ready monitoring with metrics for:
-- Performance analysis (query/update latency)
-- Capacity planning (commit rates, cache usage)
-- Issue detection (event lag, errors)
+**Design**: Annotation-based only - no `MeterRegistry` injected, no code pollution
+
+**Result**: Production-ready observability with:
+- Timers: Query/update latency, patch application, materialization
+- Counters: Request counts, event processing counts
+- Tracing: Request trace IDs in logs (via MDC)
+- Health: Repository and Kafka connectivity
 
 **Full Details**: [04-observability-implementation.md](./04-observability-implementation.md)
 
@@ -250,17 +249,17 @@ mvn -q clean install
 ### Minimum (Production Ready)
 - [x] SPARQL Query GET implemented and tested (✅ Complete)
 - [x] SPARQL Update POST implemented and tested (✅ Complete)
-- [ ] Skipped tests enabled (Task 01)
-- [ ] Observability added (Task 04)
-- **Estimated**: 1.5-2.5 days
+- [ ] Skipped tests enabled (Task 01) - 2-3 hours
+- [ ] Observability added (Task 04) - 2-3 hours
+- **Estimated**: 4-6 hours
 
 ### Full Compliance (100% SPARQL 1.1 Protocol)
 - [x] SPARQL Query GET (✅ Complete)
 - [x] SPARQL Update POST (✅ Complete)
-- [ ] SPARQL Query via POST (Task 03)
-- [ ] Skipped tests enabled (Task 01)
-- [ ] Observability added (Task 04)
-- **Estimated**: 2.5-3.5 days
+- [ ] SPARQL Query via POST (Task 03) - 4-6 hours
+- [ ] Skipped tests enabled (Task 01) - 2-3 hours
+- [ ] Observability added (Task 04) - 2-3 hours
+- **Estimated**: 8-12 hours (1-1.5 days)
 
 ## Questions?
 

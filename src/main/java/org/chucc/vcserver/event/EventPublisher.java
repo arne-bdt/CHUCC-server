@@ -1,6 +1,7 @@
 package org.chucc.vcserver.event;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.micrometer.core.annotation.Counted;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -43,6 +44,10 @@ public class EventPublisher {
    * @param event the event to publish
    * @return a CompletableFuture with the send result
    */
+  @Counted(
+      value = "event.published",
+      description = "Events published count"
+  )
   public CompletableFuture<SendResult<String, VersionControlEvent>> publish(
       VersionControlEvent event) {
     String topic = kafkaProperties.getTopicName(event.dataset());

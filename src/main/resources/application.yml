@@ -31,10 +31,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,prometheus
   endpoint:
     health:
       show-details: when-authorized
+  metrics:
+    enable:
+      jvm: true
+    tags:
+      application: chucc-server
 
 logging:
   level:

@@ -1,6 +1,8 @@
 package org.chucc.vcserver.command;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.sparql.core.DatasetGraph;
@@ -96,6 +98,14 @@ public class SparqlUpdateCommandHandler implements CommandHandler<SparqlUpdateCo
   }
 
   @Override
+  @Timed(
+      value = "sparql.update.execution",
+      description = "SPARQL update execution time"
+  )
+  @Counted(
+      value = "sparql.update.total",
+      description = "Total SPARQL updates executed"
+  )
   public VersionControlEvent handle(SparqlUpdateCommand command) {
     // 1. Resolve branch HEAD
     Branch branch = branchRepository

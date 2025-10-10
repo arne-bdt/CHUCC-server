@@ -1,6 +1,7 @@
 package org.chucc.vcserver.service;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.micrometer.core.annotation.Timed;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Map;
@@ -243,6 +244,10 @@ public class DatasetService {
    * @return the dataset at the specified commit
    * @throws CommitNotFoundException if the commit is not found
    */
+  @Timed(
+      value = "dataset.materialize",
+      description = "Dataset materialization time"
+  )
   public Dataset materializeAtCommit(String datasetName, CommitId commitId) {
     DatasetGraph datasetGraph = materializeCommit(datasetName, commitId);
     return DatasetFactory.wrap(datasetGraph);

@@ -1,26 +1,38 @@
 # Task 04: Observability Implementation
 
-**Status**: Not started
+**Status**: Ready to implement
 **Priority**: Medium
-**Estimated Effort**: 1-2 days
+**Estimated Effort**: 2-3 hours
 **Dependencies**: None
 
 ## Overview
 
-Add comprehensive observability to CHUCC Server using Spring Boot Actuator + Micrometer. This enables production monitoring, performance analysis, and operational insights.
+Add **lightweight, non-invasive** observability to CHUCC Server using Spring Boot Actuator + Micrometer. Uses annotations and AOP to collect metrics without polluting business logic.
+
+## Design Principles
+
+✅ **Annotations only** - No `MeterRegistry` injected into services
+✅ **AOP-based** - Metrics collected outside business logic
+✅ **Minimal overhead** - Micrometer uses lock-free data structures
+✅ **Trace IDs in logs only** - Leverage existing `log.info/warn/error` statements
+✅ **No dashboards** - Just expose Prometheus endpoint for external scraping
 
 ## Goals
 
-1. **Metrics**: Track RDF patch application, query performance, event lag, commit rates
-2. **Health Checks**: Kafka connectivity, repository health, system status
-3. **Tracing**: Distributed tracing for request flows (optional)
-4. **Dashboards**: Grafana dashboards for visualization (optional)
+1. **Metrics**: Timings + counters via `@Timed` and `@Counted` annotations
+2. **Tracing**: Request trace IDs via MDC (logging only)
+3. **Health Checks**: Repository and Kafka connectivity
+4. **Zero business logic changes**: All metrics via AOP interception
 
-## Phase 1: Core Metrics (4-6 hours)
+---
 
-### Step 1.1: Add Dependencies (15 minutes)
+## Phase 1: Dependencies and Configuration (15 minutes)
+
+### Step 1.1: Add Dependencies
 
 **File**: `pom.xml`
+
+Add to `<dependencies>` section:
 
 ```xml
 <!-- Spring Boot Actuator -->
@@ -29,341 +41,416 @@ Add comprehensive observability to CHUCC Server using Spring Boot Actuator + Mic
     <artifactId>spring-boot-starter-actuator</artifactId>
 </dependency>
 
-<!-- Micrometer Prometheus (for Grafana) -->
+<!-- Micrometer Prometheus -->
 <dependency>
     <groupId>io.micrometer</groupId>
     <artifactId>micrometer-registry-prometheus</artifactId>
 </dependency>
 
-<!-- Optional: Micrometer Tracing with Zipkin -->
+<!-- AspectJ for @Timed/@Counted support -->
 <dependency>
-    <groupId>io.micrometer</groupId>
-    <artifactId>micrometer-tracing-bridge-brave</artifactId>
-    <optional>true</optional>
-</dependency>
-<dependency>
-    <groupId>io.zipkin.reporter2</groupId>
-    <artifactId>zipkin-reporter-brave</artifactId>
-    <optional>true</optional>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-aop</artifactId>
 </dependency>
 ```
 
-### Step 1.2: Configure Actuator (30 minutes)
+**Lines added**: 12
+
+### Step 1.2: Configure Actuator
 
 **File**: `src/main/resources/application.properties`
 
+Add to end of file:
+
 ```properties
-# Actuator Configuration
-management.endpoints.web.exposure.include=health,info,prometheus,metrics
+# Observability - Actuator endpoints
+management.endpoints.web.exposure.include=health,prometheus
 management.endpoint.health.show-details=when-authorized
-management.endpoint.prometheus.enabled=true
 management.metrics.enable.jvm=true
-management.metrics.enable.process=true
-management.metrics.enable.system=true
 
-# Custom metrics prefix
+# Metrics tags
 management.metrics.tags.application=chucc-server
-management.metrics.tags.environment=${ENVIRONMENT:dev}
-
-# Health indicators
-management.health.kafka.enabled=true
-
-# Info endpoint
-info.app.name=CHUCC Server
-info.app.description=Versioned SPARQL Server with CQRS + Event Sourcing
-info.app.version=@project.version@
 ```
 
-### Step 1.3: Add Custom Metrics (3-4 hours)
+**Lines added**: 6
 
-#### Metric 1: RDF Patch Application Time
+### Step 1.3: Enable AOP Metrics Support
+
+**File**: `src/main/java/org/chucc/vcserver/config/MetricsConfiguration.java` (new file)
+
+```java
+package org.chucc.vcserver.config;
+
+import io.micrometer.core.aop.CountedAspect;
+import io.micrometer.core.aop.TimedAspect;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
+
+/**
+ * Configuration for annotation-based metrics collection.
+ * Enables {@code @Timed} and {@code @Counted} annotations via AOP.
+ */
+@Configuration
+@EnableAspectJAutoProxy
+public class MetricsConfiguration {
+
+  /**
+   * Enables {@code @Timed} annotation support.
+   *
+   * @param registry the meter registry
+   * @return the timed aspect
+   */
+  @Bean
+  public TimedAspect timedAspect(MeterRegistry registry) {
+    return new TimedAspect(registry);
+  }
+
+  /**
+   * Enables {@code @Counted} annotation support.
+   *
+   * @param registry the meter registry
+   * @return the counted aspect
+   */
+  @Bean
+  public CountedAspect countedAspect(MeterRegistry registry) {
+    return new CountedAspect(registry);
+  }
+}
+```
+
+**Lines added**: 38
+
+---
+
+## Phase 2: Add Metrics Annotations (30 minutes)
+
+### Target Methods
+
+Only **6 methods** need annotations (no logic changes):
+
+| Method | Annotation | Purpose |
+|--------|------------|---------|
+| `SparqlQueryService.executeQuery()` | `@Timed`, `@Counted` | Query latency + count |
+| `SparqlUpdateCommandHandler.handle()` | `@Timed`, `@Counted` | Update latency + count |
+| `RdfPatchService.applyPatch()` | `@Timed` | Patch application time |
+| `ReadModelProjector.onEvent()` | `@Timed`, `@Counted` | Event processing time |
+| `DatasetService.materializeAtCommit()` | `@Timed` | Dataset materialization |
+| `EventPublisher.publish()` | `@Counted` | Event publication count |
+
+### Step 2.1: SPARQL Query Metrics
+
+**File**: `src/main/java/org/chucc/vcserver/service/SparqlQueryService.java`
+
+Add imports:
+
+```java
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
+```
+
+Add annotations to `executeQuery()` method:
+
+```java
+@Timed(
+    value = "sparql.query.execution",
+    description = "SPARQL query execution time"
+)
+@Counted(
+    value = "sparql.query.total",
+    description = "Total SPARQL queries executed"
+)
+public String executeQuery(Dataset dataset, String queryString, ResultFormat format) {
+  // Existing logic unchanged
+  log.info("Executing SPARQL query with format {}", format);
+  // ... rest of method
+}
+```
+
+**Lines added**: 10 (2 imports + 8 annotation lines)
+
+**Metrics created**:
+- `sparql_query_execution_seconds` - Timer for query latency
+- `sparql_query_total` - Counter for query count
+
+### Step 2.2: SPARQL Update Metrics
+
+**File**: `src/main/java/org/chucc/vcserver/command/SparqlUpdateCommandHandler.java`
+
+Add imports:
+
+```java
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
+```
+
+Add annotations to `handle()` method:
+
+```java
+@Timed(
+    value = "sparql.update.execution",
+    description = "SPARQL update execution time"
+)
+@Counted(
+    value = "sparql.update.total",
+    description = "Total SPARQL updates executed"
+)
+public VersionControlEvent handle(SparqlUpdateCommand command) {
+  // Existing logic unchanged
+  log.info("Executing SPARQL update on dataset {} branch {}",
+      command.datasetName(), command.branch());
+  // ... rest of method
+}
+```
+
+**Lines added**: 10
+
+**Metrics created**:
+- `sparql_update_execution_seconds` - Timer for update latency
+- `sparql_update_total` - Counter for update count
+
+### Step 2.3: RDF Patch Metrics
 
 **File**: `src/main/java/org/chucc/vcserver/service/RdfPatchService.java`
 
+Add import:
+
 ```java
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.annotation.Timed;
+```
 
-public class RdfPatchService {
-  private final MeterRegistry meterRegistry;
+Add annotation to `applyPatch()` method:
 
-  @Autowired
-  public RdfPatchService(MeterRegistry meterRegistry) {
-    this.meterRegistry = meterRegistry;
-  }
+```java
+@Timed(
+    value = "rdf.patch.apply",
+    description = "RDF patch application time"
+)
+public Model applyPatch(Model model, RDFPatch patch) {
+  // Existing logic unchanged
+  log.debug("Applying RDF patch to model");
+  // ... rest of method
+}
+```
 
-  public Model applyPatch(Model graph, RDFPatch patch) {
-    return Timer.builder("rdf.patch.apply")
-        .description("Time to apply RDF patch to graph")
-        .tag("operation", "apply")
-        .register(meterRegistry)
-        .record(() -> {
-          // Existing logic
-          RDFPatchOps.applyChange(graph, patch);
-          return graph;
-        });
-  }
+**Lines added**: 5
 
-  public RDFPatch parsePatch(String patchText) {
-    meterRegistry.counter("rdf.patch.parse", "result", "success").increment();
+**Metrics created**:
+- `rdf_patch_apply_seconds` - Timer for patch application
+
+### Step 2.4: Event Projector Metrics
+
+**File**: `src/main/java/org/chucc/vcserver/projection/ReadModelProjector.java`
+
+Add imports:
+
+```java
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
+```
+
+Add annotations to `onEvent()` method:
+
+```java
+@KafkaListener(topics = "#{kafkaProperties.topicPattern}", groupId = "read-model-projector")
+@Timed(
+    value = "event.projector.processing",
+    description = "Event processing time"
+)
+@Counted(
+    value = "event.projector.processed",
+    description = "Events processed count"
+)
+public void onEvent(@Payload String eventJson) {
+  // Existing logic unchanged
+  log.debug("Processing event: {}", eventJson);
+  // ... rest of method
+}
+```
+
+**Lines added**: 10
+
+**Metrics created**:
+- `event_projector_processing_seconds` - Timer for event processing
+- `event_projector_processed_total` - Counter for events processed
+
+### Step 2.5: Dataset Materialization Metrics
+
+**File**: `src/main/java/org/chucc/vcserver/service/DatasetService.java`
+
+Add import:
+
+```java
+import io.micrometer.core.annotation.Timed;
+```
+
+Add annotation to `materializeAtCommit()` method:
+
+```java
+@Timed(
+    value = "dataset.materialize",
+    description = "Dataset materialization time"
+)
+public Dataset materializeAtCommit(String datasetName, CommitId commitId) {
+  // Existing logic unchanged
+  log.info("Materializing dataset {} at commit {}", datasetName, commitId);
+  // ... rest of method
+}
+```
+
+**Lines added**: 5
+
+**Metrics created**:
+- `dataset_materialize_seconds` - Timer for materialization
+
+### Step 2.6: Event Publisher Metrics
+
+**File**: `src/main/java/org/chucc/vcserver/event/EventPublisher.java`
+
+Add import:
+
+```java
+import io.micrometer.core.annotation.Counted;
+```
+
+Add annotation to `publish()` method:
+
+```java
+@Counted(
+    value = "event.published",
+    description = "Events published count"
+)
+public CompletableFuture<Void> publish(VersionControlEvent event) {
+  // Existing logic unchanged
+  log.debug("Publishing event: {}", event.getClass().getSimpleName());
+  // ... rest of method
+}
+```
+
+**Lines added**: 5
+
+**Metrics created**:
+- `event_published_total` - Counter for events published
+
+---
+
+## Phase 3: Request Tracing via MDC (15 minutes)
+
+### Step 3.1: Create Trace ID Filter
+
+**File**: `src/main/java/org/chucc/vcserver/filter/TraceIdFilter.java` (new file)
+
+```java
+package org.chucc.vcserver.filter;
+
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import java.io.IOException;
+import java.util.UUID;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Component;
+
+/**
+ * Adds a unique trace ID to each request for log correlation.
+ * Trace ID is added to MDC and automatically included in all log statements.
+ */
+@Component
+public class TraceIdFilter implements Filter {
+
+  private static final String TRACE_ID_KEY = "traceId";
+
+  /**
+   * Adds trace ID to MDC for the duration of the request.
+   *
+   * @param request the servlet request
+   * @param response the servlet response
+   * @param chain the filter chain
+   * @throws IOException if I/O error occurs
+   * @throws ServletException if servlet error occurs
+   */
+  @Override
+  public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+      throws IOException, ServletException {
+    String traceId = UUID.randomUUID().toString().substring(0, 8);
+    MDC.put(TRACE_ID_KEY, traceId);
     try {
-      return RDFPatchOps.read(new ByteArrayInputStream(
-          patchText.getBytes(StandardCharsets.UTF_8)));
-    } catch (Exception e) {
-      meterRegistry.counter("rdf.patch.parse", "result", "error").increment();
-      throw e;
+      chain.doFilter(request, response);
+    } finally {
+      MDC.remove(TRACE_ID_KEY);
     }
   }
 }
 ```
 
-**Metrics Created**:
-- `rdf.patch.apply` (timer) - Patch application duration
-- `rdf.patch.parse` (counter) - Parse success/error counts
+**Lines added**: 42
 
-#### Metric 2: SPARQL Query Performance
+### Step 3.2: Update Logback Configuration
 
-**File**: `src/main/java/org/chucc/vcserver/service/SparqlQueryService.java`
+**File**: `src/main/resources/logback-spring.xml`
 
-```java
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
+Update pattern to include trace ID:
 
-public class SparqlQueryService {
-  private final MeterRegistry meterRegistry;
-
-  public String executeQuery(Dataset dataset, String queryString, ResultFormat format) {
-    // Determine query type for tagging
-    String queryType = determineQueryType(queryString);
-
-    return Timer.builder("sparql.query.execution")
-        .description("SPARQL query execution time")
-        .tag("type", queryType) // SELECT, ASK, CONSTRUCT, DESCRIBE
-        .tag("format", format.name()) // JSON, XML, CSV, etc.
-        .register(meterRegistry)
-        .record(() -> {
-          try (QueryExecution qExec = QueryExecutionFactory.create(queryString, dataset)) {
-            meterRegistry.counter("sparql.query.total",
-                "type", queryType,
-                "result", "success").increment();
-            return formatResults(qExec, format);
-          } catch (Exception e) {
-            meterRegistry.counter("sparql.query.total",
-                "type", queryType,
-                "result", "error").increment();
-            throw e;
-          }
-        });
-  }
-
-  private String determineQueryType(String queryString) {
-    String upper = queryString.toUpperCase(Locale.ROOT).trim();
-    if (upper.startsWith("SELECT")) return "SELECT";
-    if (upper.startsWith("ASK")) return "ASK";
-    if (upper.startsWith("CONSTRUCT")) return "CONSTRUCT";
-    if (upper.startsWith("DESCRIBE")) return "DESCRIBE";
-    return "UNKNOWN";
-  }
-}
+```xml
+<pattern>%d{HH:mm:ss.SSS} [%X{traceId}] %-5level %logger{36} - %msg%n</pattern>
 ```
 
-**Metrics Created**:
-- `sparql.query.execution` (timer) - Query duration by type and format
-- `sparql.query.total` (counter) - Query count by type and result
+**Lines changed**: 1
 
-#### Metric 3: SPARQL Update Performance
-
-**File**: `src/main/java/org/chucc/vcserver/command/SparqlUpdateCommandHandler.java`
-
-```java
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
-
-public class SparqlUpdateCommandHandler {
-  private final MeterRegistry meterRegistry;
-
-  public VersionControlEvent handle(SparqlUpdateCommand command) {
-    return Timer.builder("sparql.update.execution")
-        .description("SPARQL update execution time")
-        .tag("dataset", command.datasetName())
-        .tag("branch", command.branch())
-        .register(meterRegistry)
-        .record(() -> {
-          VersionControlEvent event = executeUpdate(command);
-
-          if (event == null) {
-            // No-op
-            meterRegistry.counter("sparql.update.noop",
-                "dataset", command.datasetName()).increment();
-          } else {
-            // Commit created
-            meterRegistry.counter("sparql.update.commit",
-                "dataset", command.datasetName()).increment();
-          }
-
-          return event;
-        });
-  }
-}
+**Example log output**:
+```
+10:15:23.456 [a3f5b8c2] INFO  SparqlQueryService - Executing SPARQL query with format JSON
+10:15:23.789 [a3f5b8c2] INFO  DatasetService - Materializing dataset default at commit abc123
 ```
 
-**Metrics Created**:
-- `sparql.update.execution` (timer) - Update duration
-- `sparql.update.noop` (counter) - No-op update count
-- `sparql.update.commit` (counter) - Commit creation count
+---
 
-#### Metric 4: Event Projector Lag
+## Phase 4: Health Indicators (30 minutes)
 
-**File**: `src/main/java/org/chucc/vcserver/projection/ReadModelProjector.java`
+### Step 4.1: Repository Health Indicator
 
-```java
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
-import org.springframework.kafka.support.KafkaHeaders;
-
-@KafkaListener(topics = "#{kafkaProperties.topicPattern}", groupId = "read-model-projector")
-public void onEvent(
-    @Payload String eventJson,
-    @Header(KafkaHeaders.RECEIVED_TIMESTAMP) long timestamp) {
-
-  // Calculate lag (time between event creation and processing)
-  long lag = System.currentTimeMillis() - timestamp;
-  meterRegistry.gauge("event.projector.lag.ms", lag);
-
-  Timer.builder("event.projector.processing")
-      .description("Event processing time")
-      .tag("event_type", extractEventType(eventJson))
-      .register(meterRegistry)
-      .record(() -> {
-        // Existing event handling logic
-        processEvent(eventJson);
-      });
-
-  meterRegistry.counter("event.projector.processed",
-      "event_type", extractEventType(eventJson)).increment();
-}
-```
-
-**Metrics Created**:
-- `event.projector.lag.ms` (gauge) - Lag between event creation and processing
-- `event.projector.processing` (timer) - Event processing duration
-- `event.projector.processed` (counter) - Events processed by type
-
-#### Metric 5: Commit Creation Rate
-
-**File**: `src/main/java/org/chucc/vcserver/event/EventPublisher.java`
-
-```java
-import io.micrometer.core.instrument.MeterRegistry;
-
-public class EventPublisher {
-  private final MeterRegistry meterRegistry;
-
-  public CompletableFuture<Void> publish(VersionControlEvent event) {
-    meterRegistry.counter("commit.created",
-        "dataset", extractDataset(event),
-        "event_type", event.getClass().getSimpleName()).increment();
-
-    return kafkaTemplate.send(topic, eventJson)
-        .thenAccept(result -> {
-          meterRegistry.counter("event.published",
-              "dataset", extractDataset(event),
-              "result", "success").increment();
-        })
-        .exceptionally(ex -> {
-          meterRegistry.counter("event.published",
-              "dataset", extractDataset(event),
-              "result", "error").increment();
-          throw new RuntimeException(ex);
-        });
-  }
-}
-```
-
-**Metrics Created**:
-- `commit.created` (counter) - Commits created by dataset and type
-- `event.published` (counter) - Event publication success/error
-
-#### Metric 6: Dataset Materialization Cache
-
-**File**: `src/main/java/org/chucc/vcserver/service/DatasetService.java`
-
-```java
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics;
-
-@Service
-public class DatasetService {
-  private final Cache<String, DatasetGraph> cache;
-  private final MeterRegistry meterRegistry;
-
-  @PostConstruct
-  public void initMetrics() {
-    // Bind cache metrics
-    CaffeineCacheMetrics.monitor(meterRegistry, cache, "dataset.cache");
-  }
-
-  public Dataset materializeAtCommit(String datasetName, CommitId commitId) {
-    String cacheKey = datasetName + ":" + commitId.value();
-
-    return Timer.builder("dataset.materialize")
-        .description("Dataset materialization time")
-        .tag("dataset", datasetName)
-        .register(meterRegistry)
-        .record(() -> {
-          DatasetGraph graph = cache.get(cacheKey, key -> {
-            meterRegistry.counter("dataset.cache.miss",
-                "dataset", datasetName).increment();
-            return buildDatasetGraph(datasetName, commitId);
-          });
-
-          if (graph != cache.getIfPresent(cacheKey)) {
-            meterRegistry.counter("dataset.cache.hit",
-                "dataset", datasetName).increment();
-          }
-
-          return DatasetFactory.wrap(graph);
-        });
-  }
-}
-```
-
-**Metrics Created**:
-- `dataset.cache.size` (gauge) - Cache size
-- `dataset.cache.evictions` (counter) - Cache evictions
-- `dataset.cache.hit` (counter) - Cache hits
-- `dataset.cache.miss` (counter) - Cache misses
-- `dataset.materialize` (timer) - Materialization duration
-
-### Step 1.4: Add Custom Health Indicators (1 hour)
-
-**File**: `src/main/java/org/chucc/vcserver/health/RepositoryHealthIndicator.java`
+**File**: `src/main/java/org/chucc/vcserver/health/RepositoryHealthIndicator.java` (new file)
 
 ```java
 package org.chucc.vcserver.health;
 
-import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Component;
 
+/**
+ * Health indicator for repository accessibility.
+ * Checks if commit repository is accessible.
+ */
 @Component
 public class RepositoryHealthIndicator implements HealthIndicator {
 
-  private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
 
+  /**
+   * Creates a new repository health indicator.
+   *
+   * @param commitRepository the commit repository
+   */
+  public RepositoryHealthIndicator(CommitRepository commitRepository) {
+    this.commitRepository = commitRepository;
+  }
+
+  /**
+   * Checks repository health.
+   *
+   * @return health status
+   */
   @Override
   public Health health() {
     try {
-      // Check if repositories are accessible
-      long branchCount = branchRepository.countByDataset("default");
-      long commitCount = commitRepository.countByDataset("default");
-
+      // Simple check - if this works, repository is accessible
+      commitRepository.count();
       return Health.up()
-          .withDetail("branches", branchCount)
-          .withDetail("commits", commitCount)
           .withDetail("status", "Repositories accessible")
           .build();
     } catch (Exception e) {
@@ -376,67 +463,50 @@ public class RepositoryHealthIndicator implements HealthIndicator {
 }
 ```
 
-**File**: `src/main/java/org/chucc/vcserver/health/EventPublisherHealthIndicator.java`
+**Lines added**: 46
 
-```java
-@Component
-public class EventPublisherHealthIndicator implements HealthIndicator {
+### Step 4.2: Kafka Health Indicator
 
-  private final KafkaTemplate<String, String> kafkaTemplate;
+**Note**: Kafka health check is **built-in** to Spring Boot Actuator when Kafka is detected. No code needed.
 
-  @Override
-  public Health health() {
-    try {
-      // Check if Kafka is reachable (non-blocking)
-      Map<String, Object> metrics = kafkaTemplate.metrics();
-
-      return Health.up()
-          .withDetail("kafka", "Connected")
-          .withDetail("metrics_available", metrics.size())
-          .build();
-    } catch (Exception e) {
-      return Health.down()
-          .withDetail("kafka", "Disconnected")
-          .withException(e)
-          .build();
-    }
-  }
-}
+Enabled via:
+```properties
+management.health.kafka.enabled=true
 ```
 
-## Phase 2: Metrics Endpoint and Testing (2-3 hours)
+Already configured in Step 1.2.
 
-### Step 2.1: Test Metrics Locally (30 minutes)
+---
 
-```bash
-# Start application
-mvn spring-boot:run
+## Phase 5: Testing and Verification (1 hour)
 
-# Check health endpoint
-curl http://localhost:3030/actuator/health
-# Expected: {"status":"UP","components":{...}}
+### Step 5.1: Add Integration Test
 
-# Check metrics endpoint
-curl http://localhost:3030/actuator/metrics
-# Expected: {"names":["rdf.patch.apply","sparql.query.execution",...]}
-
-# Check specific metric
-curl http://localhost:3030/actuator/metrics/sparql.query.execution
-# Expected: {"name":"sparql.query.execution","measurements":[...],"availableTags":[...]}
-
-# Check Prometheus endpoint
-curl http://localhost:3030/actuator/prometheus
-# Expected: Prometheus-formatted metrics
-```
-
-### Step 2.2: Add Metrics Integration Test (1-2 hours)
-
-**File**: `src/test/java/org/chucc/vcserver/metrics/MetricsIntegrationTest.java`
+**File**: `src/test/java/org/chucc/vcserver/metrics/ObservabilityIntegrationTest.java` (new file)
 
 ```java
+package org.chucc.vcserver.metrics;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import org.chucc.vcserver.test.IntegrationTestFixture;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.ActiveProfiles;
+
+/**
+ * Integration tests for observability features.
+ * Tests metrics collection, health checks, and Prometheus endpoint.
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
-class MetricsIntegrationTest extends IntegrationTestFixture {
+class ObservabilityIntegrationTest extends IntegrationTestFixture {
 
   @Autowired
   private TestRestTemplate restTemplate;
@@ -445,7 +515,7 @@ class MetricsIntegrationTest extends IntegrationTestFixture {
   private MeterRegistry meterRegistry;
 
   @Test
-  void actuatorHealth_shouldReturnUp() {
+  void healthEndpoint_shouldReturnUp() {
     ResponseEntity<String> response = restTemplate.getForEntity(
         "/actuator/health", String.class);
 
@@ -454,188 +524,181 @@ class MetricsIntegrationTest extends IntegrationTestFixture {
   }
 
   @Test
-  void metricsEndpoint_shouldExposeCustomMetrics() {
+  void prometheusEndpoint_shouldExposeMetrics() {
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/actuator/metrics", String.class);
+        "/actuator/prometheus", String.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).contains(
-        "rdf.patch.apply",
-        "sparql.query.execution",
-        "event.projector.lag.ms"
-    );
+    assertThat(response.getBody())
+        .contains("jvm_memory_used_bytes")
+        .contains("application=\"chucc-server\"");
   }
 
   @Test
   void sparqlQueryExecution_shouldRecordMetrics() {
-    // Given: Execute a query
+    // Given: Execute a SPARQL query
     String query = "SELECT * WHERE { ?s ?p ?o }";
     restTemplate.getForEntity(
         "/sparql?query=" + query + "&branch=main", String.class);
 
-    // Then: Metric should be recorded
+    // Then: Timer metric should be recorded
     Timer timer = meterRegistry.find("sparql.query.execution").timer();
     assertThat(timer).isNotNull();
     assertThat(timer.count()).isGreaterThan(0);
+
+    // And: Counter metric should be recorded
+    assertThat(meterRegistry.find("sparql.query.total").counter())
+        .isNotNull();
+  }
+
+  @Test
+  void traceIdFilter_shouldAddTraceIdToLogs() {
+    // When: Execute any request
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/actuator/health", String.class);
+
+    // Then: Request should succeed (trace ID is transparent)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    // Note: Trace ID verification requires log inspection
+    // See manual testing section
   }
 }
 ```
 
-### Step 2.3: Document Metrics (1 hour)
+**Lines added**: 71
 
-**File**: `docs/operations/metrics.md`
+### Step 5.2: Manual Testing
 
-```markdown
-# CHUCC Server Metrics
+```bash
+# 1. Run full build
+mvn -q clean install
 
-## Available Metrics
+# 2. Start application
+mvn spring-boot:run
 
-### RDF Operations
-- `rdf.patch.apply` - Time to apply RDF patches
-- `rdf.patch.parse` - RDF patch parsing success/error counts
+# 3. Check health endpoint
+curl http://localhost:3030/actuator/health
 
-### SPARQL Queries
-- `sparql.query.execution` - Query execution time (tagged by type, format)
-- `sparql.query.total` - Total queries executed (tagged by type, result)
+# Expected output:
+{
+  "status": "UP",
+  "components": {
+    "diskSpace": { "status": "UP" },
+    "kafka": { "status": "UP" },
+    "ping": { "status": "UP" },
+    "repositories": { "status": "UP" }
+  }
+}
 
-### SPARQL Updates
-- `sparql.update.execution` - Update execution time
-- `sparql.update.noop` - No-op updates count
-- `sparql.update.commit` - Commits created count
+# 4. Execute a SPARQL query to generate metrics
+curl "http://localhost:3030/sparql?query=SELECT%20*%20WHERE%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D&branch=main"
 
-### Event Processing
-- `event.projector.lag.ms` - Event processing lag
-- `event.projector.processing` - Event processing time
-- `event.projector.processed` - Events processed count
-
-### Dataset Cache
-- `dataset.cache.size` - Cache size
-- `dataset.cache.hit` - Cache hit count
-- `dataset.cache.miss` - Cache miss count
-- `dataset.materialize` - Dataset materialization time
-
-### Commits
-- `commit.created` - Commits created (tagged by dataset, type)
-- `event.published` - Event publication success/error
-
-## Accessing Metrics
-
-### Prometheus Format
-```
+# 5. Check Prometheus endpoint
 curl http://localhost:3030/actuator/prometheus
+
+# Expected output (excerpt):
+# HELP sparql_query_execution_seconds SPARQL query execution time
+# TYPE sparql_query_execution_seconds summary
+sparql_query_execution_seconds_count{application="chucc-server"} 1.0
+sparql_query_execution_seconds_sum{application="chucc-server"} 0.123
+
+# HELP sparql_query_total Total SPARQL queries executed
+# TYPE sparql_query_total counter
+sparql_query_total{application="chucc-server"} 1.0
+
+# 6. Check trace IDs in logs (application output)
+# Look for lines like:
+# 10:15:23.456 [a3f5b8c2] INFO  SparqlQueryService - Executing SPARQL query
 ```
 
-### JSON Format
+---
+
+## Summary
+
+### What You Get
+
+**Metrics** (via `/actuator/prometheus`):
+- `sparql_query_execution_seconds` - Query latency timer
+- `sparql_query_total` - Query count
+- `sparql_update_execution_seconds` - Update latency timer
+- `sparql_update_total` - Update count
+- `rdf_patch_apply_seconds` - Patch application timer
+- `event_projector_processing_seconds` - Event processing timer
+- `event_projector_processed_total` - Events processed count
+- `dataset_materialize_seconds` - Materialization timer
+- `event_published_total` - Events published count
+- `jvm_memory_used_bytes` - JVM metrics (built-in)
+
+**Tracing** (in logs only):
 ```
-curl http://localhost:3030/actuator/metrics
-curl http://localhost:3030/actuator/metrics/sparql.query.execution
-```
-```
-
-## Phase 3: Grafana Dashboard (Optional, 2-4 hours)
-
-### Step 3.1: Create Prometheus Configuration
-
-**File**: `docker/prometheus/prometheus.yml`
-
-```yaml
-global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
-
-scrape_configs:
-  - job_name: 'chucc-server'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['localhost:3030']
-```
-
-### Step 3.2: Create Grafana Dashboard JSON
-
-**File**: `docker/grafana/dashboards/chucc-server.json`
-
-Dashboard includes:
-- SPARQL query rate and latency
-- RDF patch application time
-- Event projector lag
-- Commit creation rate
-- Cache hit ratio
-- JVM metrics (heap, threads, GC)
-
-### Step 3.3: Create Docker Compose
-
-**File**: `docker-compose.metrics.yml`
-
-```yaml
-version: '3.8'
-services:
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards
+10:15:23.456 [a3f5b8c2] INFO  SparqlQueryService - Executing query
+10:15:23.789 [a3f5b8c2] INFO  DatasetService - Materializing dataset
 ```
 
-## Testing Strategy
-
-### Unit Tests
-```bash
-mvn test -Dtest=MetricsIntegrationTest
+**Health Checks** (via `/actuator/health`):
+```json
+{
+  "status": "UP",
+  "components": {
+    "kafka": { "status": "UP" },
+    "repositories": { "status": "UP" }
+  }
+}
 ```
 
-### Manual Testing
-1. Start application: `mvn spring-boot:run`
-2. Execute queries and updates
-3. Check metrics: `curl http://localhost:3030/actuator/prometheus`
-4. Verify counters and timers increase
+### Code Impact
 
-### Load Testing (Optional)
-```bash
-# Install k6 or Apache JMeter
-# Run load test script
-# Monitor metrics in Grafana
-```
+| Category | Lines Added | Files Changed |
+|----------|-------------|---------------|
+| Dependencies | 12 | 1 (pom.xml) |
+| Configuration | 6 | 1 (application.properties) |
+| Metrics config | 38 | 1 (MetricsConfiguration.java) |
+| Annotations | 45 | 6 (service classes) |
+| Trace ID filter | 42 | 1 (TraceIdFilter.java) |
+| Logback pattern | 1 | 1 (logback-spring.xml) |
+| Health indicator | 46 | 1 (RepositoryHealthIndicator.java) |
+| Test | 71 | 1 (ObservabilityIntegrationTest.java) |
+| **Total** | **~260 lines** | **13 files** |
 
-## Acceptance Criteria
+**Business logic changes**: **ZERO** ✅
 
-### Phase 1: Core Metrics
-- [ ] Spring Boot Actuator configured
-- [ ] 6 custom metric types implemented
-- [ ] Health indicators for repositories and Kafka
-- [ ] Metrics endpoint returns all custom metrics
-- [ ] Unit tests for metrics recording
-- [ ] Zero Checkstyle violations
+### Performance Impact
 
-### Phase 2: Testing
-- [ ] MetricsIntegrationTest passing
-- [ ] Documentation created
-- [ ] Manual testing verified
+- **Metrics**: <1ms overhead per request (AOP proxying)
+- **Tracing**: ~50μs overhead (ThreadLocal MDC)
+- **Health checks**: Only when `/actuator/health` is called
 
-### Phase 3: Dashboards (Optional)
-- [ ] Prometheus scraping configured
-- [ ] Grafana dashboard created
-- [ ] Docker Compose for observability stack
+**Total impact**: Negligible (<0.1% of typical request time)
 
-## Estimated Effort
+### Time Breakdown
 
 | Phase | Task | Time |
 |-------|------|------|
-| 1 | Add dependencies and config | 45 min |
-| 1 | Add 6 custom metrics | 3-4 hours |
-| 1 | Add health indicators | 1 hour |
-| 2 | Test and document | 2-3 hours |
-| 3 | Grafana dashboard (optional) | 2-4 hours |
-| **Total** | | **7-13 hours (1-2 days)** |
+| 1 | Dependencies + config | 15 min |
+| 2 | Add 6 method annotations | 30 min |
+| 3 | Trace ID filter + logback | 15 min |
+| 4 | Health indicators | 30 min |
+| 5 | Testing + verification | 1 hour |
+| **Total** | | **~2.5 hours** |
+
+---
+
+## Acceptance Criteria
+
+- [ ] Spring Boot Actuator configured
+- [ ] `@Timed` and `@Counted` aspects enabled
+- [ ] 6 methods annotated with metrics
+- [ ] Trace ID filter added and configured
+- [ ] Repository health indicator implemented
+- [ ] Integration test passing
+- [ ] Manual verification completed
+- [ ] Zero Checkstyle violations
+- [ ] Zero SpotBugs warnings
+- [ ] Zero PMD violations
+- [ ] Full build passes (`mvn -q clean install`)
+
+---
 
 ## References
 
@@ -644,10 +707,8 @@ mvn test -Dtest=MetricsIntegrationTest
 
 **Micrometer**:
 - https://micrometer.io/docs
+- https://micrometer.io/docs/concepts#_timers
+- https://micrometer.io/docs/concepts#_counters
 
-**Grafana Dashboards**:
-- https://grafana.com/grafana/dashboards/
-
-**Example Metrics**:
-- `src/main/java/org/chucc/vcserver/service/SparqlQueryService.java`
-- `src/main/java/org/chucc/vcserver/command/SparqlUpdateCommandHandler.java`
+**Prometheus**:
+- https://prometheus.io/docs/introduction/overview/

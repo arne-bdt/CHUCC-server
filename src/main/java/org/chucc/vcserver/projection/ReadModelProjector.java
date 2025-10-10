@@ -1,6 +1,8 @@
 package org.chucc.vcserver.projection;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
@@ -75,6 +77,14 @@ public class ReadModelProjector {
       groupId = "${spring.kafka.consumer.group-id:read-model-projector}",
       containerFactory = "kafkaListenerContainerFactory",
       autoStartup = "${projector.kafka-listener.enabled:true}"
+  )
+  @Timed(
+      value = "event.projector.processing",
+      description = "Event processing time"
+  )
+  @Counted(
+      value = "event.projector.processed",
+      description = "Events processed count"
   )
   public void handleEvent(VersionControlEvent event) {
     logger.debug("Received event: {} for dataset: {}",

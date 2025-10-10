@@ -1,5 +1,6 @@
 package org.chucc.vcserver.service;
 
+import io.micrometer.core.annotation.Timed;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -166,6 +167,10 @@ public class RdfPatchService {
    * @param patch the patch to apply
    * @return the modified graph (a new model instance)
    */
+  @Timed(
+      value = "rdf.patch.apply",
+      description = "RDF patch application time"
+  )
   public Model applyPatch(Model graph, RDFPatch patch) {
     // Create a copy of the graph
     Model result = ModelFactory.createDefaultModel();

@@ -1,6 +1,8 @@
 package org.chucc.vcserver.service;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import java.io.ByteArrayOutputStream;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.Query;
@@ -33,6 +35,14 @@ public class SparqlQueryService {
    * @throws QueryParseException if the query is malformed
    * @throws IllegalArgumentException if the query type is unsupported
    */
+  @Timed(
+      value = "sparql.query.execution",
+      description = "SPARQL query execution time"
+  )
+  @Counted(
+      value = "sparql.query.total",
+      description = "Total SPARQL queries executed"
+  )
   public String executeQuery(Dataset dataset, String queryString, ResultFormat resultFormat) {
     // Parse query
     Query query = QueryFactory.create(queryString);

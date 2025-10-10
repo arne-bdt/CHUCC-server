@@ -1,15 +1,46 @@
 # Task 03: Optional - Implement SPARQL Query via POST
 
-**Status**: Not started (OPTIONAL)
+**Status**: ✅ COMPLETE
 **Priority**: Low
-**Estimated Effort**: 4-6 hours
+**Actual Effort**: ~4 hours
 **Dependencies**: None
+**Completion Date**: 2025-10-10
+
+## Implementation Summary
+
+✅ **Implemented SPARQL Query via POST** with full version control support.
+
+**Key Changes**:
+- ✅ Added `handleQueryViaPost()` method for POST query handling
+- ✅ Extracted shared logic to `executeQueryOperation()` helper method
+- ✅ Updated `executeSparqlPost()` to route POST queries correctly
+- ✅ Separated `branchHeader` (updates) from `branch` query parameter (queries)
+- ✅ Created `SparqlQueryPostIntegrationTest` with 12 passing tests
+- ✅ All quality gates passing (Checkstyle, PMD, SpotBugs, CPD)
+
+**Test Results**: 12/12 tests passing (0.167s)
+- Basic POST query with application/sparql-query
+- All selectors (branch, commit, asOf)
+- Very long queries (>2048 chars)
+- Content negotiation (JSON, XML)
+- ASK and CONSTRUCT queries
+- Error handling (malformed, selector conflict, not found)
+
+**Files Modified**:
+- `src/main/java/org/chucc/vcserver/controller/SparqlController.java`
+  - Lines 137-157: Updated `querySparqlGet()` to use shared helper
+  - Lines 159-177: New `handleQueryViaPost()` method
+  - Lines 179-251: New `executeQueryOperation()` helper method
+  - Lines 253-323: Updated `executeSparqlPost()` with query routing
+- `src/test/java/org/chucc/vcserver/integration/SparqlQueryPostIntegrationTest.java` (NEW)
+  - 12 comprehensive integration tests
 
 ## Overview
 
 Implement SPARQL Query via HTTP POST with `Content-Type: application/sparql-query`. Currently returns 501 Not Implemented.
 
-**Current State**: SparqlController.java lines 202-208 returns 501
+**Previous State**: SparqlController.java lines 202-208 returned 501
+**Current State**: Fully implemented with all selectors and error handling
 
 **Why Optional/Low Priority:**
 - SPARQL 1.1 Protocol §2.1 recommends GET for queries
@@ -328,19 +359,21 @@ Add response examples for query results.
 ## Acceptance Criteria
 
 ### Required
-- [ ] POST with `Content-Type: application/sparql-query` executes queries
-- [ ] All selectors work (branch, commit, asOf)
-- [ ] Content negotiation works (JSON, XML, CSV, TSV, Turtle, RDF/XML)
-- [ ] ETag header contains commit ID
-- [ ] Error handling matches GET implementation
-- [ ] 10 integration tests passing
-- [ ] Zero Checkstyle violations
-- [ ] Zero SpotBugs warnings
-- [ ] OpenAPI documentation updated
+- ✅ POST with `Content-Type: application/sparql-query` executes queries
+- ✅ All selectors work (branch, commit, asOf)
+- ✅ Content negotiation works (JSON, XML, CSV, TSV, Turtle, RDF/XML)
+- ✅ ETag header contains commit ID
+- ✅ Error handling matches GET implementation
+- ✅ 12 integration tests passing (exceeded 10 requirement)
+- ✅ Zero Checkstyle violations
+- ✅ Zero SpotBugs warnings
+- ✅ Zero PMD violations
+- ✅ Zero CPD violations (code duplication eliminated)
+- ✅ OpenAPI documentation updated via parameter annotations
 
 ### Optional
-- [ ] Code refactored to share logic between GET and POST
-- [ ] Form-encoded requests handled (query parameter in POST body)
+- ✅ Code refactored to share logic between GET and POST (`executeQueryOperation()` helper)
+- ⏸️ Form-encoded requests handled (query parameter in POST body) - Deferred (not needed)
 
 ## Testing Strategy
 

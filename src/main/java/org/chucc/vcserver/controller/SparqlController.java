@@ -134,7 +134,7 @@ public class SparqlController {
       description = "Not Implemented",
       content = @Content(mediaType = "application/problem+json")
   )
-  @SuppressWarnings("PMD.AvoidDuplicateLiterals") // Duplicate error codes are acceptable
+  @SuppressWarnings("PMD.UnusedFormalParameter") // Reserved parameters for future use
   public ResponseEntity<?> querySparqlGet(
       @Parameter(description = "The SPARQL query string", required = true)
       @RequestParam String query,
@@ -152,7 +152,52 @@ public class SparqlController {
       @RequestHeader(name = "SPARQL-VC-Commit", required = false) String vcCommit,
       HttpServletRequest request
   ) {
-    // Validate selector mutual exclusion per §4
+    // Note: defaultGraphUri, namedGraphUri, and vcCommit are reserved for future use
+    return executeQueryOperation(query, branch, commit, asOf, request);
+  }
+
+  /**
+   * Handle SPARQL Query via POST with application/sparql-query.
+   * Shares logic with querySparqlGet() but receives query in POST body.
+   *
+   * @param queryString SPARQL query from POST body
+   * @param branch target branch (optional)
+   * @param commit target commit (optional)
+   * @param asOf timestamp for time-travel (optional)
+   * @param vcCommit commit ID from SPARQL-VC-Commit header (optional)
+   * @param request HTTP request for Accept header
+   * @return query results with ETag
+   */
+  @SuppressWarnings("PMD.UnusedFormalParameter") // vcCommit reserved for future use
+  private ResponseEntity<?> handleQueryViaPost(
+      String queryString,
+      String branch,
+      String commit,
+      String asOf,
+      String vcCommit,
+      HttpServletRequest request) {
+    return executeQueryOperation(queryString, branch, commit, asOf, request);
+  }
+
+  /**
+   * Execute a SPARQL query operation (shared logic for GET and POST).
+   *
+   * @param query the SPARQL query string
+   * @param branch target branch (optional)
+   * @param commit target commit (optional)
+   * @param asOf timestamp for time-travel (optional)
+   * @param request HTTP request for Accept header
+   * @return query results with ETag
+   */
+  @SuppressWarnings("PMD.AvoidDuplicateLiterals") // Duplicate error codes are acceptable
+  private ResponseEntity<?> executeQueryOperation(
+      String query,
+      String branch,
+      String commit,
+      String asOf,
+      HttpServletRequest request) {
+
+    // Validate selector mutual exclusion
     try {
       SelectorValidator.validateMutualExclusion(branch, commit, asOf);
     } catch (IllegalArgumentException e) {
@@ -215,8 +260,14 @@ public class SparqlController {
    * @param body request body (query or update)
    * @param message commit message header
    * @param author commit author header
+   * @param branch target branch
+   * @param ifMatch If-Match header for optimistic locking
    * @param contentType content type header
-   * @return query results or update confirmation (501 stub)
+   * @param commit target commit for query
+   * @param asOf time-travel timestamp for query
+   * @param vcCommit commit ID for read consistency
+   * @param request HTTP servlet request
+   * @return query results or update confirmation
    */
   @PostMapping(
       consumes = {
@@ -227,6 +278,10 @@ public class SparqlController {
       produces = {
           "application/sparql-results+json",
           "application/sparql-results+xml",
+          "text/csv",
+          "text/tab-separated-values",
+          "text/turtle",
+          "application/rdf+xml",
           MediaType.APPLICATION_JSON_VALUE
       }
   )
@@ -284,35 +339,56 @@ public class SparqlController {
       description = "Not Implemented",
       content = @Content(mediaType = "application/problem+json")
   )
-  @SuppressWarnings({"PMD.AvoidDuplicateLiterals", "PMD.CyclomaticComplexity"})
-  public ResponseEntity<String> executeSparqlPost(
+  @SuppressWarnings({"PMD.AvoidDuplicateLiterals", "PMD.CyclomaticComplexity",
+      "PMD.ExcessiveParameterList"})
+  public ResponseEntity<?> executeSparqlPost(
       @RequestBody String body,
       @Parameter(description = "Commit message (SHOULD provide for updates)")
       @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
       @Parameter(description = "Commit author (SHOULD provide for updates)")
       @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
-      @Parameter(description = "Target branch (defaults to 'main')")
-      @RequestHeader(name = "SPARQL-VC-Branch", required = false) String branch,
-      @Parameter(description = "Expected HEAD commit for optimistic locking")
+      @Parameter(description = "Target branch header for updates (defaults to 'main')")
+      @RequestHeader(name = "SPARQL-VC-Branch", required = false) String branchHeader,
+      @Parameter(description = "Expected HEAD commit for optimistic locking (updates only)")
       @RequestHeader(name = "If-Match", required = false) String ifMatch,
-      @RequestHeader(name = "Content-Type", required = false) String contentType
+      @RequestHeader(name = "Content-Type", required = false) String contentType,
+      @Parameter(description = "Target branch query parameter for queries")
+      @RequestParam(required = false) String branch,
+      @Parameter(description = "Target commit for query (read-only)")
+      @RequestParam(required = false) String commit,
+      @Parameter(description = "Query branch state at or before this timestamp (ISO8601)")
+      @RequestParam(required = false) String asOf,
+      @Parameter(description = "Commit ID for read consistency (queries only)")
+      @RequestHeader(name = "SPARQL-VC-Commit", required = false) String vcCommit,
+      HttpServletRequest request
   ) {
     // Determine operation type from Content-Type
     boolean isUpdate = contentType != null
         && contentType.toLowerCase(java.util.Locale.ROOT)
             .contains("application/sparql-update");
 
+    boolean isQuery = contentType != null
+        && contentType.toLowerCase(java.util.Locale.ROOT)
+            .contains("application/sparql-query");
+
+    // Handle SPARQL Query via POST
+    if (isQuery) {
+      return handleQueryViaPost(body, branch, commit, asOf, vcCommit, request);
+    }
+
+    // If neither query nor update, return 501
     if (!isUpdate) {
-      // Query operations via POST not yet implemented
       return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body("{\"title\":\"SPARQL Query via POST not yet implemented\","
+          .body("{\"title\":\"SPARQL Query or Update via POST requires "
+              + "Content-Type: application/sparql-query or application/sparql-update\","
               + "\"status\":501}");
     }
 
     // SPARQL UPDATE operation
     final String datasetName = "default";
-    final String branchName = (branch != null && !branch.isBlank()) ? branch : "main";
+    final String branchName = (branchHeader != null && !branchHeader.isBlank())
+        ? branchHeader : "main";
 
     // Validate required headers for UPDATE
     if (message == null || message.isBlank()) {

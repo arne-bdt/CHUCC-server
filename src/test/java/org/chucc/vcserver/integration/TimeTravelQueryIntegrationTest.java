@@ -2,18 +2,7 @@ package org.chucc.vcserver.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.Instant;
-import java.util.List;
-import org.apache.jena.rdfpatch.RDFPatchOps;
-import org.chucc.vcserver.domain.Branch;
-import org.chucc.vcserver.domain.Commit;
-import org.chucc.vcserver.domain.CommitId;
-import org.chucc.vcserver.repository.BranchRepository;
-import org.chucc.vcserver.repository.CommitRepository;
-import org.chucc.vcserver.testutil.KafkaTestContainers;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
+import org.chucc.vcserver.testutil.IntegrationTestFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,150 +10,80 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.util.UriComponentsBuilder;
-import org.testcontainers.kafka.KafkaContainer;
 
 /**
  * Integration tests for time-travel SPARQL queries using asOf selector.
- * These tests verify that asOf parameter is correctly accepted and validated.
  *
- * <p>Note: Current SPARQL query endpoint returns 501 Not Implemented.
- * When query functionality is implemented, these tests should be enhanced
- * to verify actual query results reflect historical dataset state.</p>
+ * <p>These tests verify HTTP parameter validation for time-travel queries:
+ * <ul>
+ *   <li>asOf parameter is accepted and validated</li>
+ *   <li>Invalid timestamp formats return errors</li>
+ *   <li>Mutually exclusive selectors (asOf + commit) return 400</li>
+ *   <li>Timestamps before all commits return 404</li>
+ * </ul>
+ *
+ * <p>Note: Projector is DISABLED (default for API layer testing).
+ * These tests verify the HTTP contract only, not query result correctness.</p>
+ *
+ * <p>When SPARQL query functionality is fully implemented, consider adding
+ * additional tests that verify historical data is correctly returned.</p>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
-class TimeTravelQueryIntegrationTest {
-
-  private static KafkaContainer kafkaContainer;
+class TimeTravelQueryIntegrationTest extends IntegrationTestFixture {
 
   @Autowired
   private TestRestTemplate restTemplate;
 
-  @Autowired
-  private BranchRepository branchRepository;
-
-  @Autowired
-  private CommitRepository commitRepository;
-
-  private static final String DATASET_NAME = "default";
   private static final String BRANCH_NAME = "main";
 
-  private CommitId commit1Id;
-  private CommitId commit2Id;
-  private CommitId commit3Id;
-  private Instant timestamp1;
-
-  @BeforeAll
-  static void startKafka() {
-    kafkaContainer = KafkaTestContainers.createKafkaContainer();
-    // Container is started by KafkaTestContainers - shared across all tests
-  }
-
-  @DynamicPropertySource
-  static void configureKafka(DynamicPropertyRegistry registry) {
-    registry.add("kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
-    registry.add("spring.kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
-    // Unique consumer group per test class to prevent cross-test event consumption
-    registry.add("spring.kafka.consumer.group-id",
-        () -> "test-" + System.currentTimeMillis() + "-" + Math.random());
-  }
-  private Instant timestamp2;
-  private Instant timestamp3;
-
   /**
-   * Set up test data with commits at different times.
-   */
-  @BeforeEach
-  void setUp() {
-    // Clean up repositories
-    branchRepository.deleteAllByDataset(DATASET_NAME);
-    commitRepository.deleteAllByDataset(DATASET_NAME);
-
-    // Create commits with specific timestamps representing data evolution:
-    // T1: Initial data state
-    // T2: Data updated
-    // T3: Data modified again
-    timestamp1 = Instant.parse("2025-01-01T00:00:00Z");
-    timestamp2 = Instant.parse("2025-01-02T00:00:00Z");
-    timestamp3 = Instant.parse("2025-01-03T00:00:00Z");
-
-    commit1Id = CommitId.generate();
-    commit2Id = CommitId.generate();
-    commit3Id = CommitId.generate();
-
-    Commit commit1 = new Commit(
-        commit1Id,
-        List.of(),
-        "Alice",
-        "Insert initial data",
-        timestamp1
-    );
-
-    Commit commit2 = new Commit(
-        commit2Id,
-        List.of(commit1Id),
-        "Bob",
-        "Update data",
-        timestamp2
-    );
-
-    Commit commit3 = new Commit(
-        commit3Id,
-        List.of(commit2Id),
-        "Charlie",
-        "Modify data again",
-        timestamp3
-    );
-
-    commitRepository.save(DATASET_NAME, commit1, RDFPatchOps.emptyPatch());
-    commitRepository.save(DATASET_NAME, commit2, RDFPatchOps.emptyPatch());
-    commitRepository.save(DATASET_NAME, commit3, RDFPatchOps.emptyPatch());
-
-    Branch mainBranch = new Branch(BRANCH_NAME, commit3Id);
-    branchRepository.save(DATASET_NAME, mainBranch);
-  }
-
-  /**
-   * Test querying with asOf parameter is accepted (validation passes).
-   * When SPARQL query is implemented, this should verify correct historical data.
+   * Test querying with asOf + branch parameter combination.
+   *
+   * <p><strong>DISABLED:</strong> Returns 400 BAD_REQUEST instead of 200 OK.
+   * Investigation needed for asOf + branch parameter validation.
+   * The selector combination is explicitly allowed per spec, but endpoint
+   * returns 400 with various future timestamps (2026, 2030, 2099 all tested).
+   * See issue: asOf parameter handling in SparqlController.
    */
   @Test
-  @Disabled("asOf + branch parameter combination needs further investigation")
+  @org.junit.jupiter.api.Disabled("asOf + branch returns 400, needs investigation")
   void queryWithAsOf_shouldAcceptParameter() {
-    // Given: Query with asOf parameter
+    // Given: Query with asOf parameter and branch (far future to be after initial commit)
     String url = UriComponentsBuilder.fromPath("/sparql")
         .queryParam("query", "SELECT * WHERE { ?s ?p ?o } LIMIT 10")
         .queryParam("branch", BRANCH_NAME)
-        .queryParam("asOf", "2025-01-02T00:00:00Z")
+        .queryParam("asOf", "2026-01-02T00:00:00Z")
         .toUriString();
 
     // When: GET query with asOf + branch
     ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 
-    // Then: Query succeeds (endpoint implemented)
+    // Then: Query succeeds (parameters accepted)
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
   }
 
   /**
-   * Test querying with asOf but no branch should fail validation.
-   * Per spec, asOf on queries can work without branch (global time-travel).
+   * Test querying with asOf but no branch.
+   *
+   * <p><strong>DISABLED:</strong> Returns 400 BAD_REQUEST instead of 200 OK.
+   * Per spec, asOf can work without branch (uses default branch for time-travel),
+   * but endpoint currently returns 400. Same issue as asOf + branch test.
    */
   @Test
-  @Disabled("asOf-only parameter needs further investigation")
+  @org.junit.jupiter.api.Disabled("asOf-only returns 400, needs investigation")
   void queryWithAsOfOnly_shouldAcceptParameter() {
-    // Given: Query with asOf only (no branch)
+    // Given: Query with asOf only (far future, no branch specified, uses default "main")
     String url = UriComponentsBuilder.fromPath("/sparql")
         .queryParam("query", "SELECT * WHERE { ?s ?p ?o } LIMIT 10")
-        .queryParam("asOf", "2025-01-02T00:00:00Z")
+        .queryParam("asOf", "2026-01-02T00:00:00Z")
         .toUriString();
 
     // When: GET query with asOf only
     ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 
-    // Then: Query succeeds (endpoint implemented, uses default branch)
+    // Then: Query succeeds (uses default branch with asOf)
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
   }
 
@@ -173,7 +92,7 @@ class TimeTravelQueryIntegrationTest {
    */
   @Test
   void queryWithInvalidAsOf_shouldReturnError() {
-    // Given: Query with invalid timestamp
+    // Given: Query with invalid timestamp format
     String url = UriComponentsBuilder.fromPath("/sparql")
         .queryParam("query", "SELECT * WHERE { ?s ?p ?o } LIMIT 10")
         .queryParam("branch", BRANCH_NAME)
@@ -190,15 +109,15 @@ class TimeTravelQueryIntegrationTest {
 
   /**
    * Test querying with asOf before all commits should return 404.
-   * When SPARQL is implemented, this should return 404 Not Found.
+   * The timestamp is before the initial commit created by IntegrationTestFixture.
    */
   @Test
   void queryWithAsOfBeforeAllCommits_shouldReturn404() {
-    // Given: Query with timestamp before any commit
+    // Given: Query with timestamp far in the past (before fixture's initial commit)
     String url = UriComponentsBuilder.fromPath("/sparql")
         .queryParam("query", "SELECT * WHERE { ?s ?p ?o } LIMIT 10")
         .queryParam("branch", BRANCH_NAME)
-        .queryParam("asOf", "2024-12-31T00:00:00Z")
+        .queryParam("asOf", "2020-01-01T00:00:00Z")
         .toUriString();
 
     // When: GET query with asOf before all commits
@@ -216,8 +135,8 @@ class TimeTravelQueryIntegrationTest {
     // Given: Query with both asOf and commit (invalid combination)
     String url = UriComponentsBuilder.fromPath("/sparql")
         .queryParam("query", "SELECT * WHERE { ?s ?p ?o } LIMIT 10")
-        .queryParam("commit", commit2Id.value())
-        .queryParam("asOf", "2025-01-02T00:00:00Z")
+        .queryParam("commit", initialCommitId.value())
+        .queryParam("asOf", "2026-01-02T00:00:00Z")
         .toUriString();
 
     // When: GET query with both asOf and commit
@@ -229,16 +148,19 @@ class TimeTravelQueryIntegrationTest {
 
   /**
    * Test querying with asOf after all commits uses latest commit.
-   * When SPARQL is implemented, should query current state.
+   *
+   * <p><strong>DISABLED:</strong> Returns 400 BAD_REQUEST instead of 200 OK.
+   * A future timestamp should successfully query the current state,
+   * but endpoint currently returns 400. Same issue as other asOf tests.
    */
   @Test
-  @Disabled("asOf + branch parameter combination needs further investigation")
+  @org.junit.jupiter.api.Disabled("asOf with future timestamp returns 400, needs investigation")
   void queryWithAsOfAfterAllCommits_shouldAcceptParameter() {
-    // Given: Query with future timestamp
+    // Given: Query with far-future timestamp (after all commits)
     String url = UriComponentsBuilder.fromPath("/sparql")
         .queryParam("query", "SELECT * WHERE { ?s ?p ?o } LIMIT 10")
         .queryParam("branch", BRANCH_NAME)
-        .queryParam("asOf", "2025-01-10T00:00:00Z")
+        .queryParam("asOf", "2026-12-31T23:59:59Z")
         .toUriString();
 
     // When: GET query with asOf after all commits
@@ -249,29 +171,33 @@ class TimeTravelQueryIntegrationTest {
   }
 
   /*
-   * TODO: When SPARQL query functionality is implemented, add these tests:
+   * TODO: When SPARQL query functionality is fully implemented, add these tests:
    *
    * 1. queryWithAsOfAtT1_shouldReturnInitialData()
-   *    - Insert data at T1
+   *    - Create commits via API at T1
    *    - Query with asOf=T1
    *    - Verify result contains initial data
    *
    * 2. queryWithAsOfAtT2_shouldReturnUpdatedData()
-   *    - Insert at T1, update at T2
+   *    - Create at T1, update at T2 via API
    *    - Query with asOf=T2
    *    - Verify result contains updated data, not initial
    *
    * 3. queryWithAsOfAtT3_shouldReturnLatestData()
-   *    - Insert at T1, update at T2, delete at T3
+   *    - Create at T1, update at T2, delete at T3 via API
    *    - Query with asOf=T3
    *    - Verify result reflects deletion
    *
    * 4. queryWithAsOfBetweenT1AndT2_shouldReturnT1State()
-   *    - Insert at T1, update at T2
+   *    - Create at T1, update at T2 via API
    *    - Query with asOf=(T1 + 1 hour)
    *    - Verify result contains T1 state (most recent before asOf)
    *
    * 5. queryWithoutAsOf_shouldReturnCurrentState()
    *    - Verify default behavior still works (queries current branch HEAD)
+   *
+   * Note: These future tests should use Graph Store Protocol HTTP API
+   * to create commits (not direct repository access), and should enable
+   * projector with @TestPropertySource for verification.
    */
 }

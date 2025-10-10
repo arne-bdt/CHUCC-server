@@ -12,118 +12,118 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                         CHUCC Server Container                        │
-│                                                                        │
+│                         CHUCC Server Container                       │
+│                                                                      │
 │  ┌──────────────────────────────────────────────────────────────────┐│
-│  │                      Web Layer (Controllers)                      ││
-│  │                                                                    ││
+│  │                      Web Layer (Controllers)                     ││
+│  │                                                                  ││
 │  │  GraphStoreController  BranchController  TagController           ││
 │  │  SparqlController      CommitController  AdvancedOpsController   ││
 │  │  BatchController       MergeController   HistoryController       ││
 │  │  RefsController        BatchGraphsController                     ││
-│  │                                                                    ││
+│  │                                                                  ││
 │  └────────────────────────┬─────────────────────────────────────────┘│
-│                           │ HTTP Requests                             │
-│                           ▼                                           │
+│                           │ HTTP Requests                            │
+│                           ▼                                          │
 │  ┌──────────────────────────────────────────────────────────────────┐│
-│  │                    Command Side (Write Model)                     ││
-│  │                                                                    ││
-│  │  ┌──────────────────────────────────────────────────────────┐   ││
-│  │  │            Command Handlers                               │   ││
-│  │  │  PutGraphCommandHandler      CreateCommitCommandHandler  │   ││
-│  │  │  PostGraphCommandHandler     CreateBranchCommandHandler  │   ││
-│  │  │  PatchGraphCommandHandler    CreateTagCommandHandler     │   ││
-│  │  │  DeleteGraphCommandHandler   ResetBranchCommandHandler   │   ││
-│  │  │  BatchGraphsCommandHandler   RevertCommitCommandHandler  │   ││
-│  │  │  RebaseCommandHandler        CherryPickCommandHandler    │   ││
-│  │  │  SquashCommandHandler                                     │   ││
-│  │  └────────────────────┬─────────────────────────────────────┘   ││
-│  │                       │ Uses                                      ││
-│  │                       ▼                                           ││
-│  │  ┌──────────────────────────────────────────────────────────┐   ││
-│  │  │            Business Services                              │   ││
-│  │  │  RdfParsingService         ConflictDetectionService      │   ││
-│  │  │  RdfPatchService           SelectorResolutionService     │   ││
-│  │  │  GraphDiffService          TimestampResolutionService    │   ││
-│  │  │  GraphSerializationService PreconditionService           │   ││
-│  │  │  RefService                SnapshotService               │   ││
-│  │  │  TagService                DatasetService                │   ││
-│  │  └────────────────────┬─────────────────────────────────────┘   ││
-│  │                       │ Creates                                   ││
-│  │                       ▼                                           ││
-│  │  ┌──────────────────────────────────────────────────────────┐   ││
-│  │  │            Domain Events                                  │   ││
-│  │  │  CommitCreatedEvent        BranchRebasedEvent            │   ││
-│  │  │  BranchCreatedEvent        CherryPickedEvent             │   ││
-│  │  │  BranchResetEvent          CommitsSquashedEvent          │   ││
-│  │  │  TagCreatedEvent           RevertCreatedEvent            │   ││
-│  │  │  SnapshotCreatedEvent      BatchGraphsCompletedEvent     │   ││
-│  │  └────────────────────┬─────────────────────────────────────┘   ││
-│  │                       │ Publishes                                 ││
-│  │                       ▼                                           ││
-│  │  ┌──────────────────────────────────────────────────────────┐   ││
-│  │  │            Event Publisher                                │   ││
-│  │  │  EventPublisher (Kafka Producer)                         │   ││
-│  │  └────────────────────┬─────────────────────────────────────┘   ││
+│  │                    Command Side (Write Model)                    ││
+│  │                                                                  ││
+│  │  ┌──────────────────────────────────────────────────────────┐    ││
+│  │  │            Command Handlers                              │    ││
+│  │  │  PutGraphCommandHandler      CreateCommitCommandHandler  │    ││
+│  │  │  PostGraphCommandHandler     CreateBranchCommandHandler  │    ││
+│  │  │  PatchGraphCommandHandler    CreateTagCommandHandler     │    ││
+│  │  │  DeleteGraphCommandHandler   ResetBranchCommandHandler   │    ││
+│  │  │  BatchGraphsCommandHandler   RevertCommitCommandHandler  │    ││
+│  │  │  RebaseCommandHandler        CherryPickCommandHandler    │    ││
+│  │  │  SquashCommandHandler                                    │    ││
+│  │  └────────────────────┬─────────────────────────────────────┘    ││
+│  │                       │ Uses                                     ││
+│  │                       ▼                                          ││
+│  │  ┌──────────────────────────────────────────────────────────┐    ││
+│  │  │            Business Services                             │    ││
+│  │  │  RdfParsingService         ConflictDetectionService      │    ││
+│  │  │  RdfPatchService           SelectorResolutionService     │    ││
+│  │  │  GraphDiffService          TimestampResolutionService    │    ││
+│  │  │  GraphSerializationService PreconditionService           │    ││
+│  │  │  RefService                SnapshotService               │    ││
+│  │  │  TagService                DatasetService                │    ││
+│  │  └────────────────────┬─────────────────────────────────────┘    ││
+│  │                       │ Creates                                  ││
+│  │                       ▼                                          ││
+│  │  ┌──────────────────────────────────────────────────────────┐    ││
+│  │  │            Domain Events                                 │    ││
+│  │  │  CommitCreatedEvent        BranchRebasedEvent            │    ││
+│  │  │  BranchCreatedEvent        CherryPickedEvent             │    ││
+│  │  │  BranchResetEvent          CommitsSquashedEvent          │    ││
+│  │  │  TagCreatedEvent           RevertCreatedEvent            │    ││
+│  │  │  SnapshotCreatedEvent      BatchGraphsCompletedEvent     │    ││
+│  │  └────────────────────┬─────────────────────────────────────┘    ││
+│  │                       │ Publishes                                ││
+│  │                       ▼                                          ││
+│  │  ┌──────────────────────────────────────────────────────────┐    ││
+│  │  │            Event Publisher                               │    ││
+│  │  │  EventPublisher (Kafka Producer)                         │    ││
+│  │  └────────────────────┬─────────────────────────────────────┘    ││
 │  └────────────────────────┼─────────────────────────────────────────┘│
-│                           │                                           │
-│                           ▼                                           │
+│                           │                                          │
+│                           ▼                                          │
 │                    Apache Kafka                                      │
 │                    (External System)                                 │
-│                           │                                           │
-│                           │ Consumes                                  │
-│                           ▼                                           │
+│                           │                                          │
+│                           │ Consumes                                 │
+│                           ▼                                          │
 │  ┌──────────────────────────────────────────────────────────────────┐│
-│  │                     Event Processing (Read Side)                  ││
-│  │                                                                    ││
-│  │  ┌──────────────────────────────────────────────────────────┐   ││
-│  │  │            Event Projector                                │   ││
-│  │  │  ReadModelProjector (@KafkaListener)                     │   ││
-│  │  │  - handleCommitCreated()                                 │   ││
-│  │  │  - handleBranchCreated()                                 │   ││
-│  │  │  - handleBranchReset()                                   │   ││
-│  │  │  - handleTagCreated()                                    │   ││
-│  │  │  - handleBranchRebased()                                 │   ││
-│  │  │  - handleCherryPicked()                                  │   ││
-│  │  │  - handleCommitsSquashed()                               │   ││
-│  │  │  - handleRevertCreated()                                 │   ││
-│  │  │  - handleSnapshotCreated()                               │   ││
-│  │  │  - handleBatchGraphsCompleted()                          │   ││
-│  │  └────────────────────┬─────────────────────────────────────┘   ││
-│  │                       │ Updates                                   ││
-│  │                       ▼                                           ││
-│  │  ┌──────────────────────────────────────────────────────────┐   ││
-│  │  │            Read Model Repositories                        │   ││
-│  │  │  CommitRepository                                        │   ││
-│  │  │  BranchRepository                                        │   ││
-│  │  │  TagRepository                                           │   ││
-│  │  │  DatasetGraphRepository (In-Memory Jena Graphs)         │   ││
-│  │  └────────────────────▲─────────────────────────────────────┘   ││
+│  │                     Event Processing (Read Side)                 ││
+│  │                                                                  ││
+│  │  ┌──────────────────────────────────────────────────────────┐    ││
+│  │  │            Event Projector                               │    ││
+│  │  │  ReadModelProjector (@KafkaListener)                     │    ││
+│  │  │  - handleCommitCreated()                                 │    ││
+│  │  │  - handleBranchCreated()                                 │    ││
+│  │  │  - handleBranchReset()                                   │    ││
+│  │  │  - handleTagCreated()                                    │    ││
+│  │  │  - handleBranchRebased()                                 │    ││
+│  │  │  - handleCherryPicked()                                  │    ││
+│  │  │  - handleCommitsSquashed()                               │    ││
+│  │  │  - handleRevertCreated()                                 │    ││
+│  │  │  - handleSnapshotCreated()                               │    ││
+│  │  │  - handleBatchGraphsCompleted()                          │    ││
+│  │  └────────────────────┬─────────────────────────────────────┘    ││
+│  │                       │ Updates                                  ││
+│  │                       ▼                                          ││
+│  │  ┌──────────────────────────────────────────────────────────┐    ││
+│  │  │            Read Model Repositories                       │    ││
+│  │  │  CommitRepository                                        │    ││
+│  │  │  BranchRepository                                        │    ││
+│  │  │  TagRepository                                           │    ││
+│  │  │  DatasetGraphRepository (In-Memory Jena Graphs)          │    ││
+│  │  └────────────────────▲─────────────────────────────────────┘    ││
 │  └────────────────────────┼─────────────────────────────────────────┘│
-│                           │ Queries                                   │
+│                           │ Queries                                  │
 │  ┌────────────────────────┴─────────────────────────────────────────┐│
-│  │                    Query Side (Read Model)                        ││
-│  │                                                                    ││
+│  │                    Query Side (Read Model)                       ││
+│  │                                                                  ││
 │  │  Controllers query repositories directly for read operations     ││
 │  │  - GET /data (GraphStoreController → DatasetGraphRepository)     ││
 │  │  - GET /sparql (SparqlController → DatasetGraphRepository)       ││
 │  │  - GET /version/branches (BranchController → BranchRepository)   ││
 │  │  - GET /version/tags (TagController → TagRepository)             ││
 │  │  - GET /version/history (HistoryController → CommitRepository)   ││
-│  │                                                                    ││
+│  │                                                                  ││
 │  └──────────────────────────────────────────────────────────────────┘│
-│                                                                        │
+│                                                                      │
 │  ┌──────────────────────────────────────────────────────────────────┐│
-│  │                    Cross-Cutting Components                       ││
-│  │                                                                    ││
+│  │                    Cross-Cutting Components                      ││
+│  │                                                                  ││
 │  │  Domain Models: Commit, Branch, Tag, CommitId, Selector          ││
 │  │  DTOs: CommitDTO, BranchDTO, TagDTO, ConflictDTO                 ││
 │  │  Exception Handling: ProblemDetails (RFC 7807)                   ││
 │  │  Configuration: Spring Boot Config, Kafka Config                 ││
 │  │  Utilities: EventValidation, EventHeaders                        ││
-│  │                                                                    ││
+│  │                                                                  ││
 │  └──────────────────────────────────────────────────────────────────┘│
-│                                                                        │
+│                                                                      │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 

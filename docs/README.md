@@ -127,10 +127,6 @@ Protocol conformance levels and feature support.
 - **Build Issues**: Read [Quality Tools](development/quality-tools.md)
 - **Performance Issues**: Read [Performance Guide](operations/performance.md)
 
-## Project Status
-
-See [Project Status and Roadmap](../.tasks/PROJECT_STATUS_AND_ROADMAP.md) for current implementation status and remaining work.
-
 ## Contributing
 
 See [Contributing Guide](development/contributing.md) for details on:

@@ -482,10 +482,6 @@ CHUCC-server/
 │   └── protocol/               # Version Control spec
 ├── .mvn/                       # Maven configuration
 ├── .tasks/                     # Implementation task breakdown
-│   ├── PROJECT_STATUS_AND_ROADMAP.md  # Current status
-│   ├── finishing/              # Remaining tasks (SPARQL endpoints)
-│   ├── gsp/                    # GSP implementation tasks (complete)
-│   └── test-isolation/         # Test isolation tasks (complete)
 ├── docs/                       # Documentation (YOU ARE HERE)
 │   ├── README.md               # Navigation guide
 │   ├── architecture/           # Architecture docs
@@ -516,24 +512,18 @@ CHUCC-server/
    - Build process and Maven commands
    - Common patterns and anti-patterns
 
-2. **`.tasks/PROJECT_STATUS_AND_ROADMAP.md`**
-   - What's complete (GSP, Version Control API)
-   - What's missing (SPARQL Query/Update)
-   - Implementation roadmap
-   - Task breakdown with time estimates
-
-3. **`docs/architecture/README.md`** (This file)
+2. **`docs/architecture/README.md`** (This file)
    - Architecture overview
    - Component map
    - Data flow diagrams
    - Key patterns
 
-4. **`docs/architecture/c4-level2-container.md`**
+3. **`docs/architecture/c4-level2-container.md`**
    - Technology choices
    - Container boundaries
    - Data storage
 
-5. **`docs/architecture/cqrs-event-sourcing.md`**
+4. **`docs/architecture/cqrs-event-sourcing.md`**
    - CQRS pattern explained
    - Event sourcing benefits
    - Why async processing
@@ -762,10 +752,7 @@ mvn -q clean install
 3. **Read Testing Guide**: Master test isolation pattern
    - [Testing Strategy](../../.claude/CLAUDE.md)
 
-4. **Check Current Status**: See what's done and what remains
-   - [Project Status](../../.tasks/PROJECT_STATUS_AND_ROADMAP.md)
-
-5. **Start Coding**: Pick a task from `.tasks/finishing/`
+4. **Start Coding**: Pick a task from `.tasks/`
 
 ---
 
@@ -775,6 +762,5 @@ mvn -q clean install
 - **Testing questions**: Read `.claude/CLAUDE.md`
 - **API questions**: Read `docs/api/`
 - **Build issues**: Read `docs/development/quality-tools.md`
-- **Stuck on a task**: Read `.tasks/PROJECT_STATUS_AND_ROADMAP.md`
 
 **Remember**: This is a CQRS + Event Sourcing system. Writes are async, reads are sync. Test accordingly!

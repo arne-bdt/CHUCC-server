@@ -11,51 +11,51 @@ This document describes the **System Context** (C4 Level 1) - the highest level 
 ## System Context Diagram (Textual)
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│                                                                │
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
 │   ┌──────────────────────────────────────────────────────┐   │
-│   │                                                        │   │
-│   │  RDF Client Applications                              │   │
+│   │                                                      │   │
+│   │  RDF Client Applications                             │   │
 │   │  (SPARQL tools, semantic web apps, data pipelines)   │   │
-│   │                                                        │   │
-│   └───────────────────┬────────────────────────────────────┘   │
-│                       │                                        │
-│                       │ HTTP/HTTPS                             │
-│                       │ (SPARQL Protocol +                     │
-│                       │  Graph Store Protocol +                │
-│                       │  Version Control Extension)            │
-│                       │                                        │
-│                       ▼                                        │
+│   │                                                      │   │
+│   └───────────────────┬──────────────────────────────────┘   │
+│                       │                                      │
+│                       │ HTTP/HTTPS                           │
+│                       │ (SPARQL Protocol +                   │
+│                       │  Graph Store Protocol +              │
+│                       │  Version Control Extension)          │
+│                       │                                      │
+│                       ▼                                      │
 │   ┌─────────────────────────────────────────────────────┐    │
-│   │                                                       │    │
-│   │              CHUCC Server                             │    │
-│   │                                                       │    │
-│   │  SPARQL 1.2 Protocol + Version Control Extension     │    │
-│   │  • Graph Store Protocol (CRUD on RDF graphs)         │    │
-│   │  • Version Control (branches, tags, commits)         │    │
-│   │  • Time-travel queries (asOf selector)               │    │
-│   │  • CQRS + Event Sourcing architecture                │    │
-│   │                                                       │    │
-│   └────────┬──────────────────────────────┬───────────────┘    │
-│            │                              │                    │
-│            │ Publishes events             │ Stores events     │
-│            │ (Kafka Producer)             │ (Kafka Topics)    │
-│            │                              │                    │
-│            ▼                              ▼                    │
+│   │                                                     │    │
+│   │              CHUCC Server                           │    │
+│   │                                                     │    │
+│   │  SPARQL 1.2 Protocol + Version Control Extension    │    │
+│   │  • Graph Store Protocol (CRUD on RDF graphs)        │    │
+│   │  • Version Control (branches, tags, commits)        │    │
+│   │  • Time-travel queries (asOf selector)              │    │
+│   │  • CQRS + Event Sourcing architecture               │    │
+│   │                                                     │    │
+│   └────────┬──────────────────────────────┬─────────────┘    │
+│            │                              │                  │
+│            │ Publishes events             │ Stores events    │
+│            │ (Kafka Producer)             │ (Kafka Topics)   │
+│            │                              │                  │
+│            ▼                              ▼                  │
 │   ┌─────────────────────────────────────────────────────┐    │
-│   │                                                       │    │
-│   │              Apache Kafka                             │    │
-│   │                                                       │    │
-│   │  • Event Store (source of truth)                     │    │
-│   │  • Message Bus (async event delivery)                │    │
-│   │  • Topics: <dataset>-events                          │    │
-│   │  • Partition key: dataset name                       │    │
-│   │  • Retention: infinite (event sourcing)              │    │
-│   │                                                       │    │
-│   └───────────────────────────────────────────────────────┘    │
-│                                                                │
-│  Internet / Organization Network                              │
-└────────────────────────────────────────────────────────────────┘
+│   │                                                     │    │
+│   │              Apache Kafka                           │    │
+│   │                                                     │    │
+│   │  • Event Store (source of truth)                    │    │
+│   │  • Message Bus (async event delivery)               │    │
+│   │  • Topics: <dataset>-events                         │    │
+│   │  • Partition key: dataset name                      │    │
+│   │  • Retention: infinite (event sourcing)             │    │
+│   │                                                     │    │
+│   └─────────────────────────────────────────────────────┘    │
+│                                                              │
+│  Internet / Organization Network                             │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---

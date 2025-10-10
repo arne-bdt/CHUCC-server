@@ -15,7 +15,7 @@ This document describes the **Container View** (C4 Level 2) - showing the major 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                                                             │
-│  RDF Client Applications (Browser, CLI tools, Semantic Web Apps)           │
+│  RDF Client Applications (Browser, CLI tools, Semantic Web Apps)            │
 │                                                                             │
 └─────────────────────────────┬───────────────────────────────────────────────┘
                               │
@@ -31,44 +31,44 @@ This document describes the **Container View** (C4 Level 2) - showing the major 
 │                          CHUCC Server Container                             │
 │                            (Spring Boot Application)                        │
 │                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                                                                         │ │
-│  │  Web Layer (Spring MVC)                                                │ │
-│  │  • GraphStoreController                                                │ │
-│  │  • SparqlController                                                    │ │
-│  │  • BranchController, TagController, CommitController                  │ │
-│  │  • MergeController, AdvancedOpsController                             │ │
-│  │  • Error handling (RFC 7807 Problem Details)                          │ │
-│  │  • Content negotiation (Turtle, JSON-LD, N-Triples, RDF/XML)         │ │
-│  │                                                                         │ │
-│  └───────────────────────────────────┬─────────────────────────────────────┘ │
-│                                      │                                       │
-│                                      │ Commands                              │
-│                                      ▼                                       │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                                                                         │ │
-│  │  Command Side (Write Model) - CQRS                                     │ │
-│  │  • Command Handlers (business logic)                                   │ │
-│  │  • Domain Services (RdfDiffService, ConflictDetectionService, etc.)   │ │
-│  │  • Event creation and publishing                                       │ │
-│  │  • Validation and business rules                                       │ │
-│  │                                                                         │ │
-│  └───────────────────────────────────┬─────────────────────────────────────┘ │
-│                                      │                                       │
-│                                      │ Events (async)                        │
-│                                      │                                       │
-│  ┌──────────────────────────────────┴─────────────────────────────────────┐ │
-│  │                                                                         │ │
-│  │  Event Publishing (Kafka Producer)                                     │ │
-│  │  • EventPublisher                                                      │ │
-│  │  • JSON serialization                                                  │ │
-│  │  • Async publish with CompletableFuture                               │ │
-│  │  • Partition by dataset name                                           │ │
-│  │                                                                         │ │
-│  └─────────────────────────────────┬───────────────────────────────────────┘ │
-│                                    │                                         │
-│                                    │                                         │
-└────────────────────────────────────┼─────────────────────────────────────────┘
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Web Layer (Spring MVC)                                               │  │
+│  │  • GraphStoreController                                               │  │
+│  │  • SparqlController                                                   │  │
+│  │  • BranchController, TagController, CommitController                  │  │
+│  │  • MergeController, AdvancedOpsController                             │  │
+│  │  • Error handling (RFC 7807 Problem Details)                          │  │
+│  │  • Content negotiation (Turtle, JSON-LD, N-Triples, RDF/XML)          │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────┬───────────────────────────────────┘  │
+│                                      │                                      │
+│                                      │ Commands                             │
+│                                      ▼                                      │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Command Side (Write Model) - CQRS                                    │  │
+│  │  • Command Handlers (business logic)                                  │  │
+│  │  • Domain Services (RdfDiffService, ConflictDetectionService, etc.)   │  │
+│  │  • Event creation and publishing                                      │  │
+│  │  • Validation and business rules                                      │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────┬───────────────────────────────────┘  │
+│                                      │                                      │
+│                                      │ Events (async)                       │
+│                                      │                                      │
+│  ┌───────────────────────────────────┴───────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Event Publishing (Kafka Producer)                                    │  │
+│  │  • EventPublisher                                                     │  │
+│  │  • JSON serialization                                                 │  │
+│  │  • Async publish with CompletableFuture                               │  │
+│  │  • Partition by dataset name                                          │  │
+│  │                                                                       │  │
+│  └─────────────────────────────────┬─────────────────────────────────────┘  │
+│                                    │                                        │
+│                                    │                                        │
+└────────────────────────────────────┼────────────────────────────────────────┘
                                      │ Kafka Protocol
                                      │ (Producer API)
                                      ▼
@@ -77,24 +77,24 @@ This document describes the **Container View** (C4 Level 2) - showing the major 
 │                     Apache Kafka Cluster                                    │
 │                     (Event Store + Message Bus)                             │
 │                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  Topics (per dataset)                                                │   │
-│  │  • default-events (partition key: dataset name)                     │   │
-│  │  • research-events                                                   │   │
-│  │  • <dataset>-events                                                  │   │
-│  │                                                                       │   │
-│  │  Event Types:                                                         │   │
-│  │  • CommitCreatedEvent, BranchCreatedEvent, TagCreatedEvent          │   │
-│  │  • MergedEvent, RevertCreatedEvent, CherryPickedEvent               │   │
-│  │  • CommitsSquashedEvent, BranchRebasedEvent, BranchResetEvent      │   │
-│  │  • SnapshotCreatedEvent                                              │   │
-│  │                                                                       │   │
-│  │  Configuration:                                                       │   │
-│  │  • Retention: Infinite (event sourcing)                              │   │
-│  │  • Replication: Configurable (default 1 for dev)                    │   │
-│  │  • Partitions: Configurable (default 3)                              │   │
-│  │  • Compression: GZIP                                                  │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  Topics (per dataset)                                               │    │
+│  │  • default-events (partition key: dataset name)                     │    │
+│  │  • research-events                                                  │    │
+│  │  • <dataset>-events                                                 │    │
+│  │                                                                     │    │
+│  │  Event Types:                                                       │    │
+│  │  • CommitCreatedEvent, BranchCreatedEvent, TagCreatedEvent          │    │
+│  │  • MergedEvent, RevertCreatedEvent, CherryPickedEvent               │    │
+│  │  • CommitsSquashedEvent, BranchRebasedEvent, BranchResetEvent       │    │
+│  │  • SnapshotCreatedEvent                                             │    │
+│  │                                                                     │    │
+│  │  Configuration:                                                     │    │
+│  │  • Retention: Infinite (event sourcing)                             │    │
+│  │  • Replication: Configurable (default 1 for dev)                    │    │
+│  │  • Partitions: Configurable (default 3)                             │    │
+│  │  • Compression: GZIP                                                │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
 │                                                                             │
 └─────────────────────────────────────┬───────────────────────────────────────┘
                                       │ Kafka Protocol
@@ -104,59 +104,59 @@ This document describes the **Container View** (C4 Level 2) - showing the major 
 │                          CHUCC Server Container                             │
 │                            (Spring Boot Application)                        │
 │                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                                                                         │ │
-│  │  Event Consumption (Kafka Consumer)                                    │ │
-│  │  • ReadModelProjector (@KafkaListener)                                │ │
-│  │  • 10 event handlers (one per event type)                             │ │
-│  │  • JSON deserialization                                                │ │
-│  │  • Consumer group: chucc-server-projector                             │ │
-│  │  • Configurable auto-start (disabled in tests)                        │ │
-│  │                                                                         │ │
-│  └───────────────────────────────────┬─────────────────────────────────────┘ │
-│                                      │                                       │
-│                                      │ Updates                               │
-│                                      ▼                                       │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                                                                         │ │
-│  │  Query Side (Read Model) - CQRS                                        │ │
-│  │                                                                         │ │
-│  │  ┌─────────────────────────────────────────────────────────────────┐  │ │
-│  │  │  In-Memory Repositories                                           │  │ │
-│  │  │                                                                   │  │ │
-│  │  │  • CommitRepository                                               │  │ │
-│  │  │    - ConcurrentHashMap<CommitId, Commit>                         │  │ │
-│  │  │    - Stores commits with metadata and patches                    │  │ │
-│  │  │                                                                   │  │ │
-│  │  │  • BranchRepository                                               │  │ │
-│  │  │    - ConcurrentHashMap<BranchName, Branch>                       │  │ │
-│  │  │    - Branch points to latest CommitId                            │  │ │
-│  │  │                                                                   │  │ │
-│  │  │  • TagRepository                                                  │  │ │
-│  │  │    - ConcurrentHashMap<TagName, Tag>                             │  │ │
-│  │  │    - Tags are immutable pointers to commits                      │  │ │
-│  │  │                                                                   │  │ │
-│  │  │  • DatasetGraphRepository                                         │  │ │
-│  │  │    - ConcurrentHashMap<CommitId, DatasetGraph>                   │  │ │
-│  │  │    - Materialized RDF graphs at specific commits                 │  │ │
-│  │  │    - Apache Jena DatasetGraphInMemory                            │  │ │
-│  │  │                                                                   │  │ │
-│  │  └─────────────────────────────────────────────────────────────────┘  │ │
-│  │                                                                         │ │
-│  │  Query Services                                                         │ │
-│  │  • SelectorResolutionService (branch/commit/asOf → CommitId)          │ │
-│  │  • DatasetService (materialize graphs at commit)                       │ │
-│  │  • HistoryQueryService (query commit history with filters)            │ │
-│  │                                                                         │ │
-│  └─────────────────────────────────────────────────────────────────────────┘ │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Event Consumption (Kafka Consumer)                                   │  │
+│  │  • ReadModelProjector (@KafkaListener)                                │  │
+│  │  • 10 event handlers (one per event type)                             │  │
+│  │  • JSON deserialization                                               │  │
+│  │  • Consumer group: chucc-server-projector                             │  │
+│  │  • Configurable auto-start (disabled in tests)                        │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────┬───────────────────────────────────┘  │
+│                                      │                                      │
+│                                      │ Updates                              │
+│                                      ▼                                      │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Query Side (Read Model) - CQRS                                       │  │
+│  │                                                                       │  │
+│  │  ┌─────────────────────────────────────────────────────────────────┐  │  │
+│  │  │  In-Memory Repositories                                         │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  • CommitRepository                                             │  │  │
+│  │  │    - ConcurrentHashMap<CommitId, Commit>                        │  │  │
+│  │  │    - Stores commits with metadata and patches                   │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  • BranchRepository                                             │  │  │
+│  │  │    - ConcurrentHashMap<BranchName, Branch>                      │  │  │
+│  │  │    - Branch points to latest CommitId                           │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  • TagRepository                                                │  │  │
+│  │  │    - ConcurrentHashMap<TagName, Tag>                            │  │  │
+│  │  │    - Tags are immutable pointers to commits                     │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  • DatasetGraphRepository                                       │  │  │
+│  │  │    - ConcurrentHashMap<CommitId, DatasetGraph>                  │  │  │
+│  │  │    - Materialized RDF graphs at specific commits                │  │  │
+│  │  │    - Apache Jena DatasetGraphInMemory                           │  │  │
+│  │  │                                                                 │  │  │
+│  │  └─────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  Query Services                                                       │  │
+│  │  • SelectorResolutionService (branch/commit/asOf → CommitId)          │  │
+│  │  • DatasetService (materialize graphs at commit)                      │  │
+│  │  • HistoryQueryService (query commit history with filters)            │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │  Technology Stack:                                                          │
 │  • Java 21                                                                  │
-│  • Spring Boot 3.5 (Dependency Injection, MVC, Kafka Integration)         │
-│  • Apache Jena 5.5 (RDF parsing, serialization, SPARQL, RDFPatch)         │
-│  • Spring Kafka (Producer + Consumer)                                      │
-│  • Jackson (JSON serialization)                                            │
-│  • Swagger/OpenAPI 3 (API documentation)                                   │
+│  • Spring Boot 3.5 (Dependency Injection, MVC, Kafka Integration)           │
+│  • Apache Jena 5.5 (RDF parsing, serialization, SPARQL, RDFPatch)           │
+│  • Spring Kafka (Producer + Consumer)                                       │
+│  • Jackson (JSON serialization)                                             │
+│  • Swagger/OpenAPI 3 (API documentation)                                    │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```

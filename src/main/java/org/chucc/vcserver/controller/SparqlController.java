@@ -23,6 +23,7 @@ import org.chucc.vcserver.dto.ProblemDetail;
 import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.exception.BranchNotFoundException;
+import org.chucc.vcserver.exception.CommitNotFoundException;
 import org.chucc.vcserver.exception.MalformedUpdateException;
 import org.chucc.vcserver.exception.PreconditionFailedException;
 import org.chucc.vcserver.exception.UpdateExecutionException;
@@ -92,7 +93,13 @@ public class SparqlController {
    * @param commit target commit
    * @param asOf timestamp for time-travel query
    * @param vcCommit commit ID for read consistency (header)
-   * @return query results (501 stub)
+   * @param request the HTTP servlet request for Accept header processing
+   * @return query results with ETag header containing commit ID
+   * @throws BranchNotFoundException if specified branch does not exist
+   * @throws CommitNotFoundException if specified commit does not exist or
+   *     no commit found at/before asOf timestamp
+   * @throws IllegalArgumentException if query is malformed or selectors conflict
+   * @throws QueryParseException if SPARQL query syntax is invalid
    */
   @GetMapping(produces = {
       "application/sparql-results+json",
@@ -164,9 +171,9 @@ public class SparqlController {
           datasetName, branch, commit, asOf);
 
       // 2. Materialize dataset at that commit
-      // Note: Dataset is a lightweight wrapper around cached DatasetGraphInMemory.
-      // No explicit closing needed - the underlying DatasetGraph is managed
-      // by DatasetService cache.
+      // Note: Dataset is a lightweight wrapper around the cached DatasetGraph.
+      // The underlying DatasetGraph is managed by DatasetService cache and shared
+      // across requests for the same commit. No explicit closing needed.
       Dataset dataset = datasetService.materializeAtCommit(datasetName, targetCommit);
 
       // 3. Determine result format from Accept header
@@ -189,11 +196,16 @@ public class SparqlController {
               "SPARQL query is malformed: " + e.getMessage(),
               400,
               "MALFORMED_QUERY"));
-    } catch (BranchNotFoundException | IllegalArgumentException e) {
+    } catch (BranchNotFoundException | CommitNotFoundException e) {
       return ResponseEntity
           .status(HttpStatus.NOT_FOUND)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(e.getMessage(), 404, "NOT_FOUND"));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity
+          .status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(e.getMessage(), 400, "INVALID_REQUEST"));
     }
   }
 

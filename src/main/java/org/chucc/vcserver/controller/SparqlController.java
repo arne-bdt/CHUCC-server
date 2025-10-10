@@ -11,13 +11,21 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.QueryParseException;
+import org.chucc.vcserver.command.SparqlUpdateCommand;
+import org.chucc.vcserver.command.SparqlUpdateCommandHandler;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.domain.ResultFormat;
 import org.chucc.vcserver.dto.ProblemDetail;
+import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.exception.BranchNotFoundException;
+import org.chucc.vcserver.exception.MalformedUpdateException;
+import org.chucc.vcserver.exception.PreconditionFailedException;
+import org.chucc.vcserver.exception.UpdateExecutionException;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SelectorResolutionService;
 import org.chucc.vcserver.service.SparqlQueryService;
@@ -47,6 +55,7 @@ public class SparqlController {
   private final SelectorResolutionService selectorResolutionService;
   private final DatasetService datasetService;
   private final SparqlQueryService sparqlQueryService;
+  private final SparqlUpdateCommandHandler sparqlUpdateCommandHandler;
 
   /**
    * Constructs a SparqlController with required dependencies.
@@ -55,6 +64,7 @@ public class SparqlController {
    * @param selectorResolutionService service for resolving selectors to commit IDs
    * @param datasetService service for materializing datasets
    * @param sparqlQueryService service for executing SPARQL queries
+   * @param sparqlUpdateCommandHandler handler for SPARQL UPDATE operations
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
@@ -63,11 +73,13 @@ public class SparqlController {
       VersionControlProperties vcProperties,
       SelectorResolutionService selectorResolutionService,
       DatasetService datasetService,
-      SparqlQueryService sparqlQueryService) {
+      SparqlQueryService sparqlQueryService,
+      SparqlUpdateCommandHandler sparqlUpdateCommandHandler) {
     this.vcProperties = vcProperties;
     this.selectorResolutionService = selectorResolutionService;
     this.datasetService = datasetService;
     this.sparqlQueryService = sparqlQueryService;
+    this.sparqlUpdateCommandHandler = sparqlUpdateCommandHandler;
   }
 
   /**
@@ -260,17 +272,179 @@ public class SparqlController {
       description = "Not Implemented",
       content = @Content(mediaType = "application/problem+json")
   )
+  @SuppressWarnings({"PMD.AvoidDuplicateLiterals", "PMD.CyclomaticComplexity"})
   public ResponseEntity<String> executeSparqlPost(
       @RequestBody String body,
       @Parameter(description = "Commit message (SHOULD provide for updates)")
       @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
       @Parameter(description = "Commit author (SHOULD provide for updates)")
       @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
+      @Parameter(description = "Target branch (defaults to 'main')")
+      @RequestHeader(name = "SPARQL-VC-Branch", required = false) String branch,
+      @Parameter(description = "Expected HEAD commit for optimistic locking")
+      @RequestHeader(name = "If-Match", required = false) String ifMatch,
       @RequestHeader(name = "Content-Type", required = false) String contentType
   ) {
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-        .body("{\"title\":\"Not Implemented\",\"status\":501}");
+    // Determine operation type from Content-Type
+    boolean isUpdate = contentType != null
+        && contentType.toLowerCase(java.util.Locale.ROOT)
+            .contains("application/sparql-update");
+
+    if (!isUpdate) {
+      // Query operations via POST not yet implemented
+      return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body("{\"title\":\"SPARQL Query via POST not yet implemented\","
+              + "\"status\":501}");
+    }
+
+    // SPARQL UPDATE operation
+    final String datasetName = "default";
+    final String branchName = (branch != null && !branch.isBlank()) ? branch : "main";
+
+    // Validate required headers for UPDATE
+    if (message == null || message.isBlank()) {
+      ProblemDetail problem = new ProblemDetail(
+          "SPARQL-VC-Message header is required for UPDATE operations",
+          400,
+          "MISSING_HEADER");
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(serializeProblemDetail(problem));
+    }
+
+    if (author == null || author.isBlank()) {
+      ProblemDetail problem = new ProblemDetail(
+          "SPARQL-VC-Author header is required for UPDATE operations",
+          400,
+          "MISSING_HEADER");
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(serializeProblemDetail(problem));
+    }
+
+    // Parse If-Match header (optional)
+    Optional<CommitId> expectedHead = Optional.empty();
+    if (ifMatch != null && !ifMatch.isBlank()) {
+      // Remove surrounding quotes if present
+      String cleanEtag = ifMatch.replaceAll("^\"|\"$", "");
+      try {
+        expectedHead = Optional.of(CommitId.of(cleanEtag));
+      } catch (IllegalArgumentException e) {
+        ProblemDetail problem = new ProblemDetail(
+            "Invalid If-Match header: " + e.getMessage(),
+            400,
+            "INVALID_ETAG");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+            .body(serializeProblemDetail(problem));
+      }
+    }
+
+    // Create and execute command
+    SparqlUpdateCommand command = new SparqlUpdateCommand(
+        datasetName,
+        branchName,
+        body,
+        author,
+        message,
+        expectedHead
+    );
+
+    try {
+      VersionControlEvent event = sparqlUpdateCommandHandler.handle(command);
+
+      // Handle no-op (per SPARQL 1.2 Protocol §7)
+      if (event == null) {
+        // No-op: Return 204 No Content without body
+        return ResponseEntity.noContent().build();
+      }
+
+      // Success: Return 200 with ETag and Location headers
+      CommitCreatedEvent commitEvent = (CommitCreatedEvent) event;
+      String commitId = commitEvent.commitId();
+
+      return ResponseEntity.ok()
+          .eTag("\"" + commitId + "\"")
+          .location(java.net.URI.create("/version/datasets/" + datasetName
+              + "/commits/" + commitId))
+          .contentType(MediaType.APPLICATION_JSON)
+          .body("{\"message\":\"Update successful\",\"commitId\":\""
+              + commitId + "\"}");
+
+    } catch (MalformedUpdateException e) {
+      ProblemDetail problem = new ProblemDetail(
+          e.getMessage(),
+          400,
+          "MALFORMED_UPDATE");
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(serializeProblemDetail(problem));
+    } catch (PreconditionFailedException e) {
+      ProblemDetail problem = new ProblemDetail(
+          e.getMessage(),
+          412,
+          "PRECONDITION_FAILED");
+      return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(serializeProblemDetail(problem));
+    } catch (UpdateExecutionException e) {
+      ProblemDetail problem = new ProblemDetail(
+          e.getMessage(),
+          500,
+          "UPDATE_EXECUTION_ERROR");
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(serializeProblemDetail(problem));
+    } catch (IllegalArgumentException e) {
+      ProblemDetail problem = new ProblemDetail(
+          e.getMessage(),
+          400,
+          "INVALID_REQUEST");
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(serializeProblemDetail(problem));
+    }
+  }
+
+  /**
+   * Serializes a ProblemDetail to JSON string.
+   * Simple implementation for manual JSON construction.
+   *
+   * @param problem the problem detail to serialize
+   * @return JSON string representation
+   */
+  private String serializeProblemDetail(ProblemDetail problem) {
+    StringBuilder json = new StringBuilder();
+    json.append("{");
+    json.append("\"type\":\"").append(escapeJson(problem.getType())).append("\",");
+    json.append("\"title\":\"").append(escapeJson(problem.getTitle())).append("\",");
+    json.append("\"status\":").append(problem.getStatus());
+    if (problem.getCode() != null) {
+      json.append(",\"code\":\"").append(escapeJson(problem.getCode())).append("\"");
+    }
+    if (problem.getDetail() != null) {
+      json.append(",\"detail\":\"").append(escapeJson(problem.getDetail())).append("\"");
+    }
+    json.append("}");
+    return json.toString();
+  }
+
+  /**
+   * Escapes special characters in JSON strings.
+   *
+   * @param str the string to escape
+   * @return the escaped string
+   */
+  private String escapeJson(String str) {
+    if (str == null) {
+      return "";
+    }
+    return str.replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t");
   }
 
   /**

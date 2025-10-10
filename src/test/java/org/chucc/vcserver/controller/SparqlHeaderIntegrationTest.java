@@ -37,8 +37,8 @@ class SparqlHeaderIntegrationTest extends IntegrationTestFixture {
             .header("SPARQL-VC-Message", "Add Alice")
             .header("SPARQL-VC-Author", "alice@example.org")
             .content(sparqlUpdate))
-        // Then: Request is accepted (501 stub implementation)
-        .andExpect(status().isNotImplemented());
+        // Then: Request is accepted and update succeeds
+        .andExpect(status().isOk());
   }
 
   @Test
@@ -66,8 +66,8 @@ class SparqlHeaderIntegrationTest extends IntegrationTestFixture {
             .contentType("application/sparql-update")
             .header("SPARQL-VC-Message", "Add Bob")
             .content(sparqlUpdate))
-        // Then: Request is accepted (headers are optional)
-        .andExpect(status().isNotImplemented());
+        // Then: Returns 400 Bad Request (SPARQL-VC-Author required)
+        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -82,8 +82,8 @@ class SparqlHeaderIntegrationTest extends IntegrationTestFixture {
             .contentType("application/sparql-update")
             .header("SPARQL-VC-Author", "charlie@example.org")
             .content(sparqlUpdate))
-        // Then: Request is accepted (headers are optional)
-        .andExpect(status().isNotImplemented());
+        // Then: Returns 400 Bad Request (SPARQL-VC-Message required)
+        .andExpect(status().isBadRequest());
   }
 
   @Test

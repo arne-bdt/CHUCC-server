@@ -2,9 +2,11 @@ package org.chucc.vcserver.controller;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
+import org.chucc.vcserver.command.SparqlUpdateCommandHandler;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.domain.ResultFormat;
+import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SelectorResolutionService;
 import org.chucc.vcserver.service.SparqlQueryService;
@@ -45,6 +47,9 @@ class SparqlControllerTest {
 
   @MockitoBean
   private SparqlQueryService sparqlQueryService;
+
+  @MockitoBean
+  private SparqlUpdateCommandHandler sparqlUpdateCommandHandler;
 
   @Test
   void optionsEndpoint_level2_allFeaturesEnabled() throws Exception {
@@ -149,24 +154,44 @@ class SparqlControllerTest {
 
   @Test
   void postEndpoint_acceptsMessageHeader() throws Exception {
-    // When & Then: SPARQL-VC-Message header is accepted
+    // Given: Mock handler returns successful commit
+    String commitIdValue = CommitId.generate().value();
+    CommitCreatedEvent event = new CommitCreatedEvent(
+        "default", commitIdValue, java.util.List.of(), "main",
+        "Test commit message", "test@example.org",
+        java.time.Instant.now(), "");
+    when(sparqlUpdateCommandHandler.handle(any())).thenReturn(event);
+
+    // When & Then: SPARQL-VC-Message header is accepted and update succeeds
     mockMvc.perform(post("/sparql")
             .contentType("application/sparql-update")
             .header("SPARQL-VC-Message", "Test commit message")
             .header("SPARQL-VC-Author", "test@example.org")
             .content("INSERT DATA { <http://example.org/s> <http://example.org/p> \"o\" }"))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isOk())
+        .andExpect(header().exists("ETag"))
+        .andExpect(header().exists("Location"));
   }
 
   @Test
   void postEndpoint_acceptsAuthorHeader() throws Exception {
-    // When & Then: SPARQL-VC-Author header is accepted
+    // Given: Mock handler returns successful commit
+    String commitIdValue = CommitId.generate().value();
+    CommitCreatedEvent event = new CommitCreatedEvent(
+        "default", commitIdValue, java.util.List.of(), "main",
+        "Test message", "alice@example.org",
+        java.time.Instant.now(), "");
+    when(sparqlUpdateCommandHandler.handle(any())).thenReturn(event);
+
+    // When & Then: SPARQL-VC-Author header is accepted and update succeeds
     mockMvc.perform(post("/sparql")
             .contentType("application/sparql-update")
             .header("SPARQL-VC-Author", "alice@example.org")
             .header("SPARQL-VC-Message", "Test message")
             .content("INSERT DATA { <http://example.org/s> <http://example.org/p> \"o\" }"))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isOk())
+        .andExpect(header().exists("ETag"))
+        .andExpect(header().exists("Location"));
   }
 
   @Test

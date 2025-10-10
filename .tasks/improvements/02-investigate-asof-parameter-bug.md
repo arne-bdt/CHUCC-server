@@ -1,6 +1,24 @@
-# Investigate asOf Parameter Bug - Returns 400 Instead of 200
+# ~~Investigate asOf Parameter Bug~~ - RESOLVED
 
-## Issue Summary
+## Resolution Summary
+
+**Root Cause:** URL encoding bug in test code, NOT in asOf parameter handling.
+
+**The Issue:**
+- Tests used `.toUriString()` → `getForEntity(String, ...)` causing **double URL encoding**
+- Double encoding corrupted SPARQL queries: `"SELECT * WHERE..."` → malformed query
+- Error: `"MALFORMED_QUERY"` not invalid asOf parameter
+
+**The Fix:**
+- Changed all 3 tests to use `.build().toUri()` → `getForEntity(URI, ...)`
+- Prevents double encoding by passing URI object instead of String
+- Pattern matches working tests in `SelectorValidationIntegrationTest`
+
+**Result:** All 6 tests in `TimeTravelQueryIntegrationTest` now pass (0 skipped)
+
+---
+
+## Original Issue Summary (INCORRECT DIAGNOSIS)
 
 The SPARQL query endpoint returns **400 BAD_REQUEST** instead of **200 OK** when using valid `asOf` timestamps, even though:
 - The selector combination is explicitly allowed per SPARQL 1.2 Protocol

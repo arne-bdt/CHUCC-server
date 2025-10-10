@@ -40,25 +40,21 @@ class TimeTravelQueryIntegrationTest extends IntegrationTestFixture {
 
   /**
    * Test querying with asOf + branch parameter combination.
-   *
-   * <p><strong>DISABLED:</strong> Returns 400 BAD_REQUEST instead of 200 OK.
-   * Investigation needed for asOf + branch parameter validation.
-   * The selector combination is explicitly allowed per spec, but endpoint
-   * returns 400 with various future timestamps (2026, 2030, 2099 all tested).
-   * See issue: asOf parameter handling in SparqlController.
+   * The selector combination is explicitly allowed per spec.
+   * Tests with future timestamp (after all commits) should return latest commit state.
    */
   @Test
-  @org.junit.jupiter.api.Disabled("asOf + branch returns 400, needs investigation")
   void queryWithAsOf_shouldAcceptParameter() {
     // Given: Query with asOf parameter and branch (far future to be after initial commit)
-    String url = UriComponentsBuilder.fromPath("/sparql")
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
         .queryParam("query", "SELECT * WHERE { ?s ?p ?o } LIMIT 10")
         .queryParam("branch", BRANCH_NAME)
         .queryParam("asOf", "2026-01-02T00:00:00Z")
-        .toUriString();
+        .build()
+        .toUri();
 
     // When: GET query with asOf + branch
-    ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Query succeeds (parameters accepted)
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -66,22 +62,19 @@ class TimeTravelQueryIntegrationTest extends IntegrationTestFixture {
 
   /**
    * Test querying with asOf but no branch.
-   *
-   * <p><strong>DISABLED:</strong> Returns 400 BAD_REQUEST instead of 200 OK.
-   * Per spec, asOf can work without branch (uses default branch for time-travel),
-   * but endpoint currently returns 400. Same issue as asOf + branch test.
+   * Per spec, asOf can work without branch (uses default branch "main" for time-travel).
    */
   @Test
-  @org.junit.jupiter.api.Disabled("asOf-only returns 400, needs investigation")
   void queryWithAsOfOnly_shouldAcceptParameter() {
     // Given: Query with asOf only (far future, no branch specified, uses default "main")
-    String url = UriComponentsBuilder.fromPath("/sparql")
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
         .queryParam("query", "SELECT * WHERE { ?s ?p ?o } LIMIT 10")
         .queryParam("asOf", "2026-01-02T00:00:00Z")
-        .toUriString();
+        .build()
+        .toUri();
 
     // When: GET query with asOf only
-    ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Query succeeds (uses default branch with asOf)
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -148,23 +141,20 @@ class TimeTravelQueryIntegrationTest extends IntegrationTestFixture {
 
   /**
    * Test querying with asOf after all commits uses latest commit.
-   *
-   * <p><strong>DISABLED:</strong> Returns 400 BAD_REQUEST instead of 200 OK.
-   * A future timestamp should successfully query the current state,
-   * but endpoint currently returns 400. Same issue as other asOf tests.
+   * A future timestamp should successfully query the current state.
    */
   @Test
-  @org.junit.jupiter.api.Disabled("asOf with future timestamp returns 400, needs investigation")
   void queryWithAsOfAfterAllCommits_shouldAcceptParameter() {
     // Given: Query with far-future timestamp (after all commits)
-    String url = UriComponentsBuilder.fromPath("/sparql")
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
         .queryParam("query", "SELECT * WHERE { ?s ?p ?o } LIMIT 10")
         .queryParam("branch", BRANCH_NAME)
         .queryParam("asOf", "2026-12-31T23:59:59Z")
-        .toUriString();
+        .build()
+        .toUri();
 
     // When: GET query with asOf after all commits
-    ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Query succeeds using latest commit
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);

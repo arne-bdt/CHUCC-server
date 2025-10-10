@@ -5,9 +5,7 @@ import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
 import org.chucc.vcserver.domain.Branch;
-import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.testutil.IntegrationTestFixture;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,22 +16,30 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * Integration tests for concurrent graph operations.
  * Verifies conflict detection when multiple clients attempt to modify the same graph
  * using If-Match headers for optimistic concurrency control.
  *
- * <p>DISABLED: These tests require full CQRS async processing to update branch HEAD
- * between operations. The current approach times out waiting for event projectors.
- * Conflict detection is adequately tested in:
- * - Unit tests: CommandHandlerTests verify conflict exceptions are thrown
- * - Integration tests: ETagIntegrationTest verifies 412 precondition failures
- * - Integration tests: Other GraphStore tests verify happy paths
+ * <p><strong>Note:</strong> This test explicitly enables the ReadModelProjector
+ * via {@code @TestPropertySource(properties = "projector.kafka-listener.enabled=true")}
+ * because tests use {@code await()} to wait for branch HEAD updates from async event
+ * processing. This is required to test full concurrent operation scenarios.
+ *
+ * <p>These tests verify:
+ * <ul>
+ *   <li>PUT operations detect concurrent writes (409 Conflict)</li>
+ *   <li>POST operations detect concurrent writes (409 Conflict)</li>
+ *   <li>PATCH operations detect concurrent writes (409 Conflict)</li>
+ *   <li>DELETE operations detect concurrent writes (409 Conflict)</li>
+ *   <li>RFC 7807 problem+json responses for conflicts</li>
+ * </ul>
  */
-@Disabled("Requires full async CQRS setup - conflict detection tested elsewhere")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")
 class ConcurrentGraphOperationsIntegrationTest extends IntegrationTestFixture {
 
   @Autowired
@@ -240,9 +246,10 @@ class ConcurrentGraphOperationsIntegrationTest extends IntegrationTestFixture {
         });
 
     // Step 2: Make first concurrent PATCH (advances HEAD)
+    // Use triple format (no graph specified) since endpoint specifies the target graph
     String patch1 = """
         TX .
-        A <http://example.org/graph1> <http://example.org/s2> <http://example.org/p2> "patched1" .
+        A <http://example.org/s2> <http://example.org/p2> "patched1" .
         TC .
         """;
     HttpHeaders headers2 = new HttpHeaders();
@@ -273,9 +280,10 @@ class ConcurrentGraphOperationsIntegrationTest extends IntegrationTestFixture {
         });
 
     // Step 3: Make second concurrent PATCH using old ETag (should conflict)
+    // Use triple format (no graph specified) since endpoint specifies the target graph
     String patch2 = """
         TX .
-        A <http://example.org/graph1> <http://example.org/s3> <http://example.org/p3> "patched2" .
+        A <http://example.org/s3> <http://example.org/p3> "patched2" .
         TC .
         """;
     HttpHeaders headers3 = new HttpHeaders();

@@ -105,7 +105,8 @@ public final class ErrorResponseBuilder {
   }
 
   /**
-   * Builds a ProblemDetail for precondition failed errors.
+   * Builds a ProblemDetail for concurrent modification conflicts (If-Match precondition failed).
+   * Returns HTTP 409 Conflict to indicate version control concurrent write scenario.
    *
    * @param expected the expected commit ID from If-Match
    * @param actual the actual current HEAD commit ID
@@ -113,8 +114,8 @@ public final class ErrorResponseBuilder {
    */
   public static ProblemDetail buildPreconditionFailed(String expected, String actual) {
     return buildProblem(
-        HttpStatus.PRECONDITION_FAILED,
-        "precondition_failed",
+        HttpStatus.CONFLICT,
+        "concurrent_modification_conflict",
         "If-Match precondition failed: expected " + expected + ", actual " + actual,
         Map.of(
             "expected", expected,

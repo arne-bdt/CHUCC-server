@@ -150,7 +150,7 @@ class SnapshotServiceIT {
     CommitCreatedEvent commitEvent = new CommitCreatedEvent(
         dataset,
         newCommitId.value(),
-        List.of(),
+        List.of(), null,
         "Test commit for snapshot",
         "test-author",
         Instant.now(),

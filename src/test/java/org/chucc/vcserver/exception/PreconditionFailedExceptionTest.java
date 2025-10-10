@@ -24,14 +24,14 @@ class PreconditionFailedExceptionTest {
   void constructor_shouldSetErrorCode() {
     PreconditionFailedException exception = new PreconditionFailedException(
         "expected-id", "actual-id");
-    assertThat(exception.getCode()).isEqualTo("precondition_failed");
+    assertThat(exception.getCode()).isEqualTo("concurrent_modification_conflict");
   }
 
   @Test
-  void constructor_shouldSetHttpStatus412() {
+  void constructor_shouldSetHttpStatus409() {
     PreconditionFailedException exception = new PreconditionFailedException(
         "expected-id", "actual-id");
-    assertThat(exception.getStatus()).isEqualTo(412);
+    assertThat(exception.getStatus()).isEqualTo(409);
   }
 
   @Test

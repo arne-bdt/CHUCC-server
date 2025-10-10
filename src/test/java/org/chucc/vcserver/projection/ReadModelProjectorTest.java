@@ -60,7 +60,7 @@ class ReadModelProjectorTest {
     CommitCreatedEvent event = new CommitCreatedEvent(
         dataset,
         commitIdStr,
-        List.of(),
+        List.of(), null,
         "Test commit",
         "test-author",
         Instant.now(),
@@ -102,6 +102,11 @@ class ReadModelProjectorTest {
     String branchName = "main";
     String fromCommitIdStr = "550e8400-e29b-41d4-a716-446655440000";
     String toCommitIdStr = "660e8400-e29b-41d4-a716-446655440001";
+
+    // Stub branch existence check
+    Branch existingBranch = new Branch(branchName, CommitId.of(fromCommitIdStr));
+    when(branchRepository.findByDatasetAndName(dataset, branchName))
+        .thenReturn(Optional.of(existingBranch));
 
     BranchResetEvent event = new BranchResetEvent(
         dataset,

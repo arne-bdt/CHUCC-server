@@ -73,10 +73,10 @@ public class RdfPatchService {
           return isDefaultGraphNode;
         } else {
           // Patching named graph - match either:
-          // 1. Explicit named graph nodes that match the graphIri
-          // 2. Default graph nodes (interpreted as targeting the current named graph)
+          // 1. Default graph nodes (interpreted as targeting the current named graph)
+          // 2. Explicit named graph nodes that match the graphIri
           return isDefaultGraphNode
-              || (g.isURI() && g.getURI().equals(graphIri));
+              || (g != null && g.isURI() && g.getURI().equals(graphIri));
         }
       }
 

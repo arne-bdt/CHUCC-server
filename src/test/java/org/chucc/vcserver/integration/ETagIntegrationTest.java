@@ -150,12 +150,12 @@ class ETagIntegrationTest {
   }
 
   @Test
-  void createCommit_shouldReturn412_whenIfMatchDoesNotMatch() throws Exception {
+  void createCommit_shouldReturn409_whenIfMatchDoesNotMatch() throws Exception {
     // Given
     HttpHeaders headers = new HttpHeaders();
     headers.set("Content-Type", "text/rdf-patch");
     headers.set("SPARQL-VC-Author", "Alice");
-    headers.set("SPARQL-VC-Message", "Should fail");
+    headers.set("SPARQL-VC-Message", "Should fail due to concurrent modification");
     headers.set("If-Match", "\"01936c7f-8a2e-7890-abcd-ef1234567890\""); // stale ETag
 
     HttpEntity<String> request = new HttpEntity<>(PATCH_BODY, headers);
@@ -169,15 +169,15 @@ class ETagIntegrationTest {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PRECONDITION_FAILED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/problem+json");
 
     // Verify error response includes expected and actual values
     JsonNode json = objectMapper.readTree(response.getBody());
-    assertThat(json.get("status").asInt()).isEqualTo(412);
-    assertThat(json.get("code").asText()).isEqualTo("precondition_failed");
-    assertThat(json.get("title").asText()).isEqualTo("Precondition Failed");
+    assertThat(json.get("status").asInt()).isEqualTo(409);
+    assertThat(json.get("code").asText()).isEqualTo("concurrent_modification_conflict");
+    assertThat(json.get("title").asText()).isEqualTo("Conflict");
     assertThat(json.get("detail").asText())
         .contains("If-Match precondition failed")
         .contains("01936c7f-8a2e-7890-abcd-ef1234567890");

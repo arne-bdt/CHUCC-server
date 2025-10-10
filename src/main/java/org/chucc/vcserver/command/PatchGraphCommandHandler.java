@@ -134,6 +134,7 @@ public class PatchGraphCommandHandler implements CommandHandler<PatchGraphComman
         command.dataset(),
         commitId.value(),
         List.of(command.baseCommit().value()),
+        command.branch(),
         command.message(),
         command.author(),
         Instant.now(),

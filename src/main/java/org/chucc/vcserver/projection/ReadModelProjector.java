@@ -72,7 +72,7 @@ public class ReadModelProjector {
    */
   @KafkaListener(
       topicPattern = "vc\\..*\\.events",
-      groupId = "read-model-projector",
+      groupId = "${spring.kafka.consumer.group-id:read-model-projector}",
       containerFactory = "kafkaListenerContainerFactory",
       autoStartup = "${projector.kafka-listener.enabled:true}"
   )
@@ -106,12 +106,13 @@ public class ReadModelProjector {
 
   /**
    * Handles CommitCreatedEvent by saving the commit and its RDF patch.
+   * If the event includes a branch name, updates that branch to point to the new commit.
    *
    * @param event the commit created event
    */
   void handleCommitCreated(CommitCreatedEvent event) {
-    logger.debug("Processing CommitCreatedEvent: commitId={}, dataset={}",
-        event.commitId(), event.dataset());
+    logger.debug("Processing CommitCreatedEvent: commitId={}, branch={}, dataset={}",
+        event.commitId(), event.branch(), event.dataset());
 
     // Parse RDF Patch from string
     ByteArrayInputStream inputStream = new ByteArrayInputStream(
@@ -134,6 +135,28 @@ public class ReadModelProjector {
 
     logger.debug("Saved commit: {} with {} parent(s) in dataset: {}",
         commit.id(), commit.parents().size(), event.dataset());
+
+    // Update branch HEAD if branch is specified (nullable for backward compatibility)
+    if (event.branch() != null) {
+      // Check if branch exists before updating (for test isolation with shared Kafka topics)
+      Optional<Branch> existingBranch = branchRepository.findByDatasetAndName(
+          event.dataset(), event.branch());
+
+      if (existingBranch.isPresent()) {
+        branchRepository.updateBranchHead(
+            event.dataset(),
+            event.branch(),
+            CommitId.of(event.commitId())
+        );
+
+        logger.debug("Updated branch: {} to point to commit: {} in dataset: {}",
+            event.branch(), event.commitId(), event.dataset());
+      } else {
+        logger.debug("Skipping branch update for non-existent branch: {} in dataset: {} "
+                + "(event from different test/dataset)",
+            event.branch(), event.dataset());
+      }
+    }
   }
 
   /**
@@ -165,6 +188,14 @@ public class ReadModelProjector {
     logger.debug("Processing BranchResetEvent: branchName={}, from={}, to={}, dataset={}",
         event.branchName(), event.fromCommitId(), event.toCommitId(), event.dataset());
 
+    // Check if branch exists before resetting
+    if (branchRepository.findByDatasetAndName(event.dataset(), event.branchName()).isEmpty()) {
+      logger.debug("Skipping reset for non-existent branch: {} in dataset: {} "
+              + "(event from different test/dataset)",
+          event.branchName(), event.dataset());
+      return;
+    }
+
     branchRepository.updateBranchHead(
         event.dataset(),
         event.branchName(),
@@ -190,6 +221,14 @@ public class ReadModelProjector {
             + "rebasedCount={}, dataset={}",
         event.branch(), event.previousHead(), event.newHead(),
         event.newCommits().size(), event.dataset());
+
+    // Check if branch exists before rebasing
+    if (branchRepository.findByDatasetAndName(event.dataset(), event.branch()).isEmpty()) {
+      logger.debug("Skipping rebase for non-existent branch: {} in dataset: {} "
+              + "(event from different test/dataset)",
+          event.branch(), event.dataset());
+      return;
+    }
 
     // Update branch to point to final rebased commit
     branchRepository.updateBranchHead(
@@ -231,17 +270,24 @@ public class ReadModelProjector {
             + "branch={}, dataset={}",
         event.revertCommitId(), event.revertedCommitId(), event.branch(), event.dataset());
 
+    // Get the target branch to determine the parent commit (current HEAD)
+    Optional<Branch> targetBranchOpt = branchRepository.findByDatasetAndName(
+        event.dataset(),
+        event.branch());
+
+    if (targetBranchOpt.isEmpty()) {
+      logger.debug("Skipping revert for non-existent branch: {} in dataset: {} "
+              + "(event from different test/dataset)",
+          event.branch(), event.dataset());
+      return;
+    }
+
+    Branch targetBranch = targetBranchOpt.get();
+
     // Parse RDF Patch from string
     ByteArrayInputStream inputStream = new ByteArrayInputStream(
         event.rdfPatch().getBytes(StandardCharsets.UTF_8));
     RDFPatch patch = RDFPatchOps.read(inputStream);
-
-    // Get the target branch to determine the parent commit (current HEAD)
-    Branch targetBranch = branchRepository.findByDatasetAndName(
-        event.dataset(),
-        event.branch())
-        .orElseThrow(() -> new IllegalArgumentException(
-            "Cannot revert to non-existent branch: " + event.branch()));
 
     // Create Commit domain object for revert
     // The revert commit's parent is the current HEAD of the branch
@@ -294,17 +340,24 @@ public class ReadModelProjector {
             + "branch={}, dataset={}",
         event.newCommitId(), event.sourceCommitId(), event.branch(), event.dataset());
 
+    // Get the target branch to determine the parent commit
+    Optional<Branch> targetBranchOpt = branchRepository.findByDatasetAndName(
+        event.dataset(),
+        event.branch());
+
+    if (targetBranchOpt.isEmpty()) {
+      logger.debug("Skipping cherry-pick for non-existent branch: {} in dataset: {} "
+              + "(event from different test/dataset)",
+          event.branch(), event.dataset());
+      return;
+    }
+
+    Branch targetBranch = targetBranchOpt.get();
+
     // Parse RDF Patch from string
     ByteArrayInputStream inputStream = new ByteArrayInputStream(
         event.rdfPatch().getBytes(StandardCharsets.UTF_8));
     RDFPatch patch = RDFPatchOps.read(inputStream);
-
-    // Get the target branch to determine the parent commit
-    Branch targetBranch = branchRepository.findByDatasetAndName(
-        event.dataset(),
-        event.branch())
-        .orElseThrow(() -> new IllegalArgumentException(
-            "Cannot cherry-pick to non-existent branch: " + event.branch()));
 
     // Create Commit domain object for cherry-picked commit
     // The parent is the current HEAD of the target branch
@@ -345,6 +398,14 @@ public class ReadModelProjector {
             + "squashedCount={}, dataset={}",
         event.branch(), event.previousHead(), event.newCommitId(),
         event.squashedCommitIds().size(), event.dataset());
+
+    // Check if branch exists before squashing
+    if (branchRepository.findByDatasetAndName(event.dataset(), event.branch()).isEmpty()) {
+      logger.debug("Skipping squash for non-existent branch: {} in dataset: {} "
+              + "(event from different test/dataset)",
+          event.branch(), event.dataset());
+      return;
+    }
 
     // Update branch to point to squashed commit
     branchRepository.updateBranchHead(

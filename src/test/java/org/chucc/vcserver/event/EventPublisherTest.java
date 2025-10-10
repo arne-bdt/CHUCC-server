@@ -80,7 +80,7 @@ class EventPublisherTest {
     CommitCreatedEvent event = new CommitCreatedEvent(
         "my-dataset",
         "commit-456",
-        List.of("parent-1"),
+        List.of("parent-1"), null,
         "Test commit",
         "Alice <alice@example.com>",
         Instant.now(),

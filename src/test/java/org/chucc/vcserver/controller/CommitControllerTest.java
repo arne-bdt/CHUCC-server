@@ -52,7 +52,7 @@ class CommitControllerTest {
     CommitCreatedEvent event = new CommitCreatedEvent(
         DATASET_NAME,
         COMMIT_ID,
-        List.of(PARENT_COMMIT_ID),
+        List.of(PARENT_COMMIT_ID), null,
         "Add new triple",
         "Alice <mailto:alice@example.org>",
         Instant.parse("2025-01-15T10:30:00Z"),
@@ -87,7 +87,7 @@ class CommitControllerTest {
     CommitCreatedEvent event = new CommitCreatedEvent(
         DATASET_NAME,
         COMMIT_ID,
-        List.of(PARENT_COMMIT_ID),
+        List.of(PARENT_COMMIT_ID), null,
         "Experimental change",
         "Bob",
         Instant.parse("2025-01-15T11:00:00Z"),
@@ -196,7 +196,7 @@ class CommitControllerTest {
     CommitCreatedEvent event = new CommitCreatedEvent(
         DATASET_NAME,
         COMMIT_ID,
-        List.of(PARENT_COMMIT_ID),
+        List.of(PARENT_COMMIT_ID), null,
         "Historical commit",
         "Alice",
         Instant.parse("2025-01-15T10:30:00Z"),
@@ -225,7 +225,7 @@ class CommitControllerTest {
     CommitCreatedEvent event = new CommitCreatedEvent(
         "default",
         COMMIT_ID,
-        List.of(PARENT_COMMIT_ID),
+        List.of(PARENT_COMMIT_ID), null,
         "Add new triple",
         "Alice",
         Instant.parse("2025-01-15T10:30:00Z"),

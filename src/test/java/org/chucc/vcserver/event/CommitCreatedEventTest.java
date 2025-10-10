@@ -17,6 +17,7 @@ class CommitCreatedEventTest {
         "test-dataset",
         "commit-id",
         parents,
+        "main",
         "Initial commit",
         "Alice <alice@example.com>",
         now,
@@ -39,6 +40,7 @@ class CommitCreatedEventTest {
         "dataset",
         "commit-id",
         List.of(),
+        "main",
         "Initial commit",
         "author",
         Instant.now(),
@@ -51,56 +53,56 @@ class CommitCreatedEventTest {
   @Test
   void testNullDatasetThrowsException() {
     assertThrows(NullPointerException.class, () ->
-        new CommitCreatedEvent(null, "id", List.of(), "msg", "author", Instant.now(), "patch")
+        new CommitCreatedEvent(null, "id", List.of(), "main", "msg", "author", Instant.now(), "patch")
     );
   }
 
   @Test
   void testBlankDatasetThrowsException() {
     assertThrows(IllegalArgumentException.class, () ->
-        new CommitCreatedEvent("", "id", List.of(), "msg", "author", Instant.now(), "patch")
+        new CommitCreatedEvent("", "id", List.of(), "main", "msg", "author", Instant.now(), "patch")
     );
   }
 
   @Test
   void testNullParentsThrowsException() {
     assertThrows(NullPointerException.class, () ->
-        new CommitCreatedEvent("dataset", "id", null, "msg", "author", Instant.now(), "patch")
+        new CommitCreatedEvent("dataset", "id", null, "main", "msg", "author", Instant.now(), "patch")
     );
   }
 
   @Test
   void testNullMessageThrowsException() {
     assertThrows(NullPointerException.class, () ->
-        new CommitCreatedEvent("dataset", "id", List.of(), null, "author", Instant.now(), "patch")
+        new CommitCreatedEvent("dataset", "id", List.of(), "main", null, "author", Instant.now(), "patch")
     );
   }
 
   @Test
   void testBlankMessageThrowsException() {
     assertThrows(IllegalArgumentException.class, () ->
-        new CommitCreatedEvent("dataset", "id", List.of(), "  ", "author", Instant.now(), "patch")
+        new CommitCreatedEvent("dataset", "id", List.of(), "main", "  ", "author", Instant.now(), "patch")
     );
   }
 
   @Test
   void testNullAuthorThrowsException() {
     assertThrows(NullPointerException.class, () ->
-        new CommitCreatedEvent("dataset", "id", List.of(), "msg", null, Instant.now(), "patch")
+        new CommitCreatedEvent("dataset", "id", List.of(), "main", "msg", null, Instant.now(), "patch")
     );
   }
 
   @Test
   void testBlankAuthorThrowsException() {
     assertThrows(IllegalArgumentException.class, () ->
-        new CommitCreatedEvent("dataset", "id", List.of(), "msg", "", Instant.now(), "patch")
+        new CommitCreatedEvent("dataset", "id", List.of(), "main", "msg", "", Instant.now(), "patch")
     );
   }
 
   @Test
   void testNullRdfPatchThrowsException() {
     assertThrows(NullPointerException.class, () ->
-        new CommitCreatedEvent("dataset", "id", List.of(), "msg", "author", Instant.now(), null)
+        new CommitCreatedEvent("dataset", "id", List.of(), "main", "msg", "author", Instant.now(), null)
     );
   }
 
@@ -110,7 +112,7 @@ class CommitCreatedEventTest {
     parents.add("parent-1");
 
     CommitCreatedEvent event = new CommitCreatedEvent(
-        "dataset", "id", parents, "msg", "author", Instant.now(), "patch");
+        "dataset", "id", parents, "main", "msg", "author", Instant.now(), "patch");
 
     // Modify original list
     parents.add("parent-2");

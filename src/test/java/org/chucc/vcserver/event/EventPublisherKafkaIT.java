@@ -108,7 +108,7 @@ class EventPublisherKafkaIT {
     CommitCreatedEvent event = new CommitCreatedEvent(
         datasetId,
         "commit-456",
-        List.of("parent-1"),
+        List.of("parent-1"), null,
         "Add new feature",
         "Bob <bob@example.com>",
         Instant.now(),

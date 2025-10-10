@@ -62,7 +62,7 @@ class RdfPatchServiceTest {
   }
 
   @Test
-  @org.junit.jupiter.api.Disabled("Graph filtering logic needs refinement - works for single-graph patches")
+  @org.junit.jupiter.api.Disabled("Quad format filtering needs implementation - use triple format for now")
   void filterByGraph_shouldFilterToTargetGraph_whenMultipleGraphsPresent() {
     // Given - In RDF Patch format, quad format is: OPERATION GRAPH SUBJECT PREDICATE OBJECT
     String patchText = """

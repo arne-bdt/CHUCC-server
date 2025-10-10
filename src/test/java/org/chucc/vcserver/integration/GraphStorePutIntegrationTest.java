@@ -192,12 +192,12 @@ class GraphStorePutIntegrationTest extends IntegrationTestFixture {
   }
 
   @Test
-  void putGraph_shouldReturn412_whenIfMatchDoesNotMatch() {
+  void putGraph_shouldReturn409_whenIfMatchDoesNotMatch() {
     // Given
     HttpHeaders headers = new HttpHeaders();
     headers.set("Content-Type", "text/turtle");
     headers.set("SPARQL-VC-Author", "Alice");
-    headers.set("SPARQL-VC-Message", "PUT with stale ETag");
+    headers.set("SPARQL-VC-Message", "PUT with stale ETag (concurrent modification)");
     headers.set("If-Match", "\"01936c7f-8a2e-7890-abcd-ef1234567890\""); // stale ETag
     HttpEntity<String> request = new HttpEntity<>(TestConstants.TURTLE_SIMPLE, headers);
 
@@ -210,10 +210,10 @@ class GraphStorePutIntegrationTest extends IntegrationTestFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PRECONDITION_FAILED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/problem+json");
-    assertThat(response.getBody()).contains("precondition_failed");
+    assertThat(response.getBody()).contains("concurrent_modification_conflict");
   }
 
   @Test

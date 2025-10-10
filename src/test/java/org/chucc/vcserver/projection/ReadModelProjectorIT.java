@@ -55,6 +55,9 @@ class ReadModelProjectorIT {
   static void kafkaProperties(DynamicPropertyRegistry registry) {
     registry.add("kafka.bootstrap-servers", kafka::getBootstrapServers);
     registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+    // Unique consumer group per test class to prevent cross-test event consumption
+    registry.add("spring.kafka.consumer.group-id",
+        () -> "test-" + System.currentTimeMillis() + "-" + Math.random());
   }
 
   @Autowired
@@ -72,7 +75,7 @@ class ReadModelProjectorIT {
   @Autowired
   private KafkaProperties kafkaProperties;
 
-  private static final String DATASET = "test-dataset";
+  private static final String DATASET = "projector-test-dataset";
 
   @BeforeEach
   void setUp() throws Exception {
@@ -126,7 +129,7 @@ class ReadModelProjectorIT {
     CommitCreatedEvent event = new CommitCreatedEvent(
         DATASET,
         commitIdStr,
-        List.of(),
+        List.of(), null,
         "Test commit",
         "test-author",
         Instant.now(),
@@ -182,7 +185,7 @@ class ReadModelProjectorIT {
     CommitCreatedEvent event1 = new CommitCreatedEvent(
         DATASET,
         commit1IdStr,
-        List.of(),
+        List.of(), null,
         "Initial commit",
         "test-author",
         Instant.now(),
@@ -205,7 +208,7 @@ class ReadModelProjectorIT {
     CommitCreatedEvent event2 = new CommitCreatedEvent(
         DATASET,
         commit2IdStr,
-        List.of(commit1IdStr),
+        List.of(commit1IdStr), null,
         "Second commit",
         "test-author",
         Instant.now().plusSeconds(1),
@@ -240,7 +243,7 @@ class ReadModelProjectorIT {
     CommitCreatedEvent commitEvent = new CommitCreatedEvent(
         DATASET,
         commitIdStr,
-        List.of(),
+        List.of(), null,
         "Test commit",
         "test-author",
         Instant.now(),

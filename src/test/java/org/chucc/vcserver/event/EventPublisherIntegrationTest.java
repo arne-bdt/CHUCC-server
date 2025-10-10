@@ -134,7 +134,7 @@ class EventPublisherIntegrationTest {
     CommitCreatedEvent event = new CommitCreatedEvent(
         "test-dataset",
         "commit-123",
-        List.of("parent-1", "parent-2"),
+        List.of("parent-1", "parent-2"), null,
         "Test commit message",
         "Alice <alice@example.com>",
         Instant.now(),

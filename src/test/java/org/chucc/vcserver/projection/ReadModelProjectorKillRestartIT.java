@@ -51,6 +51,9 @@ class ReadModelProjectorKillRestartIT {
   static void kafkaProperties(DynamicPropertyRegistry registry) {
     registry.add("kafka.bootstrap-servers", kafka::getBootstrapServers);
     registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+    // Unique consumer group per test class to prevent cross-test event consumption
+    registry.add("spring.kafka.consumer.group-id",
+        () -> "test-" + System.currentTimeMillis() + "-" + Math.random());
   }
 
   @Autowired
@@ -87,7 +90,7 @@ class ReadModelProjectorKillRestartIT {
     CommitCreatedEvent event1 = new CommitCreatedEvent(
         DATASET,
         commit1Id,
-        List.of(),
+        List.of(), null,
         "Initial commit",
         "test-author",
         Instant.now(),
@@ -129,7 +132,7 @@ class ReadModelProjectorKillRestartIT {
     CommitCreatedEvent event2 = new CommitCreatedEvent(
         DATASET,
         commit2Id,
-        List.of(commit1Id),
+        List.of(commit1Id), null,
         "Second commit (while stopped)",
         "test-author",
         Instant.now().plusSeconds(1),
@@ -208,12 +211,12 @@ class ReadModelProjectorKillRestartIT {
 
     // Publish all events while consumer is stopped
     CommitCreatedEvent event1 = new CommitCreatedEvent(
-        DATASET, commit1Id, List.of(), "Commit 1", "author", Instant.now(), "TX .\nTC .");
+        DATASET, commit1Id, List.of(), "main", "Commit 1", "author", Instant.now(), "TX .\nTC .");
     CommitCreatedEvent event2 = new CommitCreatedEvent(
-        DATASET, commit2Id, List.of(commit1Id), "Commit 2", "author",
+        DATASET, commit2Id, List.of(commit1Id), "main", "Commit 2", "author",
         Instant.now().plusSeconds(1), "TX .\nTC .");
     CommitCreatedEvent event3 = new CommitCreatedEvent(
-        DATASET, commit3Id, List.of(commit2Id), "Commit 3", "author",
+        DATASET, commit3Id, List.of(commit2Id), "main", "Commit 3", "author",
         Instant.now().plusSeconds(2), "TX .\nTC .");
 
     eventPublisher.publish(event1).get();

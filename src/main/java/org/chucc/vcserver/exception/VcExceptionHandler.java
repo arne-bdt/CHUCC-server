@@ -140,7 +140,7 @@ public class VcExceptionHandler {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(PROBLEM_JSON);
 
-    return new ResponseEntity<>(problem, headers, HttpStatus.PRECONDITION_FAILED);
+    return new ResponseEntity<>(problem, headers, HttpStatus.valueOf(ex.getStatus()));
   }
 
   /**

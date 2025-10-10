@@ -68,7 +68,7 @@ public abstract class IntegrationTestFixture {
     registry.add("spring.kafka.bootstrap-servers", () -> kafkaContainer.getBootstrapServers());
     // Unique consumer group per test class to prevent cross-test event consumption
     registry.add("spring.kafka.consumer.group-id",
-        () -> "test-" + IntegrationTestFixture.class.getSimpleName() + "-" + System.nanoTime());
+        () -> "test-" + System.currentTimeMillis() + "-" + Math.random());
   }
 
   /**

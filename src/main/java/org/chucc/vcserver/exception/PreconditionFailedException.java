@@ -1,11 +1,11 @@
 package org.chucc.vcserver.exception;
 
 /**
- * Exception thrown when an If-Match precondition fails.
+ * Exception thrown when an If-Match precondition fails due to concurrent modification.
  * <p>
- * Returns HTTP 412 Precondition Failed per SPARQL 1.2 Protocol §6.
+ * Returns HTTP 409 Conflict for version control concurrent write scenarios.
  * This indicates that the client's expected commit ID (from If-Match header)
- * does not match the current HEAD commit of the branch.
+ * does not match the current HEAD commit, signaling a concurrent modification conflict.
  * </p>
  */
 public class PreconditionFailedException extends VcException {
@@ -22,8 +22,8 @@ public class PreconditionFailedException extends VcException {
   public PreconditionFailedException(String expected, String actual) {
     super(
         "If-Match precondition failed: expected " + expected + ", actual " + actual,
-        "precondition_failed",
-        412
+        "concurrent_modification_conflict",
+        409
     );
     this.expected = expected;
     this.actual = actual;

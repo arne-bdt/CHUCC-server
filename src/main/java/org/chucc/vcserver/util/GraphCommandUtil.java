@@ -68,6 +68,7 @@ public final class GraphCommandUtil {
    * Returns null if the patch is empty (no-op).
    *
    * @param dataset the dataset name
+   * @param branch the branch name
    * @param patch the RDF patch
    * @param graphDiffService the graph diff service
    * @param conflictDetectionService the conflict detection service
@@ -79,6 +80,7 @@ public final class GraphCommandUtil {
    */
   public static VersionControlEvent finalizeGraphCommand(
       String dataset,
+      String branch,
       RDFPatch patch,
       GraphDiffService graphDiffService,
       ConflictDetectionService conflictDetectionService,
@@ -107,6 +109,7 @@ public final class GraphCommandUtil {
         dataset,
         commitId.value(),
         List.of(baseCommit.value()),
+        branch,
         message,
         author,
         Instant.now(),
@@ -120,6 +123,7 @@ public final class GraphCommandUtil {
    * Returns null if the patch is empty (no-op).
    *
    * @param dataset the dataset name
+   * @param branch the branch name
    * @param patch the RDF patch
    * @param graphDiffService the graph diff service
    * @param conflictDetectionService the conflict detection service
@@ -134,6 +138,7 @@ public final class GraphCommandUtil {
   @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
   public static VersionControlEvent finalizeAndPublishGraphCommand(
       String dataset,
+      String branch,
       RDFPatch patch,
       GraphDiffService graphDiffService,
       ConflictDetectionService conflictDetectionService,
@@ -147,6 +152,7 @@ public final class GraphCommandUtil {
     // Finalize command (check for no-op, conflicts, and create commit event)
     VersionControlEvent event = finalizeGraphCommand(
         dataset,
+        branch,
         patch,
         graphDiffService,
         conflictDetectionService,

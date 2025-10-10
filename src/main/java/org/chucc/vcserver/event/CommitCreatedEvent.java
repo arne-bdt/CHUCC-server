@@ -13,6 +13,7 @@ public record CommitCreatedEvent(
     @JsonProperty("dataset") String dataset,
     @JsonProperty("commitId") String commitId,
     @JsonProperty("parents") List<String> parents,
+    @JsonProperty("branch") String branch,
     @JsonProperty("message") String message,
     @JsonProperty("author") String author,
     @JsonProperty("timestamp") Instant timestamp,
@@ -25,6 +26,7 @@ public record CommitCreatedEvent(
    * @param dataset the dataset name (must be non-null and non-blank)
    * @param commitId the commit ID (must be non-null)
    * @param parents the list of parent commit IDs (must be non-null, can be empty)
+   * @param branch the branch name (nullable for backward compatibility with old events)
    * @param message the commit message (must be non-null and non-blank)
    * @param author the commit author (must be non-null and non-blank)
    * @param timestamp the commit timestamp (must be non-null)
@@ -35,6 +37,7 @@ public record CommitCreatedEvent(
     Objects.requireNonNull(dataset, "Dataset cannot be null");
     Objects.requireNonNull(commitId, "Commit ID cannot be null");
     Objects.requireNonNull(parents, "Parents cannot be null");
+    // branch is nullable for backward compatibility with old events
     Objects.requireNonNull(message, "Message cannot be null");
     Objects.requireNonNull(author, "Author cannot be null");
     Objects.requireNonNull(timestamp, "Timestamp cannot be null");

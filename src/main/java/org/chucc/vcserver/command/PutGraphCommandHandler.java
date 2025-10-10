@@ -110,6 +110,7 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
     // Finalize command and publish event to Kafka
     return GraphCommandUtil.finalizeAndPublishGraphCommand(
         command.dataset(),
+        command.branch(),
         patch,
         graphDiffService,
         conflictDetectionService,

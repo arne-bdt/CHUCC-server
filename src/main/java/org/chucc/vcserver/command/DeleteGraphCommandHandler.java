@@ -92,6 +92,7 @@ public class DeleteGraphCommandHandler implements CommandHandler<DeleteGraphComm
     // Finalize command and publish event to Kafka
     return GraphCommandUtil.finalizeAndPublishGraphCommand(
         command.dataset(),
+        command.branch(),
         patch,
         graphDiffService,
         conflictDetectionService,

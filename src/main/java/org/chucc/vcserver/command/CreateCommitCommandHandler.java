@@ -129,6 +129,7 @@ public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCo
         command.dataset(),
         commitId.value(),
         List.of(parentCommitId.value()),
+        command.branchName(),
         command.message(),
         command.author(),
         Instant.now(),

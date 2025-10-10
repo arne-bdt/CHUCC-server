@@ -1,5 +1,7 @@
 package org.chucc.vcserver.controller;
 
+import java.time.Duration;
+import java.time.Instant;
 import org.chucc.vcserver.testutil.IntegrationTestFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -114,14 +116,15 @@ class SparqlHeaderIntegrationTest extends IntegrationTestFixture {
 
   @Test
   void getQuery_withAsOfParameter_accepted() throws Exception {
-    // Given: A SPARQL query with asOf parameter
+    // Given: A SPARQL query with asOf parameter (future timestamp to be after initial commit)
     String query = "SELECT * WHERE { ?s ?p ?o } LIMIT 10";
+    String futureTimestamp = Instant.now().plus(Duration.ofDays(1)).toString();
 
     // When: GET with asOf query parameter and branch
     mockMvc.perform(get("/sparql")
             .param("query", query)
             .param("branch", "main")
-            .param("asOf", "2025-10-10T12:00:00Z"))
+            .param("asOf", futureTimestamp))
         // Then: Query succeeds (endpoint implemented)
         .andExpect(status().isOk());
   }

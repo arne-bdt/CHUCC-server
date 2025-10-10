@@ -67,9 +67,11 @@ class GraphStoreTimeTravelIT extends IntegrationTestFixture {
   @BeforeEach
   void setUp() {
     // Create commits with specific timestamps representing data evolution
-    timestamp1 = Instant.parse("2025-01-01T00:00:00Z");
-    timestamp2 = Instant.parse("2025-01-02T00:00:00Z");
-    timestamp3 = Instant.parse("2025-01-03T00:00:00Z");
+    // Using relative timestamps to ensure tests work regardless of current date
+    Instant baseTime = Instant.now().minus(java.time.Duration.ofDays(3));
+    timestamp1 = baseTime;
+    timestamp2 = baseTime.plus(java.time.Duration.ofDays(1));
+    timestamp3 = baseTime.plus(java.time.Duration.ofDays(2));
 
     commit1Id = CommitId.generate();
     commit2Id = CommitId.generate();
@@ -246,8 +248,8 @@ class GraphStoreTimeTravelIT extends IntegrationTestFixture {
     HttpHeaders headers = new HttpHeaders();
     headers.set("Accept", "text/turtle");
 
-    // When - GET graph with asOf before any commit
-    Instant veryOld = Instant.parse("2020-01-01T00:00:00Z");
+    // When - GET graph with asOf before any commit (timestamp1 minus 1 day)
+    Instant veryOld = timestamp1.minus(java.time.Duration.ofDays(1));
     String url = String.format("/data?graph=%s&branch=main&asOf=%s",
         GRAPH_IRI, veryOld.toString());
     HttpEntity<Void> request = new HttpEntity<>(headers);
@@ -268,8 +270,8 @@ class GraphStoreTimeTravelIT extends IntegrationTestFixture {
     HttpHeaders headers = new HttpHeaders();
     headers.set("Accept", "text/turtle");
 
-    // When - GET graph with future asOf timestamp
-    Instant future = Instant.parse("2099-01-01T00:00:00Z");
+    // When - GET graph with future asOf timestamp (timestamp3 plus 1 day)
+    Instant future = timestamp3.plus(java.time.Duration.ofDays(1));
     String url = String.format("/data?graph=%s&branch=main&asOf=%s",
         GRAPH_IRI, future.toString());
     HttpEntity<Void> request = new HttpEntity<>(headers);

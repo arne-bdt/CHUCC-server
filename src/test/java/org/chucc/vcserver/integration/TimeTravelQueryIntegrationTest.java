@@ -2,6 +2,8 @@ package org.chucc.vcserver.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
+import java.time.Instant;
 import org.chucc.vcserver.testutil.IntegrationTestFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,11 +47,12 @@ class TimeTravelQueryIntegrationTest extends IntegrationTestFixture {
    */
   @Test
   void queryWithAsOf_shouldAcceptParameter() {
-    // Given: Query with asOf parameter and branch (far future to be after initial commit)
+    // Given: Query with asOf parameter and branch (future timestamp to be after initial commit)
+    String futureTimestamp = Instant.now().plus(Duration.ofDays(1)).toString();
     java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
         .queryParam("query", "SELECT * WHERE { ?s ?p ?o } LIMIT 10")
         .queryParam("branch", BRANCH_NAME)
-        .queryParam("asOf", "2026-01-02T00:00:00Z")
+        .queryParam("asOf", futureTimestamp)
         .build()
         .toUri();
 
@@ -66,10 +69,11 @@ class TimeTravelQueryIntegrationTest extends IntegrationTestFixture {
    */
   @Test
   void queryWithAsOfOnly_shouldAcceptParameter() {
-    // Given: Query with asOf only (far future, no branch specified, uses default "main")
+    // Given: Query with asOf only (future timestamp, no branch specified, uses default "main")
+    String futureTimestamp = Instant.now().plus(Duration.ofDays(1)).toString();
     java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
         .queryParam("query", "SELECT * WHERE { ?s ?p ?o } LIMIT 10")
-        .queryParam("asOf", "2026-01-02T00:00:00Z")
+        .queryParam("asOf", futureTimestamp)
         .build()
         .toUri();
 
@@ -145,11 +149,12 @@ class TimeTravelQueryIntegrationTest extends IntegrationTestFixture {
    */
   @Test
   void queryWithAsOfAfterAllCommits_shouldAcceptParameter() {
-    // Given: Query with far-future timestamp (after all commits)
+    // Given: Query with future timestamp (after all commits)
+    String futureTimestamp = Instant.now().plus(Duration.ofDays(1)).toString();
     java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
         .queryParam("query", "SELECT * WHERE { ?s ?p ?o } LIMIT 10")
         .queryParam("branch", BRANCH_NAME)
-        .queryParam("asOf", "2026-12-31T23:59:59Z")
+        .queryParam("asOf", futureTimestamp)
         .build()
         .toUri();
 

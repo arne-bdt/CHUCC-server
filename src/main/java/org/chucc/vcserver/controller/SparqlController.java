@@ -463,10 +463,12 @@ public class SparqlController {
    * Determines the result format from the Accept header.
    *
    * @param acceptHeader the Accept header value
-   * @return the determined result format (defaults to JSON)
+   * @return the determined result format (defaults to JSON per SPARQL 1.1 Protocol §2.1)
    */
   private ResultFormat determineResultFormat(String acceptHeader) {
     if (acceptHeader == null || acceptHeader.isEmpty()) {
+      // Default to JSON per SPARQL 1.1 Protocol recommendation (section 2.1)
+      // JSON is widely supported and human-readable for debugging
       return ResultFormat.JSON;
     }
 
@@ -487,7 +489,8 @@ public class SparqlController {
       return ResultFormat.RDF_XML;
     }
 
-    // Default to JSON
+    // Default to JSON when Accept header doesn't match any supported format
+    // This follows the SPARQL 1.1 Protocol recommendation for content negotiation
     return ResultFormat.JSON;
   }
 

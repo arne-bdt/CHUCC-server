@@ -15,6 +15,7 @@ import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.domain.DatasetRef;
+import org.chucc.vcserver.exception.CommitNotFoundException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.springframework.stereotype.Service;
@@ -167,14 +168,15 @@ public class DatasetService {
    * @param datasetName the dataset name
    * @param commitId the target commit ID
    * @return the materialized dataset graph
+   * @throws CommitNotFoundException if the commit is not found
    */
   private DatasetGraphInMemory buildDatasetGraph(String datasetName, CommitId commitId) {
     DatasetGraphInMemory datasetGraph = new DatasetGraphInMemory();
 
     // Get the commit
     Commit commit = commitRepository.findByDatasetAndId(datasetName, commitId)
-        .orElseThrow(() -> new IllegalArgumentException(
-            "Commit not found: " + commitId + " in dataset: " + datasetName));
+        .orElseThrow(() -> new CommitNotFoundException(
+            "Commit not found: " + commitId + " in dataset: " + datasetName, true));
 
     // Build the graph by applying patches from commit history
     applyPatchHistory(datasetName, commit, datasetGraph);
@@ -188,14 +190,15 @@ public class DatasetService {
    * @param datasetName the dataset name
    * @param commit the current commit
    * @param datasetGraph the dataset graph to apply patches to
+   * @throws CommitNotFoundException if a parent commit is not found
    */
   private void applyPatchHistory(String datasetName, Commit commit,
                                    DatasetGraphInMemory datasetGraph) {
     // First, recursively process parent commits
     for (CommitId parentId : commit.parents()) {
       Commit parentCommit = commitRepository.findByDatasetAndId(datasetName, parentId)
-          .orElseThrow(() -> new IllegalArgumentException(
-              "Parent commit not found: " + parentId));
+          .orElseThrow(() -> new CommitNotFoundException(
+              "Parent commit not found: " + parentId, true));
       applyPatchHistory(datasetName, parentCommit, datasetGraph);
     }
 
@@ -225,7 +228,7 @@ public class DatasetService {
    * @param datasetName the dataset name
    * @param commitId the commit ID to materialize
    * @return the dataset graph at the specified commit
-   * @throws IllegalArgumentException if the commit is not found
+   * @throws CommitNotFoundException if the commit is not found
    */
   public DatasetGraph materializeCommit(String datasetName, CommitId commitId) {
     return getOrCreateDatasetGraph(datasetName, commitId);
@@ -238,7 +241,7 @@ public class DatasetService {
    * @param datasetName the dataset name
    * @param commitId the commit ID to materialize
    * @return the dataset at the specified commit
-   * @throws IllegalArgumentException if the commit is not found
+   * @throws CommitNotFoundException if the commit is not found
    */
   public Dataset materializeAtCommit(String datasetName, CommitId commitId) {
     DatasetGraph datasetGraph = materializeCommit(datasetName, commitId);
@@ -252,7 +255,7 @@ public class DatasetService {
    * @param commitId the commit ID
    * @param graphIri the graph IRI
    * @return the named graph as a Model, or null if the graph doesn't exist
-   * @throws IllegalArgumentException if the commit is not found
+   * @throws CommitNotFoundException if the commit is not found
    */
   public org.apache.jena.rdf.model.Model getGraph(String datasetName, CommitId commitId,
       String graphIri) {
@@ -274,7 +277,7 @@ public class DatasetService {
    * @param datasetName the dataset name
    * @param commitId the commit ID
    * @return the default graph as a Model (never null, but may be empty)
-   * @throws IllegalArgumentException if the commit is not found
+   * @throws CommitNotFoundException if the commit is not found
    */
   public org.apache.jena.rdf.model.Model getDefaultGraph(String datasetName, CommitId commitId) {
     DatasetGraph datasetGraph = materializeCommit(datasetName, commitId);

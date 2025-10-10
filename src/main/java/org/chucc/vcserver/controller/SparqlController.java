@@ -8,9 +8,19 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.jena.query.Dataset;
+import org.apache.jena.query.QueryParseException;
 import org.chucc.vcserver.config.VersionControlProperties;
+import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.domain.ResultFormat;
+import org.chucc.vcserver.dto.ProblemDetail;
+import org.chucc.vcserver.exception.BranchNotFoundException;
+import org.chucc.vcserver.service.DatasetService;
+import org.chucc.vcserver.service.SelectorResolutionService;
+import org.chucc.vcserver.service.SparqlQueryService;
 import org.chucc.vcserver.util.SelectorValidator;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -34,12 +44,30 @@ import org.springframework.web.bind.annotation.RestController;
 public class SparqlController {
 
   private final VersionControlProperties vcProperties;
+  private final SelectorResolutionService selectorResolutionService;
+  private final DatasetService datasetService;
+  private final SparqlQueryService sparqlQueryService;
 
+  /**
+   * Constructs a SparqlController with required dependencies.
+   *
+   * @param vcProperties version control properties
+   * @param selectorResolutionService service for resolving selectors to commit IDs
+   * @param datasetService service for materializing datasets
+   * @param sparqlQueryService service for executing SPARQL queries
+   */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
-      justification = "Spring-managed config bean, not modified")
-  public SparqlController(VersionControlProperties vcProperties) {
+      justification = "Spring-managed beans, not modified")
+  public SparqlController(
+      VersionControlProperties vcProperties,
+      SelectorResolutionService selectorResolutionService,
+      DatasetService datasetService,
+      SparqlQueryService sparqlQueryService) {
     this.vcProperties = vcProperties;
+    this.selectorResolutionService = selectorResolutionService;
+    this.datasetService = datasetService;
+    this.sparqlQueryService = sparqlQueryService;
   }
 
   /**
@@ -85,7 +113,8 @@ public class SparqlController {
       description = "Not Implemented",
       content = @Content(mediaType = "application/problem+json")
   )
-  public ResponseEntity<String> querySparqlGet(
+  @SuppressWarnings("PMD.AvoidDuplicateLiterals") // Duplicate error codes are acceptable
+  public ResponseEntity<?> querySparqlGet(
       @Parameter(description = "The SPARQL query string", required = true)
       @RequestParam String query,
       @Parameter(description = "Default graph URI(s)")
@@ -99,23 +128,56 @@ public class SparqlController {
       @Parameter(description = "Query branch state at or before this timestamp (ISO8601)")
       @RequestParam(required = false) String asOf,
       @Parameter(description = "Commit ID for read consistency")
-      @RequestHeader(name = "SPARQL-VC-Commit", required = false) String vcCommit
+      @RequestHeader(name = "SPARQL-VC-Commit", required = false) String vcCommit,
+      HttpServletRequest request
   ) {
     // Validate selector mutual exclusion per §4
-    SelectorValidator.validateMutualExclusion(branch, commit, asOf);
+    try {
+      SelectorValidator.validateMutualExclusion(branch, commit, asOf);
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity
+          .status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(e.getMessage(), 400, "SELECTOR_CONFLICT"));
+    }
 
-    // TODO: When implementing SPARQL query execution:
-    // 1. Inject SelectorResolutionService
-    // 2. Resolve selectors to target commit:
-    //    CommitId targetCommit = selectorResolutionService.resolve(dataset, branch, commit, asOf);
-    // 3. Materialize dataset at that commit:
-    //    Dataset dataset = datasetService.materializeCommit(targetCommit);
-    // 4. Execute query against materialized dataset
-    // 5. Return results with ETag header containing commit ID
+    // Default dataset name
+    String datasetName = "default";
 
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-        .body("{\"title\":\"Not Implemented\",\"status\":501}");
+    try {
+      // 1. Resolve selectors to target commit
+      CommitId targetCommit = selectorResolutionService.resolve(
+          datasetName, branch, commit, asOf);
+
+      // 2. Materialize dataset at that commit
+      Dataset dataset = datasetService.materializeAtCommit(datasetName, targetCommit);
+
+      // 3. Determine result format from Accept header
+      ResultFormat format = determineResultFormat(request.getHeader("Accept"));
+
+      // 4. Execute query
+      String results = sparqlQueryService.executeQuery(dataset, query, format);
+
+      // 5. Return results with ETag header containing commit ID
+      return ResponseEntity.ok()
+          .eTag("\"" + targetCommit.value() + "\"")
+          .contentType(getMediaType(format))
+          .body(results);
+
+    } catch (QueryParseException e) {
+      return ResponseEntity
+          .status(HttpStatus.BAD_REQUEST)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              "SPARQL query is malformed: " + e.getMessage(),
+              400,
+              "MALFORMED_QUERY"));
+    } catch (BranchNotFoundException | IllegalArgumentException e) {
+      return ResponseEntity
+          .status(HttpStatus.NOT_FOUND)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(e.getMessage(), 404, "NOT_FOUND"));
+    }
   }
 
   /**
@@ -204,6 +266,63 @@ public class SparqlController {
     return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
         .contentType(MediaType.APPLICATION_PROBLEM_JSON)
         .body("{\"title\":\"Not Implemented\",\"status\":501}");
+  }
+
+  /**
+   * Determines the result format from the Accept header.
+   *
+   * @param acceptHeader the Accept header value
+   * @return the determined result format (defaults to JSON)
+   */
+  private ResultFormat determineResultFormat(String acceptHeader) {
+    if (acceptHeader == null || acceptHeader.isEmpty()) {
+      return ResultFormat.JSON;
+    }
+
+    String lowerAccept = acceptHeader.toLowerCase(java.util.Locale.ROOT);
+
+    if (lowerAccept.contains("application/sparql-results+json")) {
+      return ResultFormat.JSON;
+    } else if (lowerAccept.contains("application/sparql-results+xml")) {
+      return ResultFormat.XML;
+    } else if (lowerAccept.contains("text/csv")) {
+      return ResultFormat.CSV;
+    } else if (lowerAccept.contains("text/tab-separated-values")
+        || lowerAccept.contains("text/tsv")) {
+      return ResultFormat.TSV;
+    } else if (lowerAccept.contains("text/turtle")) {
+      return ResultFormat.TURTLE;
+    } else if (lowerAccept.contains("application/rdf+xml")) {
+      return ResultFormat.RDF_XML;
+    }
+
+    // Default to JSON
+    return ResultFormat.JSON;
+  }
+
+  /**
+   * Maps result format to HTTP media type.
+   *
+   * @param format the result format
+   * @return the corresponding media type
+   */
+  private MediaType getMediaType(ResultFormat format) {
+    switch (format) {
+      case JSON:
+        return MediaType.parseMediaType("application/sparql-results+json");
+      case XML:
+        return MediaType.parseMediaType("application/sparql-results+xml");
+      case CSV:
+        return MediaType.parseMediaType("text/csv");
+      case TSV:
+        return MediaType.parseMediaType("text/tab-separated-values");
+      case TURTLE:
+        return MediaType.parseMediaType("text/turtle");
+      case RDF_XML:
+        return MediaType.parseMediaType("application/rdf+xml");
+      default:
+        return MediaType.parseMediaType("application/sparql-results+json");
+    }
   }
 
   /**

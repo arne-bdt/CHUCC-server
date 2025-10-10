@@ -1,6 +1,13 @@
 package org.chucc.vcserver.controller;
 
+import org.apache.jena.query.Dataset;
+import org.apache.jena.query.DatasetFactory;
 import org.chucc.vcserver.config.VersionControlProperties;
+import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.domain.ResultFormat;
+import org.chucc.vcserver.service.DatasetService;
+import org.chucc.vcserver.service.SelectorResolutionService;
+import org.chucc.vcserver.service.SparqlQueryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -8,6 +15,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -26,6 +36,15 @@ class SparqlControllerTest {
 
   @MockitoBean
   private VersionControlProperties vcProperties;
+
+  @MockitoBean
+  private SelectorResolutionService selectorResolutionService;
+
+  @MockitoBean
+  private DatasetService datasetService;
+
+  @MockitoBean
+  private SparqlQueryService sparqlQueryService;
 
   @Test
   void optionsEndpoint_level2_allFeaturesEnabled() throws Exception {
@@ -152,10 +171,22 @@ class SparqlControllerTest {
 
   @Test
   void getEndpoint_acceptsVcCommitHeader() throws Exception {
-    // When & Then: SPARQL-VC-Commit header is accepted
+    // Given: Mocked services return valid data
+    CommitId commitId = CommitId.generate();
+    Dataset dataset = DatasetFactory.create();
+    String results = "{\"head\":{},\"results\":{\"bindings\":[]}}";
+
+    when(selectorResolutionService.resolve(anyString(), any(), any(), any()))
+        .thenReturn(commitId);
+    when(datasetService.materializeAtCommit(anyString(), any(CommitId.class)))
+        .thenReturn(dataset);
+    when(sparqlQueryService.executeQuery(any(Dataset.class), anyString(), any(ResultFormat.class)))
+        .thenReturn(results);
+
+    // When & Then: SPARQL-VC-Commit header is accepted and query succeeds
     mockMvc.perform(get("/sparql")
             .param("query", "SELECT * WHERE { ?s ?p ?o }")
             .header("SPARQL-VC-Commit", "01936f7e-1234-7890-abcd-ef0123456789"))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isOk());
   }
 }

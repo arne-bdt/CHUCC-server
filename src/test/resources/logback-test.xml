@@ -30,6 +30,10 @@
     <logger name="org.apache.coyote" level="WARN"/>
     <logger name="org.apache.tomcat" level="WARN"/>
 
+    <!-- Suppress expected error messages from tests that verify error handling -->
+    <logger name="org.zalando.problem.spring.common.AdviceTraits" level="ERROR"/>
+    <logger name="org.apache.jena.riot" level="OFF"/>
+
     <!-- Keep application logs visible -->
     <logger name="org.chucc" level="DEBUG"/>
 

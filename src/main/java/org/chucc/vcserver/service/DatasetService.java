@@ -232,6 +232,20 @@ public class DatasetService {
   }
 
   /**
+   * Materializes a dataset at a specific commit.
+   * Convenience method that returns a Dataset wrapped around the materialized DatasetGraph.
+   *
+   * @param datasetName the dataset name
+   * @param commitId the commit ID to materialize
+   * @return the dataset at the specified commit
+   * @throws IllegalArgumentException if the commit is not found
+   */
+  public Dataset materializeAtCommit(String datasetName, CommitId commitId) {
+    DatasetGraph datasetGraph = materializeCommit(datasetName, commitId);
+    return DatasetFactory.wrap(datasetGraph);
+  }
+
+  /**
    * Gets a named graph from a dataset at a specific commit.
    *
    * @param datasetName the dataset name

@@ -1,9 +1,11 @@
 package org.chucc.vcserver.controller;
 
+import org.chucc.vcserver.testutil.IntegrationTestFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -16,7 +18,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-class SparqlHeaderIntegrationTest {
+@ActiveProfiles("it")
+class SparqlHeaderIntegrationTest extends IntegrationTestFixture {
 
   @Autowired
   private MockMvc mockMvc;
@@ -46,9 +49,9 @@ class SparqlHeaderIntegrationTest {
     // When: GET with SPARQL-VC-Commit header
     mockMvc.perform(get("/sparql")
             .param("query", query)
-            .header("SPARQL-VC-Commit", "01936f7e-1234-7890-abcd-ef0123456789"))
-        // Then: Request is accepted (501 stub implementation)
-        .andExpect(status().isNotImplemented());
+            .header("SPARQL-VC-Commit", initialCommitId.value()))
+        // Then: Query succeeds (endpoint implemented)
+        .andExpect(status().isOk());
   }
 
   @Test
@@ -88,12 +91,12 @@ class SparqlHeaderIntegrationTest {
     // Given: A SPARQL query with branch parameter (not header)
     String query = "SELECT * WHERE { ?s ?p ?o } LIMIT 10";
 
-    // When: GET with branch query parameter
+    // When: GET with branch query parameter (using existing main branch)
     mockMvc.perform(get("/sparql")
             .param("query", query)
-            .param("branch", "feature-x"))
-        // Then: Request is accepted
-        .andExpect(status().isNotImplemented());
+            .param("branch", "main"))
+        // Then: Query succeeds (endpoint implemented)
+        .andExpect(status().isOk());
   }
 
   @Test
@@ -101,12 +104,12 @@ class SparqlHeaderIntegrationTest {
     // Given: A SPARQL query with commit parameter
     String query = "SELECT * WHERE { ?s ?p ?o } LIMIT 10";
 
-    // When: GET with commit query parameter
+    // When: GET with commit query parameter (using existing initial commit)
     mockMvc.perform(get("/sparql")
             .param("query", query)
-            .param("commit", "01936f7e-1234-7890-abcd-ef0123456789"))
-        // Then: Request is accepted
-        .andExpect(status().isNotImplemented());
+            .param("commit", initialCommitId.value()))
+        // Then: Query succeeds (endpoint implemented)
+        .andExpect(status().isOk());
   }
 
   @Test
@@ -114,11 +117,12 @@ class SparqlHeaderIntegrationTest {
     // Given: A SPARQL query with asOf parameter
     String query = "SELECT * WHERE { ?s ?p ?o } LIMIT 10";
 
-    // When: GET with asOf query parameter
+    // When: GET with asOf query parameter and branch
     mockMvc.perform(get("/sparql")
             .param("query", query)
-            .param("asOf", "2025-10-03T12:00:00Z"))
-        // Then: Request is accepted
-        .andExpect(status().isNotImplemented());
+            .param("branch", "main")
+            .param("asOf", "2025-10-10T12:00:00Z"))
+        // Then: Query succeeds (endpoint implemented)
+        .andExpect(status().isOk());
   }
 }

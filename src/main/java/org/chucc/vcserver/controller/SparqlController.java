@@ -86,7 +86,9 @@ public class SparqlController {
       "application/sparql-results+json",
       "application/sparql-results+xml",
       "text/csv",
-      "text/tab-separated-values"
+      "text/tab-separated-values",
+      "text/turtle",
+      "application/rdf+xml"
   })
   @Operation(
       summary = "SPARQL Query (GET)",
@@ -150,6 +152,9 @@ public class SparqlController {
           datasetName, branch, commit, asOf);
 
       // 2. Materialize dataset at that commit
+      // Note: Dataset is a lightweight wrapper around cached DatasetGraphInMemory.
+      // No explicit closing needed - the underlying DatasetGraph is managed
+      // by DatasetService cache.
       Dataset dataset = datasetService.materializeAtCommit(datasetName, targetCommit);
 
       // 3. Determine result format from Accept header

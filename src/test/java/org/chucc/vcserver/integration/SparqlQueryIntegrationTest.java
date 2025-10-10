@@ -1,9 +1,6 @@
 package org.chucc.vcserver.integration;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import org.chucc.vcserver.testutil.IntegrationTestFixture;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,11 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Note: These tests query against the initial empty commit created by the test fixture.
  * Full end-to-end tests with data require GSP PUT integration.
- *
- * <p>FIXME: Temporarily disabled due to HTTP 400 errors. Core functionality verified by unit tests.
- * Integration tests need debugging for proper REST client configuration.
  */
-@Disabled("Temporarily disabled - HTTP request configuration issue")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
 class SparqlQueryIntegrationTest extends IntegrationTestFixture {
@@ -41,10 +35,12 @@ class SparqlQueryIntegrationTest extends IntegrationTestFixture {
   void sparqlQuery_shouldExecuteWithBranchSelector() {
     // When: Query via SPARQL against initial empty commit
     String query = "SELECT ?s ?p ?o WHERE { ?s ?p ?o }";
-    ResponseEntity<String> response = restTemplate.getForEntity(
-        "/sparql?query=" + urlEncode(query) + "&branch=main",
-        String.class
-    );
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
+        .queryParam("query", query)
+        .queryParam("branch", "main")
+        .build()
+        .toUri();
+    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Results returned with correct headers (empty results)
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -58,10 +54,12 @@ class SparqlQueryIntegrationTest extends IntegrationTestFixture {
   void sparqlQuery_shouldExecuteWithCommitSelector() {
     // When: Query specific commit (initial commit)
     String query = "SELECT * WHERE { ?s ?p ?o }";
-    ResponseEntity<String> response = restTemplate.getForEntity(
-        "/sparql?query=" + urlEncode(query) + "&commit=" + initialCommitId.value(),
-        String.class
-    );
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
+        .queryParam("query", query)
+        .queryParam("commit", initialCommitId.value())
+        .build()
+        .toUri();
+    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Results from that commit with ETag
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -74,10 +72,13 @@ class SparqlQueryIntegrationTest extends IntegrationTestFixture {
   void sparqlQuery_shouldReturn400ForSelectorConflict() {
     // When: Query with both branch and commit selectors
     String query = "SELECT * WHERE { ?s ?p ?o }";
-    ResponseEntity<String> response = restTemplate.getForEntity(
-        "/sparql?query=" + urlEncode(query) + "&branch=main&commit=abc123",
-        String.class
-    );
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
+        .queryParam("query", query)
+        .queryParam("branch", "main")
+        .queryParam("commit", "abc123")
+        .build()
+        .toUri();
+    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Selector conflict error
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -90,10 +91,12 @@ class SparqlQueryIntegrationTest extends IntegrationTestFixture {
   void sparqlQuery_shouldReturn400ForMalformedQuery() {
     // When: Query with syntax error (missing closing brace)
     String malformedQuery = "SELECT * WHERE { ?s ?p";
-    ResponseEntity<String> response = restTemplate.getForEntity(
-        "/sparql?query=" + urlEncode(malformedQuery) + "&branch=main",
-        String.class
-    );
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
+        .queryParam("query", malformedQuery)
+        .queryParam("branch", "main")
+        .build()
+        .toUri();
+    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Malformed query error
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -109,8 +112,13 @@ class SparqlQueryIntegrationTest extends IntegrationTestFixture {
 
     HttpEntity<Void> request = new HttpEntity<>(headers);
     String query = "SELECT * WHERE { ?s ?p ?o }";
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
+        .queryParam("query", query)
+        .queryParam("branch", "main")
+        .build()
+        .toUri();
     ResponseEntity<String> response = restTemplate.exchange(
-        "/sparql?query=" + urlEncode(query) + "&branch=main",
+        uri,
         HttpMethod.GET,
         request,
         String.class
@@ -132,8 +140,13 @@ class SparqlQueryIntegrationTest extends IntegrationTestFixture {
 
     HttpEntity<Void> request = new HttpEntity<>(headers);
     String query = "SELECT * WHERE { ?s ?p ?o }";
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
+        .queryParam("query", query)
+        .queryParam("branch", "main")
+        .build()
+        .toUri();
     ResponseEntity<String> response = restTemplate.exchange(
-        "/sparql?query=" + urlEncode(query) + "&branch=main",
+        uri,
         HttpMethod.GET,
         request,
         String.class
@@ -150,10 +163,12 @@ class SparqlQueryIntegrationTest extends IntegrationTestFixture {
   void sparqlQuery_shouldExecuteAskQuery() {
     // When: ASK query (empty dataset returns false)
     String query = "ASK { ?s ?p ?o }";
-    ResponseEntity<String> response = restTemplate.getForEntity(
-        "/sparql?query=" + urlEncode(query) + "&branch=main",
-        String.class
-    );
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
+        .queryParam("query", query)
+        .queryParam("branch", "main")
+        .build()
+        .toUri();
+    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Boolean result
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -168,8 +183,13 @@ class SparqlQueryIntegrationTest extends IntegrationTestFixture {
 
     HttpEntity<Void> request = new HttpEntity<>(headers);
     String query = "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }";
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
+        .queryParam("query", query)
+        .queryParam("branch", "main")
+        .build()
+        .toUri();
     ResponseEntity<String> response = restTemplate.exchange(
-        "/sparql?query=" + urlEncode(query) + "&branch=main",
+        uri,
         HttpMethod.GET,
         request,
         String.class
@@ -185,10 +205,12 @@ class SparqlQueryIntegrationTest extends IntegrationTestFixture {
   void sparqlQuery_shouldHandleEmptyResults() {
     // When: Query for non-existent triples
     String query = "SELECT * WHERE { ?s <http://nonexistent> ?o }";
-    ResponseEntity<String> response = restTemplate.getForEntity(
-        "/sparql?query=" + urlEncode(query) + "&branch=main",
-        String.class
-    );
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
+        .queryParam("query", query)
+        .queryParam("branch", "main")
+        .build()
+        .toUri();
+    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Empty results (but successful)
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -199,25 +221,17 @@ class SparqlQueryIntegrationTest extends IntegrationTestFixture {
   void sparqlQuery_shouldReturn404ForNonExistentBranch() {
     // When: Query with non-existent branch
     String query = "SELECT * WHERE { ?s ?p ?o }";
-    ResponseEntity<String> response = restTemplate.getForEntity(
-        "/sparql?query=" + urlEncode(query) + "&branch=nonexistent",
-        String.class
-    );
+    java.net.URI uri = UriComponentsBuilder.fromPath("/sparql")
+        .queryParam("query", query)
+        .queryParam("branch", "nonexistent")
+        .build()
+        .toUri();
+    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Not found error
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/problem+json");
     assertThat(response.getBody()).contains("NOT_FOUND");
-  }
-
-  /**
-   * URL-encodes a string for use in query parameters.
-   *
-   * @param value the value to encode
-   * @return the URL-encoded value
-   */
-  private String urlEncode(String value) {
-    return URLEncoder.encode(value, StandardCharsets.UTF_8);
   }
 }

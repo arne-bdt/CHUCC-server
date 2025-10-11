@@ -53,9 +53,11 @@ vc:
 
 ### Protection Rules
 
-- ❌ Cannot delete dataset with name "default" (system dataset)
 - ⚠️ Require confirmation parameter to prevent accidental deletion
 - ⚠️ Check if snapshots exist and warn user
+
+**Note:** Unlike branch deletion (where "main" branch is protected for architectural reasons),
+there are no protected datasets. "default" is just a conventional name with no special status.
 
 ---
 
@@ -157,7 +159,6 @@ import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.event.DatasetDeletedEvent;
 import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.exception.DatasetNotFoundException;
-import org.chucc.vcserver.exception.ProtectedDatasetException;
 import org.chucc.vcserver.exception.UnconfirmedDeletionException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
@@ -208,7 +209,6 @@ public class DeleteDatasetCommandHandler {
    * @param command the delete dataset command
    * @return the dataset deleted event
    * @throws DatasetNotFoundException if dataset doesn't exist
-   * @throws ProtectedDatasetException if trying to delete protected dataset
    * @throws UnconfirmedDeletionException if deletion not confirmed
    */
   public DatasetDeletedEvent handle(DeleteDatasetCommand command) {
@@ -221,21 +221,16 @@ public class DeleteDatasetCommandHandler {
           "Dataset deletion requires explicit confirmation (confirmed=true)");
     }
 
-    // 2. Protect system dataset
-    if ("default".equals(command.dataset())) {
-      throw new ProtectedDatasetException("Cannot delete default dataset");
-    }
-
-    // 3. Check if dataset exists (has branches)
+    // 2. Check if dataset exists (has branches)
     List<Branch> branches = branchRepository.findAllByDataset(command.dataset());
     if (branches.isEmpty()) {
       throw new DatasetNotFoundException("Dataset not found or already empty: " + command.dataset());
     }
 
-    // 4. Count commits for audit
+    // 3. Count commits for audit
     int commitCount = commitRepository.findAllByDataset(command.dataset()).size();
 
-    // 5. Create event BEFORE deletion (for audit trail)
+    // 4. Create event BEFORE deletion (for audit trail)
     DatasetDeletedEvent event = new DatasetDeletedEvent(
         command.dataset(),
         command.author(),
@@ -245,10 +240,10 @@ public class DeleteDatasetCommandHandler {
         command.deleteKafkaTopic()
     );
 
-    // 6. Publish event (async)
+    // 5. Publish event (async)
     eventPublisher.publish(event);
 
-    // 7. Optionally delete Kafka topic (destructive!)
+    // 6. Optionally delete Kafka topic (destructive!)
     if (command.deleteKafkaTopic() && vcProperties.isAllowKafkaTopicDeletion()) {
       deleteKafkaTopic(command.dataset());
     } else if (command.deleteKafkaTopic()) {
@@ -288,14 +283,6 @@ public class DeleteDatasetCommandHandler {
 
 **Create exception classes:**
 ```java
-// src/main/java/org/chucc/vcserver/exception/ProtectedDatasetException.java
-@ResponseStatus(HttpStatus.FORBIDDEN)
-public class ProtectedDatasetException extends RuntimeException {
-  public ProtectedDatasetException(String message) {
-    super(message);
-  }
-}
-
 // src/main/java/org/chucc/vcserver/exception/UnconfirmedDeletionException.java
 @ResponseStatus(HttpStatus.BAD_REQUEST)
 public class UnconfirmedDeletionException extends RuntimeException {
@@ -392,8 +379,6 @@ public class DatasetController {
   )
   @ApiResponse(responseCode = "204", description = "Dataset deleted successfully")
   @ApiResponse(responseCode = "400", description = "Deletion not confirmed",
-      content = @Content(mediaType = "application/problem+json"))
-  @ApiResponse(responseCode = "403", description = "Cannot delete protected dataset (default)",
       content = @Content(mediaType = "application/problem+json"))
   @ApiResponse(responseCode = "404", description = "Dataset not found",
       content = @Content(mediaType = "application/problem+json"))
@@ -515,15 +500,6 @@ class DeleteDatasetCommandHandlerTest {
     assertThatThrownBy(() -> handler.handle(command))
         .isInstanceOf(UnconfirmedDeletionException.class);
   }
-
-  @Test
-  void handle_defaultDataset_shouldThrowProtectedDatasetException() {
-    DeleteDatasetCommand command = new DeleteDatasetCommand(
-        "default", "alice", false, true);
-
-    assertThatThrownBy(() -> handler.handle(command))
-        .isInstanceOf(ProtectedDatasetException.class);
-  }
 }
 ```
 
@@ -573,16 +549,18 @@ class DatasetDeletionIT extends IntegrationTestFixture {
 
 ## Success Criteria
 
-- [ ] `DELETE /version/datasets/{name}?confirmed=true` returns 204
-- [ ] `DELETE /version/datasets/{name}` (no confirmation) returns 400
-- [ ] `DELETE /version/datasets/default` returns 403 (protected)
-- [ ] `DatasetDeletedEvent` published to Kafka
-- [ ] All branches deleted from `BranchRepository`
-- [ ] All commits deleted from `CommitRepository`
-- [ ] Cache cleared from `DatasetService`
-- [ ] Kafka topic deleted (if requested and allowed)
-- [ ] All tests pass
-- [ ] OpenAPI documentation added
+- [x] `DELETE /version/datasets/{name}?confirmed=true` returns 204
+- [x] `DELETE /version/datasets/{name}` (no confirmation) returns 400
+- [x] `DatasetDeletedEvent` published to Kafka
+- [x] All branches deleted from `BranchRepository`
+- [x] All commits deleted from `CommitRepository`
+- [x] Cache cleared from `DatasetService`
+- [x] Kafka topic deleted (if requested and allowed)
+- [x] All tests pass (884 tests)
+- [x] OpenAPI documentation added
+
+**Note:** No dataset protection implemented - all datasets (including "default") can be deleted
+with explicit confirmation.
 
 ---
 

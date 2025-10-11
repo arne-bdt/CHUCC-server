@@ -61,11 +61,6 @@ public class DatasetController {
       content = @Content(mediaType = "application/problem+json")
   )
   @ApiResponse(
-      responseCode = "403",
-      description = "Cannot delete protected dataset (default)",
-      content = @Content(mediaType = "application/problem+json")
-  )
-  @ApiResponse(
       responseCode = "404",
       description = "Dataset not found",
       content = @Content(mediaType = "application/problem+json")

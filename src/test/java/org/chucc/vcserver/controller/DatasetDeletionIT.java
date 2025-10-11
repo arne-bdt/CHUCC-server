@@ -42,7 +42,6 @@ import org.testcontainers.kafka.KafkaContainer;
  * <ul>
  *   <li>Deletes datasets with confirmation (204 No Content)
  *   <li>Requires explicit confirmation (400 Bad Request)
- *   <li>Protects default dataset from deletion (403 Forbidden)
  *   <li>Returns 404 for non-existent datasets
  *   <li>Publishes DatasetDeletedEvent to Kafka
  *   <li>Projects deletion to repositories (branches, commits)
@@ -199,26 +198,6 @@ class DatasetDeletionIT {
 
     // Verify dataset still exists
     assertThat(branchRepository.findAllByDataset(TEST_DATASET)).hasSize(1);
-  }
-
-  /**
-   * Test that DELETE on default dataset returns 403 Forbidden.
-   */
-  @Test
-  void deleteDataset_defaultDataset_shouldReturn403() {
-    // When - Try to delete default dataset
-    HttpHeaders headers = new HttpHeaders();
-    headers.set("X-Author", "test-admin");
-
-    ResponseEntity<String> response = restTemplate.exchange(
-        "/version/datasets/default?confirmed=true",
-        HttpMethod.DELETE,
-        new HttpEntity<>(headers),
-        String.class
-    );
-
-    // Then - Verify HTTP response is 403 Forbidden
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
   }
 
   /**

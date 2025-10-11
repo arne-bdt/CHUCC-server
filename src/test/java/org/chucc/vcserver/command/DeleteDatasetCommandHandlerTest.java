@@ -13,7 +13,6 @@ import org.chucc.vcserver.event.DatasetDeletedEvent;
 import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.exception.DatasetNotFoundException;
-import org.chucc.vcserver.exception.ProtectedDatasetException;
 import org.chucc.vcserver.exception.UnconfirmedDeletionException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
@@ -132,23 +131,6 @@ class DeleteDatasetCommandHandlerTest {
 
     assertEquals("Dataset deletion requires explicit confirmation (confirmed=true)",
         exception.getMessage());
-  }
-
-  @Test
-  void shouldRejectDeletionOfDefaultDataset() {
-    // Given
-    DeleteDatasetCommand command = new DeleteDatasetCommand(
-        "default",
-        "admin",
-        false,
-        true);
-
-    // When/Then
-    ProtectedDatasetException exception = assertThrows(
-        ProtectedDatasetException.class,
-        () -> handler.handle(command));
-
-    assertEquals("Cannot delete default dataset", exception.getMessage());
   }
 
   @Test

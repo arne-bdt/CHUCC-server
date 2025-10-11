@@ -14,7 +14,6 @@ import org.chucc.vcserver.event.DatasetDeletedEvent;
 import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.exception.DatasetNotFoundException;
-import org.chucc.vcserver.exception.ProtectedDatasetException;
 import org.chucc.vcserver.exception.UnconfirmedDeletionException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
@@ -31,7 +30,6 @@ import org.springframework.stereotype.Component;
 @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class DeleteDatasetCommandHandler implements CommandHandler<DeleteDatasetCommand> {
   private static final Logger logger = LoggerFactory.getLogger(DeleteDatasetCommandHandler.class);
-  private static final String PROTECTED_DATASET = "default";
 
   private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
@@ -79,22 +77,17 @@ public class DeleteDatasetCommandHandler implements CommandHandler<DeleteDataset
           "Dataset deletion requires explicit confirmation (confirmed=true)");
     }
 
-    // 2. Protect system dataset
-    if (PROTECTED_DATASET.equals(command.dataset())) {
-      throw new ProtectedDatasetException("Cannot delete default dataset");
-    }
-
-    // 3. Check if dataset exists (has branches)
+    // 2. Check if dataset exists (has branches)
     List<Branch> branches = branchRepository.findAllByDataset(command.dataset());
     if (branches.isEmpty()) {
       throw new DatasetNotFoundException(
           "Dataset not found or already empty: " + command.dataset());
     }
 
-    // 4. Count commits for audit
+    // 3. Count commits for audit
     int commitCount = commitRepository.findAllByDataset(command.dataset()).size();
 
-    // 5. Create event BEFORE deletion (for audit trail)
+    // 4. Create event BEFORE deletion (for audit trail)
     DatasetDeletedEvent event = new DatasetDeletedEvent(
         command.dataset(),
         command.author(),
@@ -104,7 +97,7 @@ public class DeleteDatasetCommandHandler implements CommandHandler<DeleteDataset
         command.deleteKafkaTopic()
     );
 
-    // 6. Publish event (async)
+    // 5. Publish event (async)
     eventPublisher.publish(event)
         .exceptionally(ex -> {
           logger.error("Failed to publish event {}: {}",
@@ -112,7 +105,7 @@ public class DeleteDatasetCommandHandler implements CommandHandler<DeleteDataset
           return null;
         });
 
-    // 7. Optionally delete Kafka topic (destructive!)
+    // 6. Optionally delete Kafka topic (destructive!)
     if (command.deleteKafkaTopic() && vcProperties.isAllowKafkaTopicDeletion()) {
       deleteKafkaTopic(command.dataset());
     } else if (command.deleteKafkaTopic()) {

@@ -1,9 +1,11 @@
 package org.chucc.vcserver.service;
 
+import org.chucc.vcserver.config.KafkaProperties;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.repository.BranchRepository;
+import org.chucc.vcserver.repository.CommitRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,10 +28,16 @@ class SnapshotServiceTest {
   private BranchRepository branchRepository;
 
   @Mock
+  private CommitRepository commitRepository;
+
+  @Mock
   private EventPublisher eventPublisher;
 
   @Mock
   private VersionControlProperties vcProperties;
+
+  @Mock
+  private KafkaProperties kafkaProperties;
 
   private SnapshotService snapshotService;
 
@@ -41,8 +49,10 @@ class SnapshotServiceTest {
     snapshotService = new SnapshotService(
         datasetService,
         branchRepository,
+        commitRepository,
         eventPublisher,
-        vcProperties
+        vcProperties,
+        kafkaProperties
     );
   }
 

@@ -18,7 +18,6 @@ import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
-import org.chucc.vcserver.domain.Snapshot;
 import org.chucc.vcserver.event.BatchGraphsCompletedEvent;
 import org.chucc.vcserver.event.BranchCreatedEvent;
 import org.chucc.vcserver.event.BranchDeletedEvent;
@@ -390,9 +389,9 @@ public class ReadModelProjector {
   }
 
   /**
-   * Handles SnapshotCreatedEvent by parsing the N-Quads and storing the snapshot.
-   * Snapshots are used to speed up recovery by loading a checkpoint instead of
-   * replaying all events from the beginning.
+   * Handles SnapshotCreatedEvent by caching the materialized graph.
+   * Snapshots are stored in Kafka and queried on-demand (not kept in memory).
+   * However, we cache the materialized graph in DatasetService for performance.
    *
    * @param event the snapshot created event
    */
@@ -404,19 +403,9 @@ public class ReadModelProjector {
       // Parse N-Quads into DatasetGraph
       DatasetGraph graph = parseNquads(event.nquads());
 
-      // Create Snapshot domain object
-      Snapshot snapshot = new Snapshot(
-          CommitId.of(event.commitId()),
-          event.branchName(),
-          event.timestamp(),
-          graph
-      );
-
-      // Store in SnapshotService
-      snapshotService.storeSnapshot(event.dataset(), snapshot);
-
       // Cache the materialized graph in DatasetService
       // This allows the system to use the snapshot as a base for building later commits
+      // Note: Snapshot metadata is stored in Kafka and queried on-demand
       datasetService.cacheDatasetGraph(
           event.dataset(),
           CommitId.of(event.commitId()),
@@ -436,13 +425,13 @@ public class ReadModelProjector {
         quadCount++;
       }
 
-      logger.info("Loaded snapshot for {}/{} at commit {} ({} quads cached)",
+      logger.info("Cached snapshot graph for {}/{} at commit {} ({} quads)",
           event.dataset(), event.branchName(), event.commitId(), quadCount);
     } catch (Exception e) {
-      logger.error("Failed to load snapshot for {}/{} at commit {}",
+      logger.error("Failed to cache snapshot for {}/{} at commit {}",
           event.dataset(), event.branchName(), event.commitId(), e);
       // Don't rethrow - snapshot failures shouldn't break event processing
-      // System will fall back to full replay
+      // System will fall back to querying Kafka on-demand
     }
   }
 

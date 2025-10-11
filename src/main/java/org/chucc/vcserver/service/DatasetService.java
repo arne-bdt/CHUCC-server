@@ -6,12 +6,9 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
@@ -252,80 +249,23 @@ public class DatasetService {
 
   /**
    * Finds the nearest snapshot at or before the target commit.
-   * Efficiently checks each snapshot to see if it's an ancestor of the target,
-   * without building the entire commit history.
+   * Queries Kafka to find the best snapshot that is an ancestor of the target commit.
    *
    * @param datasetName the dataset name
    * @param targetCommit the target commit ID
    * @return Optional containing the nearest snapshot, or empty if none found
    */
   private Optional<Snapshot> findNearestSnapshot(String datasetName, CommitId targetCommit) {
-    // Get all snapshots for this dataset
-    Map<String, Snapshot> branchSnapshots = snapshotService.getAllSnapshots(datasetName);
+    // Query SnapshotService to find best snapshot from Kafka
+    Optional<SnapshotService.SnapshotInfo> snapshotInfo =
+        snapshotService.findBestSnapshot(datasetName, targetCommit);
 
-    if (branchSnapshots.isEmpty()) {
+    if (snapshotInfo.isEmpty()) {
       return Optional.empty();
     }
 
-    // Find latest snapshot that's an ancestor of targetCommit
-    return branchSnapshots.values().stream()
-        .filter(snapshot -> isAncestor(datasetName, targetCommit, snapshot.commitId()))
-        .max(Comparator.comparing(Snapshot::timestamp));
-  }
-
-  /**
-   * Checks if ancestorCandidate is an ancestor of (or equal to) descendant.
-   * Efficiently walks back from descendant until finding ancestorCandidate or reaching root.
-   *
-   * @param datasetName the dataset name
-   * @param descendant the descendant commit ID
-   * @param ancestorCandidate the potential ancestor commit ID
-   * @return true if ancestorCandidate is an ancestor of descendant
-   */
-  private boolean isAncestor(String datasetName, CommitId descendant, CommitId ancestorCandidate) {
-    if (descendant.equals(ancestorCandidate)) {
-      return true;  // Same commit
-    }
-
-    Set<CommitId> visited = new LinkedHashSet<>();
-    return checkAncestor(datasetName, descendant, ancestorCandidate, visited);
-  }
-
-  /**
-   * Recursively checks if a commit is an ancestor.
-   * Includes cycle detection.
-   *
-   * @param datasetName the dataset name
-   * @param current the current commit being checked
-   * @param target the target ancestor commit
-   * @param visited set of already visited commits
-   * @return true if target is found in the ancestry
-   */
-  private boolean checkAncestor(String datasetName, CommitId current, CommitId target,
-      Set<CommitId> visited) {
-    if (current.equals(target)) {
-      return true;
-    }
-
-    if (visited.contains(current)) {
-      return false;  // Already checked this path
-    }
-
-    visited.add(current);
-
-    Commit commit = commitRepository.findByDatasetAndId(datasetName, current).orElse(null);
-    if (commit == null) {
-      return false;
-    }
-
-    // Check all parent paths
-    for (CommitId parent : commit.parents()) {
-      if (checkAncestor(datasetName, parent, target, visited)) {
-        return true;
-      }
-    }
-
-    return false;
+    // Fetch the actual snapshot data from Kafka (only if we need it)
+    return Optional.of(snapshotService.fetchSnapshot(snapshotInfo.get()));
   }
 
   /**

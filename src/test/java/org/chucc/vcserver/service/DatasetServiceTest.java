@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
+import org.chucc.vcserver.config.KafkaProperties;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
@@ -35,14 +36,17 @@ class DatasetServiceTest {
 
     // Create SnapshotService with mocked dependencies
     EventPublisher eventPublisher = Mockito.mock(EventPublisher.class);
+    KafkaProperties kafkaProperties = Mockito.mock(KafkaProperties.class);
     VersionControlProperties vcProperties = new VersionControlProperties();
     vcProperties.setSnapshotsEnabled(false); // Disable snapshots for basic tests
 
     snapshotService = new SnapshotService(
         null, // DatasetService will be set later if needed
         branchRepository,
+        commitRepository,
         eventPublisher,
-        vcProperties
+        vcProperties,
+        kafkaProperties
     );
 
     // Use SimpleMeterRegistry for testing - provides metrics without external dependencies

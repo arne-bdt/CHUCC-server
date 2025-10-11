@@ -87,17 +87,31 @@ public class DeleteDatasetCommandHandler implements CommandHandler<DeleteDataset
     // 3. Count commits for audit
     int commitCount = commitRepository.findAllByDataset(command.dataset()).size();
 
-    // 4. Create event BEFORE deletion (for audit trail)
+    // 4. Determine if we should attempt topic deletion
+    boolean shouldAttemptDeletion = command.deleteKafkaTopic()
+        && vcProperties.isAllowKafkaTopicDeletion();
+
+    if (command.deleteKafkaTopic() && !vcProperties.isAllowKafkaTopicDeletion()) {
+      logger.warn("Kafka topic deletion requested but not allowed by configuration");
+    }
+
+    // 5. Attempt deletion and record actual outcome
+    boolean actuallyDeleted = false;
+    if (shouldAttemptDeletion) {
+      actuallyDeleted = deleteKafkaTopic(command.dataset());
+    }
+
+    // 6. Create event with ACTUAL outcome (what really happened)
     DatasetDeletedEvent event = new DatasetDeletedEvent(
         command.dataset(),
         command.author(),
         Instant.now(),
         branches.stream().map(Branch::getName).toList(),
         commitCount,
-        command.deleteKafkaTopic()
+        actuallyDeleted
     );
 
-    // 5. Publish event (async)
+    // 7. Publish event (async)
     eventPublisher.publish(event)
         .exceptionally(ex -> {
           logger.error("Failed to publish event {}: {}",
@@ -105,15 +119,8 @@ public class DeleteDatasetCommandHandler implements CommandHandler<DeleteDataset
           return null;
         });
 
-    // 6. Optionally delete Kafka topic (destructive!)
-    if (command.deleteKafkaTopic() && vcProperties.isAllowKafkaTopicDeletion()) {
-      deleteKafkaTopic(command.dataset());
-    } else if (command.deleteKafkaTopic()) {
-      logger.warn("Kafka topic deletion requested but not allowed by configuration");
-    }
-
     logger.warn("Dataset {} deleted: {} branches, {} commits, Kafka topic deleted: {}",
-        command.dataset(), branches.size(), commitCount, command.deleteKafkaTopic());
+        command.dataset(), branches.size(), commitCount, actuallyDeleted);
 
     return event;
   }
@@ -123,8 +130,9 @@ public class DeleteDatasetCommandHandler implements CommandHandler<DeleteDataset
    * This is destructive and irreversible!
    *
    * @param dataset the dataset name
+   * @return true if deletion succeeded, false if it failed
    */
-  private void deleteKafkaTopic(String dataset) {
+  private boolean deleteKafkaTopic(String dataset) {
     String topicName = kafkaProperties.getTopicName(dataset);
 
     try {
@@ -136,16 +144,21 @@ public class DeleteDatasetCommandHandler implements CommandHandler<DeleteDataset
         result.all().get();  // Wait for deletion to complete
 
         logger.warn("Kafka topic deleted: {}", topicName);
+        return true;
       } finally {
         adminClient.close();
       }
     } catch (InterruptedException e) {
-      logger.error("Failed to delete Kafka topic: {}", topicName, e);
+      logger.warn("Failed to delete Kafka topic: {} - {}", topicName, e.getMessage());
       Thread.currentThread().interrupt();
-      // Don't throw - deletion already recorded in event
+      return false;
     } catch (ExecutionException e) {
-      logger.error("Failed to delete Kafka topic: {}", topicName, e);
-      // Don't throw - deletion already recorded in event
+      logger.warn("Failed to delete Kafka topic: {} - {}", topicName, e.getMessage());
+      return false;
+    } catch (Exception e) {
+      logger.warn("Failed to create Kafka admin client or delete topic: {} - {}",
+          topicName, e.getMessage());
+      return false;
     }
   }
 }

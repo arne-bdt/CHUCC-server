@@ -154,7 +154,7 @@ class DeleteDatasetCommandHandlerTest {
   }
 
   @Test
-  void shouldAllowDeletionWithKafkaTopicFlag() {
+  void shouldNotDeleteKafkaTopicWhenConfigDisallows() {
     // Given
     String dataset = "test-dataset";
     CommitId commitId = CommitId.of("12345678-1234-1234-1234-123456789abc");
@@ -171,7 +171,7 @@ class DeleteDatasetCommandHandlerTest {
     when(commitRepository.findAllByDataset(dataset))
         .thenReturn(Collections.emptyList());
     when(vcProperties.isAllowKafkaTopicDeletion())
-        .thenReturn(false);  // But config doesn't allow it
+        .thenReturn(false);  // Config doesn't allow it
 
     // When
     VersionControlEvent event = handler.handle(command);
@@ -179,7 +179,7 @@ class DeleteDatasetCommandHandlerTest {
     // Then
     assertNotNull(event);
     DatasetDeletedEvent deletedEvent = (DatasetDeletedEvent) event;
-    assertTrue(deletedEvent.kafkaTopicDeleted());  // Flag is recorded in event
+    assertFalse(deletedEvent.kafkaTopicDeleted());  // Topic NOT deleted (config prevented it)
     assertEquals(dataset, deletedEvent.dataset());
     assertEquals("admin", deletedEvent.author());
   }

@@ -34,7 +34,11 @@
     <logger name="org.zalando.problem.spring.common.AdviceTraits" level="ERROR"/>
     <logger name="org.apache.jena.riot" level="OFF"/>
 
-    <!-- Keep application logs visible -->
+    <!-- Suppress INFO/WARN from command handlers in unit tests -->
+    <logger name="org.chucc.vcserver.command.DeleteBranchCommandHandler" level="ERROR"/>
+    <logger name="org.chucc.vcserver.command.DeleteDatasetCommandHandler" level="ERROR"/>
+
+    <!-- Keep application logs visible at DEBUG level for integration tests -->
     <logger name="org.chucc" level="DEBUG"/>
 
     <root level="INFO">

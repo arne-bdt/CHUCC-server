@@ -4,13 +4,21 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import java.io.ByteArrayInputStream;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.sparql.core.DatasetGraph;
+import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.domain.Snapshot;
 import org.chucc.vcserver.event.BatchGraphsCompletedEvent;
 import org.chucc.vcserver.event.BranchCreatedEvent;
 import org.chucc.vcserver.event.BranchDeletedEvent;
@@ -50,6 +58,9 @@ public class ReadModelProjector {
   private final CommitRepository commitRepository;
   private final DatasetService datasetService;
   private final SnapshotService snapshotService;
+
+  // Track snapshot checkpoints per (dataset, branch) to skip earlier events during recovery
+  private final Map<String, Map<String, CommitId>> snapshotCheckpoints = new ConcurrentHashMap<>();
 
   /**
    * Constructs a ReadModelProjector.
@@ -379,8 +390,8 @@ public class ReadModelProjector {
   }
 
   /**
-   * Handles SnapshotCreatedEvent (currently logs only, can be extended for snapshot recovery).
-   * Snapshots can be used to speed up recovery by loading a checkpoint instead of
+   * Handles SnapshotCreatedEvent by parsing the N-Quads and storing the snapshot.
+   * Snapshots are used to speed up recovery by loading a checkpoint instead of
    * replaying all events from the beginning.
    *
    * @param event the snapshot created event
@@ -389,10 +400,64 @@ public class ReadModelProjector {
     logger.debug("Processing SnapshotCreatedEvent: branchName={}, commitId={}, dataset={}",
         event.branchName(), event.commitId(), event.dataset());
 
-    // Snapshot handling can be implemented for faster recovery
-    // For now, we just log that a snapshot was created
-    logger.info("Snapshot created for branch: {} at commit: {} in dataset: {}",
-        event.branchName(), event.commitId(), event.dataset());
+    try {
+      // Parse N-Quads into DatasetGraph
+      DatasetGraph graph = parseNquads(event.nquads());
+
+      // Create Snapshot domain object
+      Snapshot snapshot = new Snapshot(
+          CommitId.of(event.commitId()),
+          event.branchName(),
+          event.timestamp(),
+          graph
+      );
+
+      // Store in SnapshotService
+      snapshotService.storeSnapshot(event.dataset(), snapshot);
+
+      // Cache the materialized graph in DatasetService
+      // This allows the system to use the snapshot as a base for building later commits
+      datasetService.cacheDatasetGraph(
+          event.dataset(),
+          CommitId.of(event.commitId()),
+          graph
+      );
+
+      // Set checkpoint to skip earlier events during recovery
+      snapshotCheckpoints
+          .computeIfAbsent(event.dataset(), k -> new ConcurrentHashMap<>())
+          .put(event.branchName(), CommitId.of(event.commitId()));
+
+      // Count quads for logging
+      long quadCount = 0;
+      java.util.Iterator<org.apache.jena.sparql.core.Quad> quadIter = graph.find();
+      while (quadIter.hasNext()) {
+        quadIter.next();
+        quadCount++;
+      }
+
+      logger.info("Loaded snapshot for {}/{} at commit {} ({} quads cached)",
+          event.dataset(), event.branchName(), event.commitId(), quadCount);
+    } catch (Exception e) {
+      logger.error("Failed to load snapshot for {}/{} at commit {}",
+          event.dataset(), event.branchName(), event.commitId(), e);
+      // Don't rethrow - snapshot failures shouldn't break event processing
+      // System will fall back to full replay
+    }
+  }
+
+  /**
+   * Parses N-Quads string into a DatasetGraph.
+   *
+   * @param nquads the N-Quads string
+   * @return the parsed DatasetGraph
+   */
+  private DatasetGraph parseNquads(String nquads) {
+    DatasetGraphInMemory datasetGraph = new DatasetGraphInMemory();
+    try (StringReader reader = new StringReader(nquads)) {
+      RDFDataMgr.read(datasetGraph, reader, null, Lang.NQUADS);
+    }
+    return datasetGraph;
   }
 
   /**

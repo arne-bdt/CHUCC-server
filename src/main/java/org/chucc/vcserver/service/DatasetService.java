@@ -210,15 +210,27 @@ public class DatasetService {
 
   /**
    * Caches a dataset graph for a specific commit.
+   * This method can be used to store pre-materialized graphs (e.g., from snapshots)
+   * to avoid rebuilding them from patches.
    *
    * @param datasetName the dataset name
    * @param commitId the commit ID
    * @param datasetGraph the dataset graph to cache
    */
-  private void cacheDatasetGraph(String datasetName, CommitId commitId,
-                                   DatasetGraphInMemory datasetGraph) {
+  public void cacheDatasetGraph(String datasetName, CommitId commitId,
+                                  DatasetGraph datasetGraph) {
+    // Convert to DatasetGraphInMemory if needed
+    DatasetGraphInMemory memGraph;
+    if (datasetGraph instanceof DatasetGraphInMemory) {
+      memGraph = (DatasetGraphInMemory) datasetGraph;
+    } else {
+      // Copy to in-memory graph
+      memGraph = new DatasetGraphInMemory();
+      datasetGraph.find().forEachRemaining(memGraph::add);
+    }
+
     datasetCache.computeIfAbsent(datasetName, k -> new ConcurrentHashMap<>())
-        .put(commitId, datasetGraph);
+        .put(commitId, memGraph);
   }
 
   /**

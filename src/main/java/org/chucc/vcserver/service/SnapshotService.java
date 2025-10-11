@@ -4,6 +4,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.StringWriter;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.jena.query.Dataset;
@@ -13,6 +14,7 @@ import org.apache.jena.sparql.core.DatasetGraph;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.domain.DatasetRef;
+import org.chucc.vcserver.domain.Snapshot;
 import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.SnapshotCreatedEvent;
 import org.chucc.vcserver.repository.BranchRepository;
@@ -38,6 +40,9 @@ public class SnapshotService {
 
   // Track commit counts per (dataset, branch) for snapshot triggering
   private final Map<String, Map<String, AtomicLong>> commitCounters = new ConcurrentHashMap<>();
+
+  // Store latest snapshots per (dataset, branch) for recovery
+  private final Map<String, Map<String, Snapshot>> latestSnapshots = new ConcurrentHashMap<>();
 
   /**
    * Constructs a SnapshotService.
@@ -190,6 +195,35 @@ public class SnapshotService {
    */
   public void clearSnapshotsForDataset(String datasetName) {
     commitCounters.remove(datasetName);
+    latestSnapshots.remove(datasetName);
     logger.debug("Cleared snapshots for dataset: {}", datasetName);
+  }
+
+  /**
+   * Stores a snapshot for a specific dataset and branch.
+   * Only the latest snapshot per branch is retained.
+   *
+   * @param datasetName the dataset name
+   * @param snapshot the snapshot to store
+   */
+  public void storeSnapshot(String datasetName, Snapshot snapshot) {
+    latestSnapshots
+        .computeIfAbsent(datasetName, k -> new ConcurrentHashMap<>())
+        .put(snapshot.branchName(), snapshot);
+
+    logger.debug("Stored snapshot for {}/{} at commit {}",
+        datasetName, snapshot.branchName(), snapshot.commitId());
+  }
+
+  /**
+   * Gets the latest snapshot for a specific dataset and branch.
+   *
+   * @param datasetName the dataset name
+   * @param branchName the branch name
+   * @return Optional containing the snapshot if one exists
+   */
+  public Optional<Snapshot> getLatestSnapshot(String datasetName, String branchName) {
+    return Optional.ofNullable(latestSnapshots.get(datasetName))
+        .map(branches -> branches.get(branchName));
   }
 }

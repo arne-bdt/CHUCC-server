@@ -6,6 +6,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.chucc.vcserver.config.KafkaProperties;
+import org.chucc.vcserver.domain.CommitId;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -57,10 +58,11 @@ class EventPublisherKafkaIT {
   void testPublishBranchCreatedEventToKafka() throws Exception {
     // Given
     String datasetId = "test-dataset-" + System.currentTimeMillis();
+    String commitId = CommitId.generate().value();
     BranchCreatedEvent event = new BranchCreatedEvent(
         datasetId,
         "feature-branch",
-        "commit-abc-123",
+        commitId,
         Instant.now()
     );
 
@@ -90,14 +92,14 @@ class EventPublisherKafkaIT {
       assertHeaderExists(record, EventHeaders.DATASET, datasetId);
       assertHeaderExists(record, EventHeaders.EVENT_TYPE, "BranchCreated");
       assertHeaderExists(record, EventHeaders.BRANCH, "feature-branch");
-      assertHeaderExists(record, EventHeaders.COMMIT_ID, "commit-abc-123");
+      assertHeaderExists(record, EventHeaders.COMMIT_ID, commitId);
 
       // Verify JSON payload
       String json = record.value();
       assertTrue(json.contains("\"eventType\":\"BranchCreated\""));
       assertTrue(json.contains("\"branchName\":\"feature-branch\""));
       assertTrue(json.contains("\"dataset\":\"" + datasetId + "\""));
-      assertTrue(json.contains("\"commitId\":\"commit-abc-123\""));
+      assertTrue(json.contains("\"commitId\":\"" + commitId + "\""));
     }
   }
 
@@ -105,14 +107,16 @@ class EventPublisherKafkaIT {
   void testPublishCommitCreatedEventToKafka() throws Exception {
     // Given
     String datasetId = "test-dataset-" + System.currentTimeMillis();
+    String commitId = CommitId.generate().value();
+    String parentId = CommitId.generate().value();
     CommitCreatedEvent event = new CommitCreatedEvent(
         datasetId,
-        "commit-456",
-        List.of("parent-1"), null,
+        commitId,
+        List.of(parentId), null,
         "Add new feature",
         "Bob <bob@example.com>",
         Instant.now(),
-        "H 2 .\nA <urn:subject> <urn:predicate> \"object\" .\n"
+        "TX .\nA <urn:subject> <urn:predicate> \"object\" .\nTC .\n"
     );
 
     String topicName = kafkaProperties.getTopicName(datasetId);
@@ -139,14 +143,14 @@ class EventPublisherKafkaIT {
 
       // Verify headers
       assertHeaderExists(record, EventHeaders.EVENT_TYPE, "CommitCreated");
-      assertHeaderExists(record, EventHeaders.COMMIT_ID, "commit-456");
+      assertHeaderExists(record, EventHeaders.COMMIT_ID, commitId);
       assertHeaderExists(record, EventHeaders.CONTENT_TYPE,
           "text/rdf-patch; charset=utf-8");
 
       // Verify JSON payload
       String json = record.value();
       assertTrue(json.contains("\"eventType\":\"CommitCreated\""));
-      assertTrue(json.contains("\"commitId\":\"commit-456\""));
+      assertTrue(json.contains("\"commitId\":\"" + commitId + "\""));
       assertTrue(json.contains("\"message\":\"Add new feature\""));
       assertTrue(json.contains("\"author\":\"Bob <bob@example.com>\""));
       assertTrue(json.contains("\"rdfPatch\""), "JSON should contain rdfPatch field");
@@ -157,10 +161,11 @@ class EventPublisherKafkaIT {
   void testPublishTagCreatedEvent() throws Exception {
     // Given
     String datasetId = "test-dataset-" + System.currentTimeMillis();
+    String commitId = CommitId.generate().value();
     TagCreatedEvent event = new TagCreatedEvent(
         datasetId,
         "v2.0.0",
-        "commit-789",
+        commitId,
         Instant.now()
     );
 
@@ -186,13 +191,13 @@ class EventPublisherKafkaIT {
 
       // Verify headers
       assertHeaderExists(record, EventHeaders.EVENT_TYPE, "TagCreated");
-      assertHeaderExists(record, EventHeaders.COMMIT_ID, "commit-789");
+      assertHeaderExists(record, EventHeaders.COMMIT_ID, commitId);
 
       // Verify JSON payload
       String json = record.value();
       assertTrue(json.contains("\"eventType\":\"TagCreated\""));
       assertTrue(json.contains("\"tagName\":\"v2.0.0\""));
-      assertTrue(json.contains("\"commitId\":\"commit-789\""));
+      assertTrue(json.contains("\"commitId\":\"" + commitId + "\""));
     }
   }
 
@@ -202,17 +207,20 @@ class EventPublisherKafkaIT {
     String datasetId = "test-dataset-" + System.currentTimeMillis();
     String topicName = kafkaProperties.getTopicName(datasetId);
 
+    String commitId1 = CommitId.generate().value();
+    String commitId2 = CommitId.generate().value();
+
     BranchCreatedEvent event1 = new BranchCreatedEvent(
         datasetId,
         "branch-1",
-        "commit-1",
+        commitId1,
         Instant.now()
     );
 
     BranchCreatedEvent event2 = new BranchCreatedEvent(
         datasetId,
         "branch-2",
-        "commit-2",
+        commitId2,
         Instant.now()
     );
 

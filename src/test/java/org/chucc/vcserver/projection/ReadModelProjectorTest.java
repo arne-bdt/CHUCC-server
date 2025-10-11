@@ -9,6 +9,7 @@ import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SnapshotService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,13 +41,17 @@ class ReadModelProjectorTest {
   private CommitRepository commitRepository;
 
   @Mock
+  private DatasetService datasetService;
+
+  @Mock
   private SnapshotService snapshotService;
 
   private ReadModelProjector projector;
 
   @BeforeEach
   void setUp() {
-    projector = new ReadModelProjector(branchRepository, commitRepository, snapshotService);
+    projector = new ReadModelProjector(branchRepository, commitRepository, datasetService,
+        snapshotService);
   }
 
   @Test

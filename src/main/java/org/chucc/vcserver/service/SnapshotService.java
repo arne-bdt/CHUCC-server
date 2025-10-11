@@ -181,4 +181,15 @@ public class SnapshotService {
     commitCounters.clear();
     logger.debug("Cleared all commit counters");
   }
+
+  /**
+   * Clears all snapshots and commit counters for a specific dataset.
+   * Useful when deleting a dataset.
+   *
+   * @param datasetName the dataset name
+   */
+  public void clearSnapshotsForDataset(String datasetName) {
+    commitCounters.remove(datasetName);
+    logger.debug("Cleared snapshots for dataset: {}", datasetName);
+  }
 }

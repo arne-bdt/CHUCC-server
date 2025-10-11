@@ -112,6 +112,12 @@ public class VersionControlProperties {
   private int snapshotInterval = 100;
 
   /**
+   * Whether to allow Kafka topic deletion when deleting datasets.
+   * Default is false (keep topics for audit trail).
+   */
+  private boolean allowKafkaTopicDeletion = false;
+
+  /**
    * Gets the conformance level.
    *
    * @return conformance level (1 or 2)
@@ -305,5 +311,23 @@ public class VersionControlProperties {
    */
   public void setTagDeletionAllowed(boolean tagDeletionAllowed) {
     this.tagDeletionAllowed = tagDeletionAllowed;
+  }
+
+  /**
+   * Checks if Kafka topic deletion is allowed.
+   *
+   * @return true if Kafka topic deletion is allowed
+   */
+  public boolean isAllowKafkaTopicDeletion() {
+    return allowKafkaTopicDeletion;
+  }
+
+  /**
+   * Sets whether Kafka topic deletion is allowed.
+   *
+   * @param allowKafkaTopicDeletion true to allow Kafka topic deletion
+   */
+  public void setAllowKafkaTopicDeletion(boolean allowKafkaTopicDeletion) {
+    this.allowKafkaTopicDeletion = allowKafkaTopicDeletion;
   }
 }

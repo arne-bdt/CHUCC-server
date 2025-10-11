@@ -19,12 +19,14 @@ import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CherryPickedEvent;
 import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.event.CommitsSquashedEvent;
+import org.chucc.vcserver.event.DatasetDeletedEvent;
 import org.chucc.vcserver.event.RevertCreatedEvent;
 import org.chucc.vcserver.event.SnapshotCreatedEvent;
 import org.chucc.vcserver.event.TagCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SnapshotService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +48,7 @@ public class ReadModelProjector {
 
   private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
+  private final DatasetService datasetService;
   private final SnapshotService snapshotService;
 
   /**
@@ -53,6 +56,7 @@ public class ReadModelProjector {
    *
    * @param branchRepository the branch repository
    * @param commitRepository the commit repository
+   * @param datasetService the dataset service
    * @param snapshotService the snapshot service
    */
   @SuppressFBWarnings(
@@ -61,9 +65,11 @@ public class ReadModelProjector {
   public ReadModelProjector(
       BranchRepository branchRepository,
       CommitRepository commitRepository,
+      DatasetService datasetService,
       SnapshotService snapshotService) {
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
+    this.datasetService = datasetService;
     this.snapshotService = snapshotService;
   }
 
@@ -98,6 +104,7 @@ public class ReadModelProjector {
         case BranchResetEvent e -> handleBranchReset(e);
         case BranchRebasedEvent e -> handleBranchRebased(e);
         case BranchDeletedEvent e -> handleBranchDeleted(e);
+        case DatasetDeletedEvent e -> handleDatasetDeleted(e);
         case TagCreatedEvent e -> handleTagCreated(e);
         case RevertCreatedEvent e -> handleRevertCreated(e);
         case SnapshotCreatedEvent e -> handleSnapshotCreated(e);
@@ -241,6 +248,31 @@ public class ReadModelProjector {
               + "(event from different test/dataset)",
           event.branchName(), event.dataset());
     }
+  }
+
+  /**
+   * Handles DatasetDeletedEvent by clearing all in-memory data for the dataset.
+   *
+   * @param event the dataset deleted event
+   */
+  void handleDatasetDeleted(DatasetDeletedEvent event) {
+    logger.warn("Processing DatasetDeletedEvent: dataset={}, branches={}, commits={}",
+        event.dataset(), event.deletedBranches().size(), event.deletedCommitCount());
+
+    // 1. Delete all branches
+    branchRepository.deleteAllByDataset(event.dataset());
+
+    // 2. Delete all commits
+    commitRepository.deleteAllByDataset(event.dataset());
+
+    // 3. Clear dataset cache
+    datasetService.clearCache(event.dataset());
+
+    // 4. Clear snapshot cache
+    snapshotService.clearSnapshotsForDataset(event.dataset());
+
+    logger.warn("Dataset {} fully deleted from memory (Kafka topic deleted: {})",
+        event.dataset(), event.kafkaTopicDeleted());
   }
 
   /**

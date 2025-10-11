@@ -24,7 +24,8 @@ import java.time.Instant;
     @JsonSubTypes.Type(value = BranchRebasedEvent.class, name = "BranchRebased"),
     @JsonSubTypes.Type(value = CommitsSquashedEvent.class, name = "CommitsSquashed"),
     @JsonSubTypes.Type(value = BatchGraphsCompletedEvent.class, name = "BatchGraphsCompleted"),
-    @JsonSubTypes.Type(value = BranchDeletedEvent.class, name = "BranchDeleted")
+    @JsonSubTypes.Type(value = BranchDeletedEvent.class, name = "BranchDeleted"),
+    @JsonSubTypes.Type(value = DatasetDeletedEvent.class, name = "DatasetDeleted")
 })
 public sealed interface VersionControlEvent
     permits BranchCreatedEvent,
@@ -37,7 +38,8 @@ public sealed interface VersionControlEvent
         BranchRebasedEvent,
         CommitsSquashedEvent,
         BatchGraphsCompletedEvent,
-        BranchDeletedEvent {
+        BranchDeletedEvent,
+        DatasetDeletedEvent {
 
   /**
    * Gets the timestamp when this event occurred.

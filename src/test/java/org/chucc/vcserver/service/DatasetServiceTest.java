@@ -4,14 +4,17 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
+import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.domain.DatasetRef;
+import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -20,6 +23,7 @@ class DatasetServiceTest {
   private DatasetService service;
   private BranchRepository branchRepository;
   private CommitRepository commitRepository;
+  private SnapshotService snapshotService;
 
   private static final String DATASET_NAME = "test-dataset";
   private static final String AUTHOR = "test-author";
@@ -28,8 +32,22 @@ class DatasetServiceTest {
   void setUp() {
     branchRepository = new BranchRepository();
     commitRepository = new CommitRepository();
+
+    // Create SnapshotService with mocked dependencies
+    EventPublisher eventPublisher = Mockito.mock(EventPublisher.class);
+    VersionControlProperties vcProperties = new VersionControlProperties();
+    vcProperties.setSnapshotsEnabled(false); // Disable snapshots for basic tests
+
+    snapshotService = new SnapshotService(
+        null, // DatasetService will be set later if needed
+        branchRepository,
+        eventPublisher,
+        vcProperties
+    );
+
     // Use SimpleMeterRegistry for testing - provides metrics without external dependencies
-    service = new DatasetService(branchRepository, commitRepository, new SimpleMeterRegistry());
+    service = new DatasetService(branchRepository, commitRepository, snapshotService,
+        new SimpleMeterRegistry());
   }
 
   @Test

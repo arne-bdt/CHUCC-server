@@ -226,4 +226,15 @@ public class SnapshotService {
     return Optional.ofNullable(latestSnapshots.get(datasetName))
         .map(branches -> branches.get(branchName));
   }
+
+  /**
+   * Gets all snapshots for a dataset.
+   * Returns a map of branch names to their latest snapshots.
+   *
+   * @param datasetName the dataset name
+   * @return Map of branch names to snapshots, or empty map if no snapshots exist
+   */
+  public Map<String, Snapshot> getAllSnapshots(String datasetName) {
+    return latestSnapshots.getOrDefault(datasetName, Map.of());
+  }
 }

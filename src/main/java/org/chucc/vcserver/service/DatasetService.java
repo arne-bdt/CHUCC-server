@@ -4,7 +4,14 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.micrometer.core.annotation.Timed;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
@@ -16,9 +23,12 @@ import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.domain.DatasetRef;
+import org.chucc.vcserver.domain.Snapshot;
 import org.chucc.vcserver.exception.CommitNotFoundException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
@@ -31,9 +41,13 @@ import org.springframework.stereotype.Service;
  * until performance data indicates it's needed.
  */
 @Service
+@SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class DatasetService {
+  private static final Logger logger = LoggerFactory.getLogger(DatasetService.class);
+
   private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
+  private final SnapshotService snapshotService;
 
   // Cache of materialized dataset graphs per commit
   // Simple ConcurrentHashMap is sufficient for current needs
@@ -45,14 +59,17 @@ public class DatasetService {
    *
    * @param branchRepository the branch repository
    * @param commitRepository the commit repository
+   * @param snapshotService the snapshot service (lazily initialized to avoid circular dependency)
    * @param meterRegistry the meter registry for metrics
    */
   @SuppressFBWarnings(value = "EI_EXPOSE_REP2",
       justification = "Repositories are Spring-managed beans and are intentionally shared")
   public DatasetService(BranchRepository branchRepository, CommitRepository commitRepository,
+      @org.springframework.context.annotation.Lazy SnapshotService snapshotService,
       MeterRegistry meterRegistry) {
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
+    this.snapshotService = snapshotService;
 
     // Register cache size gauge for observability
     Gauge.builder("dataset.cache.size", datasetCache, Map::size)
@@ -100,7 +117,7 @@ public class DatasetService {
   public Branch createDataset(String datasetName, String author) {
     // Create initial empty commit
     Commit initialCommit = Commit.create(
-        java.util.List.of(),
+        List.of(),
         author,
         "Initial commit"
     );
@@ -164,7 +181,8 @@ public class DatasetService {
   }
 
   /**
-   * Builds a DatasetGraphInMemory by applying all patches from the commit history.
+   * Builds a DatasetGraphInMemory by applying patches from the commit history.
+   * Uses snapshots when available to speed up materialization.
    *
    * @param datasetName the dataset name
    * @param commitId the target commit ID
@@ -172,27 +190,51 @@ public class DatasetService {
    * @throws CommitNotFoundException if the commit is not found
    */
   private DatasetGraphInMemory buildDatasetGraph(String datasetName, CommitId commitId) {
-    DatasetGraphInMemory datasetGraph = new DatasetGraphInMemory();
+    // Try to find nearest snapshot
+    Optional<Snapshot> snapshotOpt = findNearestSnapshot(datasetName, commitId);
 
-    // Get the commit
-    Commit commit = commitRepository.findByDatasetAndId(datasetName, commitId)
+    DatasetGraphInMemory datasetGraph;
+    CommitId startCommit;
+
+    if (snapshotOpt.isPresent()) {
+      Snapshot snapshot = snapshotOpt.get();
+      logger.debug("Using snapshot at commit {} for dataset {} (target: {})",
+          snapshot.commitId(), datasetName, commitId);
+
+      // Clone snapshot graph as starting point
+      datasetGraph = cloneDatasetGraph(snapshot.graph());
+      startCommit = snapshot.commitId();
+
+      // If snapshot IS the target commit, we're done
+      if (snapshot.commitId().equals(commitId)) {
+        return datasetGraph;
+      }
+    } else {
+      logger.debug("No snapshot found for dataset {} at commit {}, building from scratch",
+          datasetName, commitId);
+      datasetGraph = new DatasetGraphInMemory();
+      startCommit = null;  // Start from beginning
+    }
+
+    // Apply patches from snapshot (or beginning) to target commit
+    Commit targetCommit = commitRepository.findByDatasetAndId(datasetName, commitId)
         .orElseThrow(() -> new CommitNotFoundException(
             "Commit not found: " + commitId + " in dataset: " + datasetName, true));
-
-    // Build the graph by applying patches from commit history
-    applyPatchHistory(datasetName, commit, datasetGraph);
+    applyPatchHistorySince(datasetName, targetCommit, datasetGraph, startCommit);
 
     return datasetGraph;
   }
 
   /**
    * Recursively applies patches from commit history to build the dataset state.
+   * This method is kept for potential future use and backward compatibility.
    *
    * @param datasetName the dataset name
    * @param commit the current commit
    * @param datasetGraph the dataset graph to apply patches to
    * @throws CommitNotFoundException if a parent commit is not found
    */
+  @SuppressWarnings("PMD.UnusedPrivateMethod") // Kept for potential future use
   private void applyPatchHistory(String datasetName, Commit commit,
                                    DatasetGraphInMemory datasetGraph) {
     // First, recursively process parent commits
@@ -206,6 +248,174 @@ public class DatasetService {
     // Then apply this commit's patch
     commitRepository.findPatchByDatasetAndId(datasetName, commit.id())
         .ifPresent(patch -> RDFPatchOps.applyChange(datasetGraph, patch));
+  }
+
+  /**
+   * Finds the nearest snapshot at or before the target commit.
+   * Efficiently checks each snapshot to see if it's an ancestor of the target,
+   * without building the entire commit history.
+   *
+   * @param datasetName the dataset name
+   * @param targetCommit the target commit ID
+   * @return Optional containing the nearest snapshot, or empty if none found
+   */
+  private Optional<Snapshot> findNearestSnapshot(String datasetName, CommitId targetCommit) {
+    // Get all snapshots for this dataset
+    Map<String, Snapshot> branchSnapshots = snapshotService.getAllSnapshots(datasetName);
+
+    if (branchSnapshots.isEmpty()) {
+      return Optional.empty();
+    }
+
+    // Find latest snapshot that's an ancestor of targetCommit
+    return branchSnapshots.values().stream()
+        .filter(snapshot -> isAncestor(datasetName, targetCommit, snapshot.commitId()))
+        .max(Comparator.comparing(Snapshot::timestamp));
+  }
+
+  /**
+   * Checks if ancestorCandidate is an ancestor of (or equal to) descendant.
+   * Efficiently walks back from descendant until finding ancestorCandidate or reaching root.
+   *
+   * @param datasetName the dataset name
+   * @param descendant the descendant commit ID
+   * @param ancestorCandidate the potential ancestor commit ID
+   * @return true if ancestorCandidate is an ancestor of descendant
+   */
+  private boolean isAncestor(String datasetName, CommitId descendant, CommitId ancestorCandidate) {
+    if (descendant.equals(ancestorCandidate)) {
+      return true;  // Same commit
+    }
+
+    Set<CommitId> visited = new LinkedHashSet<>();
+    return checkAncestor(datasetName, descendant, ancestorCandidate, visited);
+  }
+
+  /**
+   * Recursively checks if a commit is an ancestor.
+   * Includes cycle detection.
+   *
+   * @param datasetName the dataset name
+   * @param current the current commit being checked
+   * @param target the target ancestor commit
+   * @param visited set of already visited commits
+   * @return true if target is found in the ancestry
+   */
+  private boolean checkAncestor(String datasetName, CommitId current, CommitId target,
+      Set<CommitId> visited) {
+    if (current.equals(target)) {
+      return true;
+    }
+
+    if (visited.contains(current)) {
+      return false;  // Already checked this path
+    }
+
+    visited.add(current);
+
+    Commit commit = commitRepository.findByDatasetAndId(datasetName, current).orElse(null);
+    if (commit == null) {
+      return false;
+    }
+
+    // Check all parent paths
+    for (CommitId parent : commit.parents()) {
+      if (checkAncestor(datasetName, parent, target, visited)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Applies patches from a starting commit to target commit.
+   * If startCommit is null, applies from the beginning.
+   *
+   * @param datasetName the dataset name
+   * @param targetCommit the target commit
+   * @param datasetGraph the dataset graph to apply patches to
+   * @param startCommit the starting commit (exclusive), or null to start from beginning
+   */
+  private void applyPatchHistorySince(String datasetName, Commit targetCommit,
+      DatasetGraphInMemory datasetGraph, CommitId startCommit) {
+
+    // Get commit chain from startCommit to targetCommit
+    List<Commit> commits = getCommitChain(datasetName, targetCommit, startCommit);
+
+    // Apply patches in order
+    for (Commit commit : commits) {
+      commitRepository.findPatchByDatasetAndId(datasetName, commit.id())
+          .ifPresent(patch -> RDFPatchOps.applyChange(datasetGraph, patch));
+    }
+  }
+
+  /**
+   * Gets the chain of commits from startCommit (exclusive) to targetCommit (inclusive).
+   * Returns commits in chronological order (oldest first).
+   *
+   * @param datasetName the dataset name
+   * @param targetCommit the target commit
+   * @param startCommit the starting commit (exclusive), or null to include all ancestors
+   * @return List of commits in chronological order
+   */
+  private List<Commit> getCommitChain(String datasetName, Commit targetCommit,
+      CommitId startCommit) {
+    List<Commit> chain = new ArrayList<>();
+    collectCommitChain(datasetName, targetCommit, startCommit, chain);
+    Collections.reverse(chain);  // Oldest first
+    return chain;
+  }
+
+  /**
+   * Recursively collects the commit chain into a list.
+   * Stops when reaching the startCommit (which is not included).
+   *
+   * @param datasetName the dataset name
+   * @param current the current commit
+   * @param stopAt the commit ID to stop at (exclusive), or null to collect all
+   * @param chain the list to collect commits into
+   */
+  private void collectCommitChain(String datasetName, Commit current, CommitId stopAt,
+      List<Commit> chain) {
+    if (stopAt != null && stopAt.equals(current.id())) {
+      return;  // Reached snapshot commit (don't include it)
+    }
+
+    chain.add(current);
+
+    // Recursively process parents
+    for (CommitId parentId : current.parents()) {
+      Commit parent = commitRepository.findByDatasetAndId(datasetName, parentId).orElse(null);
+      if (parent != null) {
+        collectCommitChain(datasetName, parent, stopAt, chain);
+      }
+    }
+  }
+
+  /**
+   * Clones a DatasetGraph (deep copy).
+   * Creates a new in-memory dataset graph with all triples from the source.
+   *
+   * @param source the source dataset graph to clone
+   * @return a new DatasetGraphInMemory with all data copied from source
+   */
+  private DatasetGraphInMemory cloneDatasetGraph(DatasetGraph source) {
+    DatasetGraphInMemory clone = new DatasetGraphInMemory();
+
+    // Copy default graph
+    source.getDefaultGraph().find().forEachRemaining(triple -> {
+      clone.getDefaultGraph().add(triple);
+    });
+
+    // Copy named graphs
+    source.listGraphNodes().forEachRemaining(graphNode -> {
+      source.getGraph(graphNode).find().forEachRemaining(triple -> {
+        clone.getGraph(graphNode).add(triple);
+      });
+    });
+
+    return clone;
   }
 
   /**
@@ -319,7 +529,7 @@ public class DatasetService {
 
     while (currentCommitId != null) {
       // Get the patch for this commit
-      java.util.Optional<RDFPatch> patchOpt =
+      Optional<RDFPatch> patchOpt =
           commitRepository.findPatchByDatasetAndId(datasetName, currentCommitId);
 
       if (patchOpt.isPresent()) {
@@ -332,7 +542,7 @@ public class DatasetService {
       }
 
       // Move to parent commit
-      java.util.Optional<Commit> commitOpt =
+      Optional<Commit> commitOpt =
           commitRepository.findByDatasetAndId(datasetName, currentCommitId);
 
       if (commitOpt.isEmpty() || commitOpt.get().parents().isEmpty()) {

@@ -13,6 +13,7 @@ import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.BatchGraphsCompletedEvent;
 import org.chucc.vcserver.event.BranchCreatedEvent;
+import org.chucc.vcserver.event.BranchDeletedEvent;
 import org.chucc.vcserver.event.BranchRebasedEvent;
 import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CherryPickedEvent;
@@ -96,6 +97,7 @@ public class ReadModelProjector {
         case BranchCreatedEvent e -> handleBranchCreated(e);
         case BranchResetEvent e -> handleBranchReset(e);
         case BranchRebasedEvent e -> handleBranchRebased(e);
+        case BranchDeletedEvent e -> handleBranchDeleted(e);
         case TagCreatedEvent e -> handleTagCreated(e);
         case RevertCreatedEvent e -> handleRevertCreated(e);
         case SnapshotCreatedEvent e -> handleSnapshotCreated(e);
@@ -218,6 +220,27 @@ public class ReadModelProjector {
     // Trigger snapshot check after branch update
     snapshotService.recordCommit(event.dataset(), event.branchName(),
         CommitId.of(event.toCommitId()));
+  }
+
+  /**
+   * Handles BranchDeletedEvent by removing the branch from the repository.
+   *
+   * @param event the branch deleted event
+   */
+  void handleBranchDeleted(BranchDeletedEvent event) {
+    logger.debug("Processing BranchDeletedEvent: branchName={}, lastCommitId={}, dataset={}",
+        event.branchName(), event.lastCommitId(), event.dataset());
+
+    boolean deleted = branchRepository.delete(event.dataset(), event.branchName());
+
+    if (deleted) {
+      logger.info("Deleted branch: {} from dataset: {} (was at commit: {})",
+          event.branchName(), event.dataset(), event.lastCommitId());
+    } else {
+      logger.warn("Branch {} not found in dataset {} during deletion "
+              + "(event from different test/dataset)",
+          event.branchName(), event.dataset());
+    }
   }
 
   /**

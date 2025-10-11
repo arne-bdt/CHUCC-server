@@ -164,7 +164,12 @@ public class KafkaConfig {
         + "TagCreated:org.chucc.vcserver.event.TagCreatedEvent,"
         + "BranchReset:org.chucc.vcserver.event.BranchResetEvent,"
         + "RevertCreated:org.chucc.vcserver.event.RevertCreatedEvent,"
-        + "SnapshotCreated:org.chucc.vcserver.event.SnapshotCreatedEvent");
+        + "SnapshotCreated:org.chucc.vcserver.event.SnapshotCreatedEvent,"
+        + "CherryPicked:org.chucc.vcserver.event.CherryPickedEvent,"
+        + "BranchRebased:org.chucc.vcserver.event.BranchRebasedEvent,"
+        + "CommitsSquashed:org.chucc.vcserver.event.CommitsSquashedEvent,"
+        + "BatchGraphsCompleted:org.chucc.vcserver.event.BatchGraphsCompletedEvent,"
+        + "BranchDeleted:org.chucc.vcserver.event.BranchDeletedEvent");
 
     // Start from earliest offset on startup for recovery
     configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");

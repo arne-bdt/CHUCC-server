@@ -122,6 +122,7 @@ public class EventPublisher {
       case BranchCreatedEvent e -> e.branchName();
       case BranchResetEvent e -> e.branchName();
       case BranchRebasedEvent e -> e.branch();
+      case BranchDeletedEvent e -> e.branchName();
       case CommitCreatedEvent e -> event.dataset(); // Commits partition by dataset
       case TagCreatedEvent e -> event.dataset(); // Tags partition by dataset
       case RevertCreatedEvent e -> event.dataset(); // Reverts partition by dataset
@@ -166,6 +167,12 @@ public class EventPublisher {
             e.branch().getBytes(StandardCharsets.UTF_8)));
         headers.add(new RecordHeader(EventHeaders.COMMIT_ID,
             e.newHead().getBytes(StandardCharsets.UTF_8)));
+      }
+      case BranchDeletedEvent e -> {
+        headers.add(new RecordHeader(EventHeaders.BRANCH,
+            e.branchName().getBytes(StandardCharsets.UTF_8)));
+        headers.add(new RecordHeader(EventHeaders.COMMIT_ID,
+            e.lastCommitId().getBytes(StandardCharsets.UTF_8)));
       }
       case CommitCreatedEvent e -> {
         headers.add(new RecordHeader(EventHeaders.COMMIT_ID,

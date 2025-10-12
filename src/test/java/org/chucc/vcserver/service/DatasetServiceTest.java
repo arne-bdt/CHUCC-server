@@ -4,7 +4,6 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
-import org.chucc.vcserver.config.KafkaProperties;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
@@ -20,6 +19,11 @@ import org.mockito.Mockito;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Unit tests for DatasetService.
+ * Tests basic dataset operations without requiring Kafka.
+ * Kafka-based snapshot retrieval is tested in integration tests.
+ */
 class DatasetServiceTest {
   private DatasetService service;
   private BranchRepository branchRepository;
@@ -36,7 +40,7 @@ class DatasetServiceTest {
 
     // Create SnapshotService with mocked dependencies
     EventPublisher eventPublisher = Mockito.mock(EventPublisher.class);
-    KafkaProperties kafkaProperties = Mockito.mock(KafkaProperties.class);
+    SnapshotKafkaStore kafkaStore = Mockito.mock(SnapshotKafkaStore.class);
     VersionControlProperties vcProperties = new VersionControlProperties();
     vcProperties.setSnapshotsEnabled(false); // Disable snapshots for basic tests
 
@@ -46,7 +50,7 @@ class DatasetServiceTest {
         commitRepository,
         eventPublisher,
         vcProperties,
-        kafkaProperties
+        kafkaStore
     );
 
     // Use SimpleMeterRegistry for testing - provides metrics without external dependencies

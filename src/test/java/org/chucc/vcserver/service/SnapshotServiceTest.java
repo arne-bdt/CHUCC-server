@@ -1,6 +1,5 @@
 package org.chucc.vcserver.service;
 
-import org.chucc.vcserver.config.KafkaProperties;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.EventPublisher;
@@ -17,6 +16,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for SnapshotService.
+ * Tests only the commit counting logic.
+ * Kafka snapshot retrieval is tested in integration tests.
  */
 @ExtendWith(MockitoExtension.class)
 class SnapshotServiceTest {
@@ -37,7 +38,7 @@ class SnapshotServiceTest {
   private VersionControlProperties vcProperties;
 
   @Mock
-  private KafkaProperties kafkaProperties;
+  private SnapshotKafkaStore kafkaStore;
 
   private SnapshotService snapshotService;
 
@@ -52,7 +53,7 @@ class SnapshotServiceTest {
         commitRepository,
         eventPublisher,
         vcProperties,
-        kafkaProperties
+        kafkaStore
     );
   }
 

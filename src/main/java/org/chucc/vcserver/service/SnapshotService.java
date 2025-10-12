@@ -3,17 +3,13 @@ package org.chucc.vcserver.service;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.jena.query.Dataset;
@@ -21,12 +17,6 @@ import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.serialization.StringDeserializer;
-import org.chucc.vcserver.config.KafkaProperties;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
@@ -38,7 +28,6 @@ import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -58,7 +47,7 @@ public class SnapshotService {
   private final CommitRepository commitRepository;
   private final EventPublisher eventPublisher;
   private final VersionControlProperties vcProperties;
-  private final KafkaProperties kafkaProperties;
+  private final SnapshotKafkaStore kafkaStore;
 
   // Track commit counts per (dataset, branch) for snapshot triggering
   private final Map<String, Map<String, AtomicLong>> commitCounters = new ConcurrentHashMap<>();
@@ -71,7 +60,7 @@ public class SnapshotService {
    * @param commitRepository the commit repository
    * @param eventPublisher the event publisher
    * @param vcProperties the version control properties
-   * @param kafkaProperties the kafka properties
+   * @param kafkaStore the kafka store for snapshot queries
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
@@ -82,13 +71,13 @@ public class SnapshotService {
       CommitRepository commitRepository,
       EventPublisher eventPublisher,
       VersionControlProperties vcProperties,
-      KafkaProperties kafkaProperties) {
+      SnapshotKafkaStore kafkaStore) {
     this.datasetService = datasetService;
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
     this.eventPublisher = eventPublisher;
     this.vcProperties = vcProperties;
-    this.kafkaProperties = kafkaProperties;
+    this.kafkaStore = kafkaStore;
   }
 
   /**
@@ -224,26 +213,6 @@ public class SnapshotService {
   }
 
   /**
-   * Metadata about a snapshot (without the actual graph data).
-   * Contains information needed to fetch the full snapshot from Kafka.
-   *
-   * @param commitId the commit ID
-   * @param branchName the branch name
-   * @param timestamp the snapshot timestamp
-   * @param topic the Kafka topic
-   * @param partition the Kafka partition
-   * @param offset the Kafka offset
-   */
-  public record SnapshotInfo(
-      CommitId commitId,
-      String branchName,
-      Instant timestamp,
-      String topic,
-      int partition,
-      long offset
-  ) {}
-
-  /**
    * Finds the most recent snapshot for a dataset that is an ancestor of the target commit.
    * Queries Kafka snapshot topic to find snapshots on-demand (not stored in memory).
    *
@@ -251,20 +220,19 @@ public class SnapshotService {
    * @param targetCommit the commit we're trying to materialize
    * @return Optional containing the best snapshot to use, or empty if none found
    */
-  public Optional<SnapshotInfo> findBestSnapshot(String datasetName, CommitId targetCommit) {
+  public Optional<SnapshotKafkaStore.SnapshotInfo> findBestSnapshot(
+      String datasetName, CommitId targetCommit) {
     logger.debug("Finding best snapshot for dataset {} at target commit {}",
         datasetName, targetCommit);
 
-    // Skip if snapshots are disabled or Kafka is not configured
-    if (!vcProperties.isSnapshotsEnabled()
-        || kafkaProperties == null
-        || kafkaProperties.getBootstrapServers() == null) {
-      logger.debug("Snapshots disabled or Kafka not configured, skipping snapshot lookup");
+    // Skip if snapshots are disabled
+    if (!vcProperties.isSnapshotsEnabled()) {
+      logger.debug("Snapshots disabled, skipping snapshot lookup");
       return Optional.empty();
     }
 
     // Load snapshot metadata from Kafka
-    List<SnapshotInfo> metadata = loadSnapshotMetadataFromKafka(datasetName);
+    List<SnapshotKafkaStore.SnapshotInfo> metadata = kafkaStore.findSnapshotMetadata(datasetName);
 
     if (metadata.isEmpty()) {
       logger.debug("No snapshots found in Kafka for dataset {}", datasetName);
@@ -272,9 +240,9 @@ public class SnapshotService {
     }
 
     // Find the best snapshot that's an ancestor of targetCommit
-    Optional<SnapshotInfo> best = metadata.stream()
+    Optional<SnapshotKafkaStore.SnapshotInfo> best = metadata.stream()
         .filter(info -> isAncestor(datasetName, targetCommit, info.commitId()))
-        .max(Comparator.comparing(SnapshotInfo::timestamp));
+        .max(Comparator.comparing(SnapshotKafkaStore.SnapshotInfo::timestamp));
 
     if (best.isPresent()) {
       logger.debug("Found best snapshot at commit {} for target {}",
@@ -292,12 +260,12 @@ public class SnapshotService {
    * @param info the snapshot metadata
    * @return the snapshot with materialized graph
    */
-  public Snapshot fetchSnapshot(SnapshotInfo info) {
+  public Snapshot fetchSnapshot(SnapshotKafkaStore.SnapshotInfo info) {
     logger.debug("Fetching snapshot from Kafka: {} at offset {}",
         info.topic(), info.offset());
 
     // Fetch the event from Kafka at specific topic/partition/offset
-    SnapshotCreatedEvent event = fetchEventFromKafka(info);
+    SnapshotCreatedEvent event = kafkaStore.fetchSnapshotEvent(info);
 
     // Deserialize N-Quads into DatasetGraph
     DatasetGraph graph = deserializeNquads(event.nquads());
@@ -310,139 +278,6 @@ public class SnapshotService {
         info.timestamp(),
         graph
     );
-  }
-
-  /**
-   * Loads snapshot metadata from Kafka (without deserializing graphs).
-   * Only extracts commit ID, branch name, timestamp, and Kafka position.
-   *
-   * @param datasetName the dataset name
-   * @return List of snapshot metadata
-   */
-  @SuppressWarnings("PMD.CloseResource") // KafkaConsumer closed in try-with-resources
-  private List<SnapshotInfo> loadSnapshotMetadataFromKafka(String datasetName) {
-    List<SnapshotInfo> metadata = new ArrayList<>();
-
-    // Create a consumer to read all events (polymorphic)
-    // Match configuration from KafkaConfig.consumerFactory()
-    Properties props = new Properties();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
-    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, "snapshot-query-" + UUID.randomUUID());
-    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-    props.put(JsonDeserializer.TRUSTED_PACKAGES, "org.chucc.vcserver.event");
-    props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, "false");
-    props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "org.chucc.vcserver.event.VersionControlEvent");
-    props.put(JsonDeserializer.TYPE_MAPPINGS,
-        "BranchCreated:org.chucc.vcserver.event.BranchCreatedEvent,"
-        + "CommitCreated:org.chucc.vcserver.event.CommitCreatedEvent,"
-        + "TagCreated:org.chucc.vcserver.event.TagCreatedEvent,"
-        + "BranchReset:org.chucc.vcserver.event.BranchResetEvent,"
-        + "RevertCreated:org.chucc.vcserver.event.RevertCreatedEvent,"
-        + "SnapshotCreated:org.chucc.vcserver.event.SnapshotCreatedEvent,"
-        + "CherryPicked:org.chucc.vcserver.event.CherryPickedEvent,"
-        + "BranchRebased:org.chucc.vcserver.event.BranchRebasedEvent,"
-        + "CommitsSquashed:org.chucc.vcserver.event.CommitsSquashedEvent,"
-        + "BatchGraphsCompleted:org.chucc.vcserver.event.BatchGraphsCompletedEvent,"
-        + "BranchDeleted:org.chucc.vcserver.event.BranchDeletedEvent,"
-        + "DatasetDeleted:org.chucc.vcserver.event.DatasetDeletedEvent");
-
-    try (KafkaConsumer<String, Object> consumer = new KafkaConsumer<>(props)) {
-      String topic = kafkaProperties.getTopicName(datasetName);
-      consumer.subscribe(List.of(topic));
-
-      // Poll until we've read all available records
-      boolean hasMore = true;
-      while (hasMore) {
-        ConsumerRecords<String, Object> records = consumer.poll(Duration.ofSeconds(2));
-
-        if (records.isEmpty()) {
-          hasMore = false;
-        } else {
-          for (ConsumerRecord<String, Object> record : records) {
-            Object event = record.value();
-
-            // Only process SnapshotCreatedEvents, ignore other event types
-            if (event instanceof SnapshotCreatedEvent snapshotEvent) {
-              metadata.add(new SnapshotInfo(
-                  CommitId.of(snapshotEvent.commitId()),
-                  snapshotEvent.branchName(),
-                  snapshotEvent.timestamp(),
-                  record.topic(),
-                  record.partition(),
-                  record.offset()
-              ));
-            }
-          }
-        }
-      }
-
-      logger.debug("Loaded {} snapshot metadata entries from Kafka for dataset {}",
-          metadata.size(), datasetName);
-
-      return metadata;
-    }
-  }
-
-  /**
-   * Fetches a specific event from Kafka at the given position.
-   *
-   * @param info the snapshot metadata with Kafka position
-   * @return the snapshot created event
-   */
-  @SuppressWarnings("PMD.CloseResource") // KafkaConsumer closed in try-with-resources
-  private SnapshotCreatedEvent fetchEventFromKafka(SnapshotInfo info) {
-    // Match configuration from KafkaConfig.consumerFactory()
-    Properties props = new Properties();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
-    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, "snapshot-fetch-" + UUID.randomUUID());
-    props.put(JsonDeserializer.TRUSTED_PACKAGES, "org.chucc.vcserver.event");
-    props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, "false");
-    props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "org.chucc.vcserver.event.VersionControlEvent");
-    props.put(JsonDeserializer.TYPE_MAPPINGS,
-        "BranchCreated:org.chucc.vcserver.event.BranchCreatedEvent,"
-        + "CommitCreated:org.chucc.vcserver.event.CommitCreatedEvent,"
-        + "TagCreated:org.chucc.vcserver.event.TagCreatedEvent,"
-        + "BranchReset:org.chucc.vcserver.event.BranchResetEvent,"
-        + "RevertCreated:org.chucc.vcserver.event.RevertCreatedEvent,"
-        + "SnapshotCreated:org.chucc.vcserver.event.SnapshotCreatedEvent,"
-        + "CherryPicked:org.chucc.vcserver.event.CherryPickedEvent,"
-        + "BranchRebased:org.chucc.vcserver.event.BranchRebasedEvent,"
-        + "CommitsSquashed:org.chucc.vcserver.event.CommitsSquashedEvent,"
-        + "BatchGraphsCompleted:org.chucc.vcserver.event.BatchGraphsCompletedEvent,"
-        + "BranchDeleted:org.chucc.vcserver.event.BranchDeletedEvent,"
-        + "DatasetDeleted:org.chucc.vcserver.event.DatasetDeletedEvent");
-
-    try (KafkaConsumer<String, Object> consumer = new KafkaConsumer<>(props)) {
-      // Manually assign partition and seek to offset
-      org.apache.kafka.common.TopicPartition partition =
-          new org.apache.kafka.common.TopicPartition(info.topic(), info.partition());
-      consumer.assign(List.of(partition));
-      consumer.seek(partition, info.offset());
-
-      // Fetch the record
-      ConsumerRecords<String, Object> records = consumer.poll(Duration.ofSeconds(5));
-
-      for (ConsumerRecord<String, Object> record : records) {
-        if (record.offset() == info.offset()) {
-          Object event = record.value();
-          if (event instanceof SnapshotCreatedEvent snapshotEvent) {
-            return snapshotEvent;
-          }
-          throw new IllegalStateException(
-              "Event at offset " + info.offset() + " is not a SnapshotCreatedEvent: "
-              + event.getClass().getName());
-        }
-      }
-
-      throw new IllegalStateException(
-          "Could not fetch snapshot event at " + info.topic()
-          + ":" + info.partition() + ":" + info.offset());
-    }
   }
 
   /**

@@ -257,7 +257,7 @@ public class DatasetService {
    */
   private Optional<Snapshot> findNearestSnapshot(String datasetName, CommitId targetCommit) {
     // Query SnapshotService to find best snapshot from Kafka
-    Optional<SnapshotService.SnapshotInfo> snapshotInfo =
+    Optional<SnapshotKafkaStore.SnapshotInfo> snapshotInfo =
         snapshotService.findBestSnapshot(datasetName, targetCommit);
 
     if (snapshotInfo.isEmpty()) {

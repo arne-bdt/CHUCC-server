@@ -12,7 +12,7 @@ import org.chucc.vcserver.domain.Tag;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.chucc.vcserver.repository.TagRepository;
-import org.chucc.vcserver.testutil.IntegrationTestFixture;
+import org.chucc.vcserver.testutil.ITFixture;
 import org.chucc.vcserver.testutil.TestConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
-class CrossProtocolInteroperabilityIT extends IntegrationTestFixture {
+class CrossProtocolInteroperabilityIT extends ITFixture {
 
   @Autowired
   private TestRestTemplate restTemplate;

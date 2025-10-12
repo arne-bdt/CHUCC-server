@@ -17,7 +17,7 @@ import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
-import org.chucc.vcserver.testutil.IntegrationTestFixture;
+import org.chucc.vcserver.testutil.ITFixture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +37,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
-class GraphStoreTimeTravelIT extends IntegrationTestFixture {
+class GraphStoreTimeTravelIT extends ITFixture {
 
   @Autowired
   private TestRestTemplate restTemplate;

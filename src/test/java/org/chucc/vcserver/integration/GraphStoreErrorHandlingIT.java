@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.chucc.vcserver.testutil.IntegrationTestFixture;
+import org.chucc.vcserver.testutil.ITFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,7 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
-class GraphStoreErrorHandlingIT extends IntegrationTestFixture {
+class GraphStoreErrorHandlingIT extends ITFixture {
 
   @Autowired
   private TestRestTemplate restTemplate;

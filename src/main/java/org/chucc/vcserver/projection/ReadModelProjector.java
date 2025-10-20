@@ -178,6 +178,13 @@ public class ReadModelProjector {
             CommitId.of(event.commitId())
         );
 
+        // Notify DatasetService of latest commit update for cache management
+        datasetService.updateLatestCommit(
+            event.dataset(),
+            event.branch(),
+            CommitId.of(event.commitId())
+        );
+
         logger.debug("Updated branch: {} to point to commit: {} in dataset: {}",
             event.branch(), event.commitId(), event.dataset());
       } else {
@@ -226,6 +233,13 @@ public class ReadModelProjector {
     }
 
     branchRepository.updateBranchHead(
+        event.dataset(),
+        event.branchName(),
+        CommitId.of(event.toCommitId())
+    );
+
+    // Notify DatasetService of latest commit update for cache management
+    datasetService.updateLatestCommit(
         event.dataset(),
         event.branchName(),
         CommitId.of(event.toCommitId())
@@ -307,6 +321,13 @@ public class ReadModelProjector {
 
     // Update branch to point to final rebased commit
     branchRepository.updateBranchHead(
+        event.dataset(),
+        event.branch(),
+        CommitId.of(event.newHead())
+    );
+
+    // Notify DatasetService of latest commit update for cache management
+    datasetService.updateLatestCommit(
         event.dataset(),
         event.branch(),
         CommitId.of(event.newHead())
@@ -498,6 +519,13 @@ public class ReadModelProjector {
         CommitId.of(event.newCommitId())
     );
 
+    // Notify DatasetService of latest commit update for cache management
+    datasetService.updateLatestCommit(
+        event.dataset(),
+        event.branch(),
+        CommitId.of(event.newCommitId())
+    );
+
     logger.debug("Saved cherry-picked commit: {} from source {} on branch {} in dataset: {}",
         commit.id(), event.sourceCommitId(), event.branch(), event.dataset());
 
@@ -528,6 +556,13 @@ public class ReadModelProjector {
 
     // Update branch to point to squashed commit
     branchRepository.updateBranchHead(
+        event.dataset(),
+        event.branch(),
+        CommitId.of(event.newCommitId())
+    );
+
+    // Notify DatasetService of latest commit update for cache management
+    datasetService.updateLatestCommit(
         event.dataset(),
         event.branch(),
         CommitId.of(event.newCommitId())

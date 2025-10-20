@@ -1,5 +1,9 @@
 package org.chucc.vcserver.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
+import com.github.benmanes.caffeine.cache.RemovalListener;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.micrometer.core.annotation.Timed;
 import io.micrometer.core.instrument.Gauge;
@@ -10,12 +14,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
+import org.chucc.vcserver.config.CacheProperties;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
@@ -33,9 +39,8 @@ import org.springframework.stereotype.Service;
  * Provides datasets for specific branches or commit snapshots.
  * Thread-safe for concurrent read operations.
  *
- * <p>Performance: Uses a simple ConcurrentHashMap cache for materialized datasets.
- * In-memory RDF patch application is fast, so sophisticated caching is deferred
- * until performance data indicates it's needed.
+ * <p>Performance: Uses Caffeine LRU cache for materialized datasets with configurable
+ * eviction policies. Latest commits per branch are kept in cache to ensure fast queries.
  */
 @Service
 @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
@@ -45,11 +50,21 @@ public class DatasetService {
   private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
   private final SnapshotService snapshotService;
+  private final CacheProperties cacheProperties;
 
-  // Cache of materialized dataset graphs per commit
-  // Simple ConcurrentHashMap is sufficient for current needs
-  private final Map<String, Map<CommitId, DatasetGraphInMemory>> datasetCache =
-      new ConcurrentHashMap<>();
+  // Caffeine LRU cache for materialized dataset graphs
+  private final Cache<CacheKey, DatasetGraphInMemory> datasetCache;
+
+  // Track latest commits per branch (dataset -> branch -> commitId)
+  private final Map<String, Map<String, CommitId>> latestCommits = new ConcurrentHashMap<>();
+
+  /**
+   * Cache key combining dataset name and commit ID.
+   *
+   * @param dataset the dataset name
+   * @param commitId the commit ID
+   */
+  private record CacheKey(String dataset, CommitId commitId) {}
 
   /**
    * Creates a new DatasetService with observability support.
@@ -57,20 +72,73 @@ public class DatasetService {
    * @param branchRepository the branch repository
    * @param commitRepository the commit repository
    * @param snapshotService the snapshot service (lazily initialized to avoid circular dependency)
+   * @param cacheProperties the cache configuration properties
    * @param meterRegistry the meter registry for metrics
    */
   @SuppressFBWarnings(value = "EI_EXPOSE_REP2",
       justification = "Repositories are Spring-managed beans and are intentionally shared")
   public DatasetService(BranchRepository branchRepository, CommitRepository commitRepository,
       @org.springframework.context.annotation.Lazy SnapshotService snapshotService,
+      CacheProperties cacheProperties,
       MeterRegistry meterRegistry) {
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
     this.snapshotService = snapshotService;
+    this.cacheProperties = cacheProperties;
 
-    // Register cache size gauge for observability
-    Gauge.builder("dataset.cache.size", datasetCache, Map::size)
-        .description("Number of datasets in the materialization cache")
+    // Build Caffeine cache with LRU eviction
+    Caffeine<CacheKey, DatasetGraphInMemory> cacheBuilder = Caffeine.newBuilder()
+        .maximumSize(cacheProperties.getMaxSize())
+        .recordStats()  // Enable statistics for monitoring
+        .removalListener(new CacheRemovalListener());
+
+    // Optional TTL for time-based eviction
+    if (cacheProperties.getTtlMinutes() > 0) {
+      cacheBuilder.expireAfterWrite(cacheProperties.getTtlMinutes(), TimeUnit.MINUTES);
+    }
+
+    this.datasetCache = cacheBuilder.build();
+
+    // Register cache metrics for observability
+    registerCacheMetrics(meterRegistry);
+  }
+
+  /**
+   * Listener for cache evictions (for logging and debugging).
+   */
+  private static final class CacheRemovalListener
+      implements RemovalListener<CacheKey, DatasetGraphInMemory> {
+
+    @Override
+    public void onRemoval(CacheKey key, DatasetGraphInMemory graph, RemovalCause cause) {
+      if (cause.wasEvicted()) {
+        logger.debug("Evicted dataset graph from cache: {} at commit {} (reason: {})",
+            key.dataset(), key.commitId(), cause);
+      }
+    }
+  }
+
+  /**
+   * Registers cache metrics with Micrometer.
+   *
+   * @param meterRegistry the meter registry
+   */
+  private void registerCacheMetrics(MeterRegistry meterRegistry) {
+    // Cache size
+    Gauge.builder("dataset.cache.size", datasetCache, Cache::estimatedSize)
+        .description("Number of cached dataset graphs")
+        .register(meterRegistry);
+
+    // Hit rate
+    Gauge.builder("dataset.cache.hit.rate", datasetCache,
+        cache -> cache.stats().hitRate())
+        .description("Cache hit rate (0-1)")
+        .register(meterRegistry);
+
+    // Eviction count
+    Gauge.builder("dataset.cache.evictions", datasetCache,
+        cache -> cache.stats().evictionCount())
+        .description("Total number of cache evictions")
         .register(meterRegistry);
   }
 
@@ -166,15 +234,69 @@ public class DatasetService {
 
   /**
    * Gets or creates a DatasetGraphInMemory for a specific commit.
-   * Uses caching to avoid rebuilding the same dataset multiple times.
+   * Uses Caffeine LRU cache with special handling for latest commits.
    *
    * @param datasetName the dataset name
    * @param commitId the commit ID
    * @return the dataset graph materialized to the specified commit
    */
   private DatasetGraphInMemory getOrCreateDatasetGraph(String datasetName, CommitId commitId) {
-    return datasetCache.computeIfAbsent(datasetName, k -> new ConcurrentHashMap<>())
-        .computeIfAbsent(commitId, id -> buildDatasetGraph(datasetName, id));
+    CacheKey key = new CacheKey(datasetName, commitId);
+
+    // Check if this is a latest commit (should be pinned in cache)
+    if (cacheProperties.isKeepLatestPerBranch() && isLatestCommit(datasetName, commitId)) {
+      // For latest commits, use get() which ensures they stay in cache
+      return datasetCache.get(key, k -> buildDatasetGraph(datasetName, commitId));
+    }
+
+    // For non-latest commits, use regular get (subject to LRU eviction)
+    DatasetGraphInMemory graph = datasetCache.getIfPresent(key);
+
+    if (graph == null) {
+      // Cache miss - build graph
+      graph = buildDatasetGraph(datasetName, commitId);
+      datasetCache.put(key, graph);
+    }
+
+    return graph;
+  }
+
+  /**
+   * Checks if a commit is the latest for any branch.
+   *
+   * @param datasetName the dataset name
+   * @param commitId the commit ID
+   * @return true if the commit is the latest for any branch
+   */
+  private boolean isLatestCommit(String datasetName, CommitId commitId) {
+    Map<String, CommitId> branches = latestCommits.get(datasetName);
+    if (branches == null) {
+      // Populate on first access
+      branches = new ConcurrentHashMap<>();
+      for (Branch branch : branchRepository.findAllByDataset(datasetName)) {
+        branches.put(branch.getName(), branch.getCommitId());
+      }
+      latestCommits.put(datasetName, branches);
+    }
+
+    return branches.containsValue(commitId);
+  }
+
+  /**
+   * Updates tracking of latest commits.
+   * Called by ReadModelProjector when branches are updated.
+   *
+   * @param dataset the dataset name
+   * @param branchName the branch name
+   * @param commitId the new latest commit ID
+   */
+  public void updateLatestCommit(String dataset, String branchName, CommitId commitId) {
+    latestCommits
+        .computeIfAbsent(dataset, k -> new ConcurrentHashMap<>())
+        .put(branchName, commitId);
+
+    logger.debug("Updated latest commit tracking: {}/{} -> {}",
+        dataset, branchName, commitId);
   }
 
   /**
@@ -379,8 +501,8 @@ public class DatasetService {
       datasetGraph.find().forEachRemaining(memGraph::add);
     }
 
-    datasetCache.computeIfAbsent(datasetName, k -> new ConcurrentHashMap<>())
-        .put(commitId, memGraph);
+    CacheKey key = new CacheKey(datasetName, commitId);
+    datasetCache.put(key, memGraph);
   }
 
   /**
@@ -565,13 +687,21 @@ public class DatasetService {
    * @param datasetName the dataset name
    */
   public void clearCache(String datasetName) {
-    datasetCache.remove(datasetName);
+    // Remove all entries for this dataset
+    datasetCache.asMap().keySet().removeIf(key -> key.dataset().equals(datasetName));
+
+    // Clear latest commit tracking
+    latestCommits.remove(datasetName);
+
+    logger.info("Cleared cache for dataset: {}", datasetName);
   }
 
   /**
    * Clears all dataset caches.
    */
   public void clearAllCaches() {
-    datasetCache.clear();
+    datasetCache.invalidateAll();
+    latestCommits.clear();
+    logger.info("Cleared all caches");
   }
 }

@@ -73,6 +73,10 @@ vc:
   blame-enabled: true
   snapshots-enabled: true
   snapshot-interval: 100  # Create snapshot every N commits
+  cache:
+    max-size: 100  # Maximum number of cached dataset graphs
+    keep-latest-per-branch: true  # Always cache latest commits
+    ttl-minutes: 0  # No TTL by default (0 = disabled)
 
 # Kafka event streaming configuration
 kafka:

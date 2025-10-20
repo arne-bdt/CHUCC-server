@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
+import org.chucc.vcserver.config.CacheProperties;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
@@ -53,9 +54,14 @@ class DatasetServiceTest {
         kafkaStore
     );
 
+    // Configure cache properties
+    CacheProperties cacheProperties = new CacheProperties();
+    cacheProperties.setMaxSize(100);
+    cacheProperties.setKeepLatestPerBranch(true);
+
     // Use SimpleMeterRegistry for testing - provides metrics without external dependencies
     service = new DatasetService(branchRepository, commitRepository, snapshotService,
-        new SimpleMeterRegistry());
+        cacheProperties, new SimpleMeterRegistry());
   }
 
   @Test

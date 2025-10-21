@@ -349,17 +349,68 @@ class GraphStorePatchIT extends ITFixture {
 
   // ========== Full System Tests (async event processing verification) ==========
 
-  // Note: Full system tests for PATCH operations would verify async repository updates
-  // using await() and repository queries. These tests would be similar to the ones
-  // in GraphStorePutIT and GraphStorePostIT, verifying that patches are correctly
-  // applied and repository state is eventually consistent.
-  //
-  // Example structure:
-  // @Test
-  // void patchGraph_shouldEventuallyUpdateRepository() {
-  //   // Create initial graph via PUT
-  //   // Apply RDF patch via PATCH
-  //   // Wait for async event processing with await()
-  //   // Verify commit and branch in repositories
-  // }
+  @Test
+  void patchGraph_shouldEventuallyUpdateRepository() {
+    // Given - Create initial graph via PUT
+    HttpHeaders putHeaders = new HttpHeaders();
+    putHeaders.set("Content-Type", "text/turtle");
+    putHeaders.set("SPARQL-VC-Author", "Alice");
+    putHeaders.set("SPARQL-VC-Message", "Create initial graph");
+    restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.PUT,
+        new HttpEntity<>(TestConstants.TURTLE_SIMPLE, putHeaders),
+        String.class
+    );
+
+    // Wait for PUT to process
+    await().atMost(Duration.ofSeconds(5))
+        .until(() -> branchRepository.findByDatasetAndName(DEFAULT_DATASET, "main")
+            .map(b -> !b.getCommitId().equals(initialCommitId))
+            .orElse(false));
+
+    // When - Apply RDF patch
+    String patch = """
+        TX .
+        A <http://example.org/subject> <http://example.org/newPredicate> "newValue" .
+        TC .
+        """;
+    HttpHeaders patchHeaders = new HttpHeaders();
+    patchHeaders.set("Content-Type", "text/rdf-patch");
+    patchHeaders.set("SPARQL-VC-Author", "Bob");
+    patchHeaders.set("SPARQL-VC-Message", "Apply patch");
+    ResponseEntity<String> patchResponse = restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.PATCH,
+        new HttpEntity<>(patch, patchHeaders),
+        String.class
+    );
+
+    // Then - Wait for async event processing
+    assertThat(patchResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    String etag = patchResponse.getHeaders().getFirst("ETag");
+    String commitId = etag.replaceAll("\"", "");
+
+    await().atMost(Duration.ofSeconds(5))
+        .until(() -> commitRepository.findByDatasetAndId(DEFAULT_DATASET, new CommitId(commitId))
+            .isPresent());
+
+    // Verify branch updated
+    Branch branch = branchRepository.findByDatasetAndName(DEFAULT_DATASET, "main")
+        .orElseThrow();
+    assertThat(branch.getCommitId().value()).isEqualTo(commitId);
+
+    // Verify we can GET the updated graph
+    HttpHeaders getHeaders = new HttpHeaders();
+    getHeaders.set("Accept", "text/turtle");
+    ResponseEntity<String> getResponse = restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.GET,
+        new HttpEntity<>(getHeaders),
+        String.class
+    );
+    assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(getResponse.getBody()).contains("newPredicate");
+    assertThat(getResponse.getBody()).contains("newValue");
+  }
 }

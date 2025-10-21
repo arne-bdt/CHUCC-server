@@ -9,12 +9,10 @@ This directory contains task breakdowns for remaining features and enhancements 
 This roadmap tracks the **remaining tasks** for CHUCC Server. Completed tasks have been removed from this directory.
 
 **Remaining task areas:**
-1. **Testing** - Enable full CQRS event publishing flow (high priority)
-2. **Graph Features** - Implement named graph support for Graph Store Protocol
-3. **SPARQL Features** - Add time-travel query tests
-4. **Infrastructure** - Request context for dataset name
-5. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
-6. **Refactoring** - Migrate from Model API to Graph API for performance improvements
+1. **SPARQL Features** - Add time-travel query tests
+2. **Infrastructure** - Request context for dataset name
+3. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
+4. **Refactoring** - Migrate from Model API to Graph API for performance improvements
 
 ---
 
@@ -37,66 +35,28 @@ The following task areas have been **successfully completed** and their task fil
 - Dataset deletion implemented with confirmation requirement
 - Optional Kafka topic cleanup support
 
+### ✅ Named Graph Support (Completed)
+- Full named graph support for Graph Store Protocol
+- Quad-based RDF Patch handling for named graphs
+- Parameter validation (`?graph=<uri>` vs `?default=true`)
+- Integration tests verify end-to-end functionality
+
+### ✅ CQRS Event Flow (Completed)
+- Full event publishing from controllers to Kafka
+- ReadModelProjector processes events and updates repositories
+- Enabled and fixed 10 integration tests verifying async event flow
+- Eventual consistency model validated end-to-end
+
 For details on completed work, see git history:
 ```bash
-git log --oneline --grep="cache\|snapshot\|deletion" --since="2025-10-01"
+git log --oneline --grep="cache\|snapshot\|deletion\|named graph\|CQRS\|event flow" --since="2025-10-01"
 ```
 
 ---
 
 ## Task Categories
 
-### 1. Testing
-
-**Goal:** Complete the CQRS architecture by enabling event publishing from controllers to Kafka.
-
-**Current State:** Command handlers create events but don't publish them to Kafka. Projectors are implemented but not triggered by API operations.
-
-**Target State:** Full event flow: HTTP → Command → Event → Kafka → Projector → Repository
-
-| Task | File | Priority | Est. Time | Status |
-|------|------|----------|-----------|--------|
-| 01. Enable Full CQRS Event Flow | `testing/01-enable-full-cqrs-event-flow.md` | **High** | 4-8 hours | 📋 Not Started |
-
-**Why This Is Critical:**
-- Unblocks 10+ commented-out integration tests
-- Completes CQRS architecture implementation
-- Enables eventual consistency in repositories
-- Required for production readiness
-
-**Impact:**
-- ~10 integration tests will be enabled
-- Repository queries will return current data
-- Full system validation becomes possible
-
----
-
-### 2. Graph Features
-
-**Goal:** Implement named graph support for complete Graph Store Protocol compliance.
-
-**Current State:** Only default graph operations supported. Named graphs not implemented.
-
-**Target State:** Full support for named graphs across all Graph Store Protocol operations.
-
-| Task | File | Priority | Est. Time | Status |
-|------|------|----------|-----------|--------|
-| 01. Implement Named Graph Support | `graph-features/01-implement-named-graph-support.md` | High | 6-10 hours | 📋 Not Started |
-
-**Requirements:**
-- RDFPatch quad handling (not just triples)
-- Graph parameter validation (`?graph=<uri>`)
-- Support across GET, PUT, POST, DELETE, PATCH operations
-- Event model updates to include graph name
-
-**Use Cases:**
-- Multi-tenant data isolation (one graph per tenant)
-- Semantic data partitioning
-- Standards compliance (SPARQL 1.2 Graph Store Protocol)
-
----
-
-### 3. SPARQL Features
+### 1. SPARQL Features
 
 **Goal:** Add comprehensive tests for time-travel SPARQL queries.
 
@@ -119,7 +79,7 @@ git log --oneline --grep="cache\|snapshot\|deletion" --since="2025-10-01"
 
 ---
 
-### 4. Infrastructure
+### 2. Infrastructure
 
 **Goal:** Remove hardcoded dataset names and support multi-dataset operations.
 
@@ -145,7 +105,7 @@ git log --oneline --grep="cache\|snapshot\|deletion" --since="2025-10-01"
 
 ---
 
-### 5. Java APIs
+### 3. Java APIs
 
 **Goal:** Create plain Java APIs for SPARQL Protocol and Graph Store Protocol that can be used without HTTP overhead.
 
@@ -195,7 +155,7 @@ Optional<Model> model = api.getGraph(
 
 ---
 
-### 6. Refactoring - Model API to Graph API Migration
+### 4. Refactoring - Model API to Graph API Migration
 
 **Goal:** Improve performance and efficiency by migrating from Apache Jena's Model API to the lower-level Graph API.
 
@@ -225,47 +185,26 @@ See detailed breakdown: [`refactoring/README.md`](./refactoring/README.md)
 
 ## Recommended Implementation Order
 
-### Phase 1: CQRS Completion (Highest Priority - CRITICAL)
+### Phase 1: Infrastructure (High Priority)
 
-**Goal:** Complete CQRS architecture and enable full system testing
+**Goal:** Improve infrastructure and remove hardcoded values
 
-1. 🔥 `testing/01-enable-full-cqrs-event-flow.md` (4-8 hours)
-
-**Rationale:**
-- **Blocks 10+ integration tests** - Cannot verify repository updates without this
-- **Architectural completion** - CQRS is 80% done, this finishes it
-- **Production readiness** - System won't work correctly in production without event publishing
-- **High impact** - Unlocks multiple other tasks
-
-**Estimated Time:** 4-8 hours
-
-**Status:** 🔥 **CRITICAL** - Should be implemented ASAP
-
----
-
-### Phase 2: Core Features (High Priority)
-
-**Goal:** Complete Graph Store Protocol and improve infrastructure
-
-2. 📋 `graph-features/01-implement-named-graph-support.md` (6-10 hours)
-3. 📋 `infrastructure/01-implement-request-context-for-dataset.md` (2-3 hours)
+1. 📋 `infrastructure/01-implement-request-context-for-dataset.md` (2-3 hours)
 
 **Rationale:**
-- Named graphs required for Graph Store Protocol compliance
 - Request context removes hardcoded values and enables multi-dataset support
-- Both are relatively independent tasks
+- Foundation for multi-tenancy
+- Relatively independent task
 
-**Estimated Time:** 8-13 hours total
+**Estimated Time:** 2-3 hours total
 
 ---
 
-### Phase 3: Testing & Validation (Medium Priority)
+### Phase 2: Testing & Validation (Medium Priority)
 
 **Goal:** Verify time-travel queries work correctly
 
-4. 📋 `sparql-features/01-implement-time-travel-sparql-queries.md` (3-4 hours)
-
-**Dependencies:** Requires Phase 1 (event publishing) to be complete
+2. 📋 `sparql-features/01-implement-time-travel-sparql-queries.md` (3-4 hours)
 
 **Rationale:**
 - Validates time-travel query correctness
@@ -276,13 +215,13 @@ See detailed breakdown: [`refactoring/README.md`](./refactoring/README.md)
 
 ---
 
-### Phase 4: Refactoring Foundation (Medium Priority)
+### Phase 3: Refactoring Foundation (Medium Priority)
 
 **Goal:** Establish Graph API usage in foundational services
 
-5. 📋 `refactoring/01-migrate-rdf-parsing-service.md` (1-2 hours)
-6. 📋 `refactoring/02-migrate-graph-serialization-service.md` (1-2 hours)
-7. 📋 `refactoring/03-migrate-graph-diff-service.md` (2-3 hours)
+3. 📋 `refactoring/01-migrate-rdf-parsing-service.md` (1-2 hours)
+4. 📋 `refactoring/02-migrate-graph-serialization-service.md` (1-2 hours)
+5. 📋 `refactoring/03-migrate-graph-diff-service.md` (2-3 hours)
 
 **Rationale:** These changes unlock performance improvements across the entire codebase.
 
@@ -290,12 +229,12 @@ See detailed breakdown: [`refactoring/README.md`](./refactoring/README.md)
 
 ---
 
-### Phase 5: Java APIs (Lower Priority)
+### Phase 4: Java APIs (Lower Priority)
 
 **Goal:** Provide programmatic access for embedded use cases
 
-8. 📋 `java-api/01-create-java-sparql-api.md` (3-4 hours)
-9. 📋 `java-api/02-create-java-graph-store-api.md` (3-4 hours)
+6. 📋 `java-api/01-create-java-sparql-api.md` (3-4 hours)
+7. 📋 `java-api/02-create-java-graph-store-api.md` (3-4 hours)
 
 **Rationale:** Nice-to-have for embedded use. Can be deferred if time-constrained.
 
@@ -303,13 +242,13 @@ See detailed breakdown: [`refactoring/README.md`](./refactoring/README.md)
 
 ---
 
-### Phase 6: Refactoring Completion (Lower Priority)
+### Phase 5: Refactoring Completion (Lower Priority)
 
 **Goal:** Complete Model-to-Graph migration
 
-10. Tasks 04-10 (to be created after Phase 4)
+8. Tasks 04-10 (to be created after Phase 3)
 
-**Rationale:** Finish what was started in Phase 4.
+**Rationale:** Finish what was started in Phase 3.
 
 **Estimated Time:** 8-10 hours total
 
@@ -448,7 +387,7 @@ When adding new tasks:
 - ⏸️ **Deferred** - Task is lower priority
 - ❌ **Cancelled** - Task no longer needed
 
-**Current overall status:** 6 task areas remaining
+**Current overall status:** 4 task areas remaining
 
 ---
 
@@ -458,20 +397,20 @@ When adding new tasks:
 - ✅ Snapshot optimization (2 tasks)
 - ✅ Cache optimization (2 tasks)
 - ✅ Deletion features (2 tasks)
-- **Total completed:** 6 tasks
+- ✅ Named graph support (1 task)
+- ✅ CQRS event flow (1 task)
+- **Total completed:** 8 tasks
 
 **Remaining:**
-- 🔥 Testing (1 task) - **CRITICAL**
-- 📋 Graph Features (1 task)
 - 📋 SPARQL Features (1 task)
 - 📋 Infrastructure (1 task)
 - 📋 Java APIs (2 tasks)
 - 📋 Refactoring (3+ tasks)
-- **Total remaining:** 9+ tasks
+- **Total remaining:** 7+ tasks
 
-**Progress:** ~40% complete (6 of 15+ tasks)
+**Progress:** ~53% complete (8 of 15+ tasks)
 
 **Next Steps:**
-1. 🔥 **Implement event publishing** (testing/01) - CRITICAL for system functionality
-2. Implement named graph support (graph-features/01)
-3. Add request context for dataset (infrastructure/01)
+1. Add request context for dataset (infrastructure/01)
+2. Add time-travel query tests (sparql-features/01)
+3. Start refactoring foundation (refactoring/01-03)

@@ -21,6 +21,13 @@ This server implements:
 - ✅ Graph protocol support (default-graph-uri, named-graph-uri)
 - ✅ Both GET and POST methods
 
+### Graph Store Protocol
+- ✅ GET, PUT, POST, DELETE, PATCH, HEAD operations
+- ✅ Named graph support (`?graph=<uri>` parameter)
+- ✅ Default graph operations (`?default=true` parameter)
+- ✅ Quad-based RDF Patch handling
+- ✅ Full version control integration
+
 ### Version Control
 - ✅ **Branches** - Create, list, switch, delete, reset
 - ✅ **Commits** - Atomic updates with UUIDv7 identifiers, metadata, and provenance
@@ -198,13 +205,18 @@ To temporarily increase test logging, override in your test:
 - ✅ OpenAPI specification
 - ✅ JSON schemas
 - ✅ Core SPARQL endpoint (Query + Update)
+- ✅ Graph Store Protocol (GET, PUT, POST, DELETE, PATCH, HEAD)
+- ✅ Named graph support (quad-based RDF Patch handling)
 - ✅ Version control layer (branches, commits, merges, tags)
 - ✅ Storage backend (Apache Jena + Kafka event sourcing)
-- ✅ Comprehensive test suite (~911 tests)
+- ✅ Full CQRS + Event Sourcing architecture (command handlers → Kafka → projectors)
+- ✅ Comprehensive test suite (~913 tests, including async event flow validation)
 - ✅ Performance optimizations (snapshots, LRU cache)
 - ✅ Deletion operations (branches, datasets)
 
 **Remaining Tasks:**
+- 📋 Time-travel query validation tests
+- 📋 Request context for multi-dataset support
 - 📋 Java API layer (programmatic access without HTTP)
 - 📋 Performance refactoring (Model API → Graph API migration)
 

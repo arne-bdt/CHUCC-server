@@ -4,26 +4,21 @@ This project uses multiple tools to ensure code quality and security.
 
 ## Automated Tools (run during `mvn clean install`)
 
-### 1. **Checkstyle** - Code Style & Unused Code Detection
-- Configurations:
-  - `google_checks.xml` - Google Java Style Guide
-  - `checkstyle-custom.xml` - Unused imports + TODO comment detection
+### 1. **Checkstyle** - Code Style
+- Configuration: `google_checks.xml`
 - Enforces: 2-space indentation, 100-char line length, Javadoc requirements
-- **Also detects**: Unused imports, TODO/FIXME comments
 - Fails build on violations
-- See: [Unused Code Detection Guide](unused-code-detection.md)
 
 ### 2. **SpotBugs** - Bug Detection
 - Effort: Max, Threshold: Low
 - Detects common bug patterns and potential issues
 - Fails build on violations
 
-### 3. **PMD** - Static Analysis & Unused Code Detection
-- Configuration: `pmd-custom-ruleset.xml`
-- **Detects unused code**: Local variables, private fields, private methods, unnecessary imports
+### 3. **PMD** - Static Analysis
+- Ruleset: `quickstart.xml`
+- Detects code smells, unused code, complexity issues
+- Currently set to warn only (not fail build)
 - Also runs CPD (Copy-Paste Detector) to find duplicated code
-- Fails build on violations
-- See: [Unused Code Detection Guide](unused-code-detection.md)
 
 ### 4. **JaCoCo** - Code Coverage
 - Reports code coverage from unit and integration tests

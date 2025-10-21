@@ -1,5 +1,7 @@
 package org.chucc.vcserver.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Duration;
 import java.time.Instant;
@@ -7,12 +9,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.chucc.vcserver.config.KafkaProperties;
+import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.SnapshotCreatedEvent;
 import org.slf4j.Logger;
@@ -25,6 +29,10 @@ import org.springframework.stereotype.Component;
  * Encapsulates all Kafka consumer logic for snapshot retrieval.
  * This class should only be used in production code and integration tests.
  * Unit tests should mock this component.
+ *
+ * <p>Implements an optional metadata cache to avoid repeatedly scanning
+ * Kafka topics. The cache stores only lightweight metadata (not graph data),
+ * dramatically reducing memory footprint while improving query performance.
  */
 @Component
 @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
@@ -32,17 +40,39 @@ public class SnapshotKafkaStore {
   private static final Logger logger = LoggerFactory.getLogger(SnapshotKafkaStore.class);
 
   private final KafkaProperties kafkaProperties;
+  private final VersionControlProperties vcProperties;
+
+  // Cache for snapshot metadata (NOT full graphs)
+  // Key: dataset name, Value: List of SnapshotInfo
+  private final Cache<String, List<SnapshotInfo>> metadataCache;
 
   /**
-   * Constructs a SnapshotKafkaStore.
+   * Constructs a SnapshotKafkaStore with optional metadata caching.
    *
    * @param kafkaProperties the kafka properties
+   * @param vcProperties the version control properties
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
-      justification = "KafkaProperties is a Spring-managed bean, thread-safe and immutable")
-  public SnapshotKafkaStore(KafkaProperties kafkaProperties) {
+      justification = "KafkaProperties and VCProperties are Spring-managed beans")
+  public SnapshotKafkaStore(
+      KafkaProperties kafkaProperties,
+      VersionControlProperties vcProperties) {
     this.kafkaProperties = kafkaProperties;
+    this.vcProperties = vcProperties;
+
+    // Build metadata cache with TTL for automatic expiration
+    // Only caches lightweight metadata (CommitId, timestamp, Kafka position)
+    // NOT the full graph data
+    this.metadataCache = Caffeine.newBuilder()
+        .maximumSize(100)  // 100 datasets (small memory footprint)
+        .expireAfterWrite(vcProperties.getSnapshotMetadataCacheTtl(), TimeUnit.SECONDS)
+        .recordStats()
+        .build();
+
+    logger.info("SnapshotKafkaStore initialized with metadata cache "
+        + "(TTL: {} seconds, max size: 100 datasets)",
+        vcProperties.getSnapshotMetadataCacheTtl());
   }
 
   /**
@@ -68,12 +98,45 @@ public class SnapshotKafkaStore {
   /**
    * Loads snapshot metadata from Kafka (without deserializing graphs).
    * Only extracts commit ID, branch name, timestamp, and Kafka position.
+   * Uses cache to avoid repeated Kafka topic scans.
    *
    * @param datasetName the dataset name
    * @return List of snapshot metadata
    */
   @SuppressWarnings("PMD.CloseResource") // KafkaConsumer closed in try-with-resources
   public List<SnapshotInfo> findSnapshotMetadata(String datasetName) {
+    // Check cache first (if TTL > 0)
+    if (vcProperties.getSnapshotMetadataCacheTtl() > 0) {
+      List<SnapshotInfo> cached = metadataCache.getIfPresent(datasetName);
+      if (cached != null) {
+        logger.debug("Cache hit for snapshot metadata: dataset={}, count={}",
+            datasetName, cached.size());
+        return cached;
+      }
+    }
+
+    // Cache miss - load from Kafka
+    logger.debug("Cache miss - loading snapshot metadata from Kafka for dataset: {}",
+        datasetName);
+    List<SnapshotInfo> metadata = loadMetadataFromKafka(datasetName);
+
+    // Store in cache (if TTL > 0)
+    if (vcProperties.getSnapshotMetadataCacheTtl() > 0) {
+      metadataCache.put(datasetName, metadata);
+    }
+
+    return metadata;
+  }
+
+  /**
+   * Loads snapshot metadata from Kafka by scanning the topic.
+   * Private helper method - use findSnapshotMetadata() which uses caching.
+   *
+   * @param datasetName the dataset name
+   * @return List of snapshot metadata
+   */
+  @SuppressWarnings("PMD.CloseResource") // KafkaConsumer closed in try-with-resources
+  private List<SnapshotInfo> loadMetadataFromKafka(String datasetName) {
     List<SnapshotInfo> metadata = new ArrayList<>();
 
     // Create a consumer to read all events (polymorphic)
@@ -197,5 +260,34 @@ public class SnapshotKafkaStore {
           "Could not fetch snapshot event at " + info.topic()
           + ":" + info.partition() + ":" + info.offset());
     }
+  }
+
+  /**
+   * Invalidates the metadata cache for a specific dataset.
+   * Should be called when new snapshots are created to ensure fresh data.
+   *
+   * @param datasetName the dataset name
+   */
+  public void invalidateCache(String datasetName) {
+    metadataCache.invalidate(datasetName);
+    logger.debug("Invalidated snapshot metadata cache for dataset: {}", datasetName);
+  }
+
+  /**
+   * Clears all cached metadata.
+   * Useful for testing or when reconfiguring snapshot behavior.
+   */
+  public void clearCache() {
+    metadataCache.invalidateAll();
+    logger.debug("Cleared all snapshot metadata cache");
+  }
+
+  /**
+   * Gets cache statistics for monitoring.
+   *
+   * @return cache statistics
+   */
+  public com.github.benmanes.caffeine.cache.stats.CacheStats getCacheStats() {
+    return metadataCache.stats();
   }
 }

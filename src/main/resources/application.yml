@@ -73,6 +73,7 @@ vc:
   blame-enabled: true
   snapshots-enabled: true
   snapshot-interval: 100  # Create snapshot every N commits
+  snapshot-metadata-cache-ttl: 600  # Cache snapshot metadata for 10 minutes (0 = disabled)
   cache:
     max-size: 100  # Maximum number of cached dataset graphs
     keep-latest-per-branch: true  # Always cache latest commits

@@ -141,6 +141,9 @@ public class SnapshotService {
 
       eventPublisher.publish(event);
 
+      // Invalidate metadata cache for this dataset so next query fetches fresh data
+      kafkaStore.invalidateCache(datasetName);
+
       logger.info("Successfully created snapshot for {}/{} at commit {} ({} bytes)",
           datasetName, branchName, commitId, nquads.length());
 

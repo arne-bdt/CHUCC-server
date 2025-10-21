@@ -112,6 +112,14 @@ public class VersionControlProperties {
   private int snapshotInterval = 100;
 
   /**
+   * TTL (time-to-live) for snapshot metadata cache in seconds.
+   * Metadata cache stores lightweight snapshot info (NOT full graphs).
+   * Default is 600 seconds (10 minutes).
+   * Set to 0 to disable caching (not recommended).
+   */
+  private int snapshotMetadataCacheTtl = 600;
+
+  /**
    * Whether to allow Kafka topic deletion when deleting datasets.
    * Default is false (keep topics for audit trail).
    */
@@ -293,6 +301,28 @@ public class VersionControlProperties {
       throw new IllegalArgumentException("Snapshot interval must be positive");
     }
     this.snapshotInterval = snapshotInterval;
+  }
+
+  /**
+   * Gets the snapshot metadata cache TTL in seconds.
+   *
+   * @return the cache TTL in seconds
+   */
+  public int getSnapshotMetadataCacheTtl() {
+    return snapshotMetadataCacheTtl;
+  }
+
+  /**
+   * Sets the snapshot metadata cache TTL in seconds.
+   *
+   * @param snapshotMetadataCacheTtl the cache TTL in seconds (non-negative)
+   * @throws IllegalArgumentException if TTL is negative
+   */
+  public void setSnapshotMetadataCacheTtl(int snapshotMetadataCacheTtl) {
+    if (snapshotMetadataCacheTtl < 0) {
+      throw new IllegalArgumentException("Snapshot metadata cache TTL must be non-negative");
+    }
+    this.snapshotMetadataCacheTtl = snapshotMetadataCacheTtl;
   }
 
   /**

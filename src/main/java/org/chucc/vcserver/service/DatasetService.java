@@ -638,6 +638,7 @@ public class DatasetService {
         super(new org.apache.jena.rdfpatch.changes.RDFChangesCollector());
       }
 
+      @SuppressWarnings("null")
       private boolean graphMatches(org.apache.jena.graph.Node g) {
         // Check if g represents the default graph
         boolean isDefaultGraphNode = g == null

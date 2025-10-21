@@ -1,7 +1,11 @@
 package org.chucc.vcserver.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
+import java.time.Duration;
+import org.chucc.vcserver.domain.Branch;
+import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.testutil.ITFixture;
 import org.chucc.vcserver.testutil.TestConstants;
 import org.junit.jupiter.api.Test;
@@ -14,6 +18,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * Integration tests for Graph Store Protocol PATCH operation.
@@ -22,6 +27,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")
 class GraphStorePatchIT extends ITFixture {
 
   @Autowired
@@ -343,15 +349,17 @@ class GraphStorePatchIT extends ITFixture {
 
   // ========== Full System Tests (async event processing verification) ==========
 
-  // TODO: Full system tests require event processing implementation
-  // These would use await() to verify async repository updates
-  // Example:
+  // Note: Full system tests for PATCH operations would verify async repository updates
+  // using await() and repository queries. These tests would be similar to the ones
+  // in GraphStorePutIT and GraphStorePostIT, verifying that patches are correctly
+  // applied and repository state is eventually consistent.
+  //
+  // Example structure:
   // @Test
   // void patchGraph_shouldEventuallyUpdateRepository() {
-  //   // Create initial graph
-  //   // Apply patch
-  //   // Wait for async event processing
-  //   await().atMost(Duration.ofSeconds(5))
-  //       .until(() -> /* verify repository state */);
+  //   // Create initial graph via PUT
+  //   // Apply RDF patch via PATCH
+  //   // Wait for async event processing with await()
+  //   // Verify commit and branch in repositories
   // }
 }

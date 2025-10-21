@@ -1,6 +1,11 @@
 package org.chucc.vcserver.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+import java.time.Duration;
+import org.chucc.vcserver.domain.Branch;
+import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.testutil.ITFixture;
 import org.chucc.vcserver.testutil.TestConstants;
 import org.junit.jupiter.api.Test;
@@ -13,6 +18,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * Integration tests for Graph Store Protocol POST operation.
@@ -21,6 +27,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")
 class GraphStorePostIT extends ITFixture {
 
   @Autowired
@@ -96,44 +103,43 @@ class GraphStorePostIT extends ITFixture {
     // Note: Repository updates handled by event projectors (async)
   }
 
-  // TODO: No-op detection test requires event processing implementation
-  // @Test
-  // void postGraph_shouldReturn204_whenAllTriplesAlreadyPresent() {
-  //   // Given - Create initial graph
-  //   HttpHeaders putHeaders = new HttpHeaders();
-  //   putHeaders.set("Content-Type", "text/turtle");
-  //   putHeaders.set("SPARQL-VC-Author", "Alice");
-  //   putHeaders.set("SPARQL-VC-Message", "Create graph");
-  //   restTemplate.exchange(
-  //       "/data?default=true&branch=main",
-  //       HttpMethod.PUT,
-  //       new HttpEntity<>(TURTLE_SIMPLE, putHeaders),
-  //       String.class
-  //   );
-  //
-  //   // Wait for event processing
-  //   await().atMost(Duration.ofSeconds(5))
-  //       .until(() -> branchRepository.findByDatasetAndName(DATASET_NAME, "main")
-  //           .map(b -> !b.getCommitId().equals(initialCommitId))
-  //           .orElse(false));
-  //
-  //   // When - POST same content (no-op)
-  //   HttpHeaders postHeaders = new HttpHeaders();
-  //   postHeaders.set("Content-Type", "text/turtle");
-  //   postHeaders.set("SPARQL-VC-Author", "Bob");
-  //   postHeaders.set("SPARQL-VC-Message", "No-op POST");
-  //   HttpEntity<String> request = new HttpEntity<>(TURTLE_SIMPLE, postHeaders);
-  //
-  //   ResponseEntity<String> response = restTemplate.exchange(
-  //       "/data?default=true&branch=main",
-  //       HttpMethod.POST,
-  //       request,
-  //       String.class
-  //   );
-  //
-  //   // Then - Should return 204 No Content (no-op)
-  //   assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-  // }
+  @Test
+  void postGraph_shouldReturn204_whenAllTriplesAlreadyPresent() {
+    // Given - Create initial graph
+    HttpHeaders putHeaders = new HttpHeaders();
+    putHeaders.set("Content-Type", "text/turtle");
+    putHeaders.set("SPARQL-VC-Author", "Alice");
+    putHeaders.set("SPARQL-VC-Message", "Create graph");
+    restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.PUT,
+        new HttpEntity<>(TestConstants.TURTLE_SIMPLE, putHeaders),
+        String.class
+    );
+
+    // Wait for event processing
+    await().atMost(Duration.ofSeconds(5))
+        .until(() -> branchRepository.findByDatasetAndName(DEFAULT_DATASET, "main")
+            .map(b -> !b.getCommitId().equals(initialCommitId))
+            .orElse(false));
+
+    // When - POST same content (no-op)
+    HttpHeaders postHeaders = new HttpHeaders();
+    postHeaders.set("Content-Type", "text/turtle");
+    postHeaders.set("SPARQL-VC-Author", "Bob");
+    postHeaders.set("SPARQL-VC-Message", "No-op POST");
+    HttpEntity<String> request = new HttpEntity<>(TestConstants.TURTLE_SIMPLE, postHeaders);
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.POST,
+        request,
+        String.class
+    );
+
+    // Then - Should return 204 No Content (no-op)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+  }
 
   @Test
   void postGraph_shouldAcceptTurtle_whenContentTypeTurtle() {
@@ -354,103 +360,99 @@ class GraphStorePostIT extends ITFixture {
   }
 
   // ========== Full System Tests (async event processing) ==========
-  // Note: Event publishing and projection not yet implemented
-  // Tests below will be enabled when event processing is complete
 
-  // TODO: Re-enable when event projectors are implemented
-  // @Test
-  // void postGraph_shouldEventuallyUpdateRepository_whenAddingTriples() {
-  //   // Given - Create initial graph
-  //   HttpHeaders putHeaders = new HttpHeaders();
-  //   putHeaders.set("Content-Type", "text/turtle");
-  //   putHeaders.set("SPARQL-VC-Author", "Alice");
-  //   putHeaders.set("SPARQL-VC-Message", "Create graph");
-  //   restTemplate.exchange(
-  //       "/data?default=true&branch=main",
-  //       HttpMethod.PUT,
-  //       new HttpEntity<>(TURTLE_SIMPLE, putHeaders),
-  //       String.class
-  //   );
-  //
-  //   // When - POST additional triples
-  //   HttpHeaders postHeaders = new HttpHeaders();
-  //   postHeaders.set("Content-Type", "text/turtle");
-  //   postHeaders.set("SPARQL-VC-Author", "Bob");
-  //   postHeaders.set("SPARQL-VC-Message", "Add triples");
-  //   HttpEntity<String> request = new HttpEntity<>(TURTLE_ADDITIONAL, postHeaders);
-  //
-  //   ResponseEntity<String> response = restTemplate.exchange(
-  //       "/data?default=true&branch=main",
-  //       HttpMethod.POST,
-  //       request,
-  //       String.class
-  //   );
-  //
-  //   // Then - Wait for async event processing
-  //   assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-  //   String etag = response.getHeaders().getFirst("ETag");
-  //   String commitId = etag.replaceAll("\"", "");
-  //
-  //   await().atMost(Duration.ofSeconds(5))
-  //       .until(() -> commitRepository.findByDatasetAndId(DATASET_NAME, new CommitId(commitId))
-  //           .isPresent());
-  //
-  //   // Verify branch updated
-  //   Branch branch = branchRepository.findByDatasetAndName(DATASET_NAME, "main")
-  //       .orElseThrow();
-  //   assertThat(branch.getCommitId().value()).isEqualTo(commitId);
-  // }
+  @Test
+  void postGraph_shouldEventuallyUpdateRepository_whenAddingTriples() {
+    // Given - Create initial graph
+    HttpHeaders putHeaders = new HttpHeaders();
+    putHeaders.set("Content-Type", "text/turtle");
+    putHeaders.set("SPARQL-VC-Author", "Alice");
+    putHeaders.set("SPARQL-VC-Message", "Create graph");
+    restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.PUT,
+        new HttpEntity<>(TestConstants.TURTLE_SIMPLE, putHeaders),
+        String.class
+    );
 
-  // TODO: Re-enable when event projectors are implemented
-  // @Test
-  // void postGraph_shouldReturnMergedContent_whenGetAfterPost() {
-  //   // Given - PUT initial content
-  //   HttpHeaders putHeaders = new HttpHeaders();
-  //   putHeaders.set("Content-Type", "text/turtle");
-  //   putHeaders.set("SPARQL-VC-Author", "Alice");
-  //   putHeaders.set("SPARQL-VC-Message", "Create graph");
-  //   restTemplate.exchange(
-  //       "/data?default=true&branch=main",
-  //       HttpMethod.PUT,
-  //       new HttpEntity<>(TURTLE_SIMPLE, putHeaders),
-  //       String.class
-  //   );
-  //
-  //   // POST additional content
-  //   HttpHeaders postHeaders = new HttpHeaders();
-  //   postHeaders.set("Content-Type", "text/turtle");
-  //   postHeaders.set("SPARQL-VC-Author", "Bob");
-  //   postHeaders.set("SPARQL-VC-Message", "Add triples");
-  //   restTemplate.exchange(
-  //       "/data?default=true&branch=main",
-  //       HttpMethod.POST,
-  //       new HttpEntity<>(TURTLE_ADDITIONAL, postHeaders),
-  //       String.class
-  //   );
-  //
-  //   // Wait for event processing
-  //   await().atMost(Duration.ofSeconds(5))
-  //       .until(() -> branchRepository.findByDatasetAndName(DATASET_NAME, "main")
-  //           .map(b -> !b.getCommitId().equals(initialCommitId))
-  //           .orElse(false));
-  //
-  //   // When - GET the graph
-  //   HttpHeaders getHeaders = new HttpHeaders();
-  //   getHeaders.set("Accept", "text/turtle");
-  //   ResponseEntity<String> response = restTemplate.exchange(
-  //       "/data?default=true&branch=main",
-  //       HttpMethod.GET,
-  //       new HttpEntity<>(getHeaders),
-  //       String.class
-  //   );
-  //
-  //   // Then - Should contain both original and added triples
-  //   assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-  //   String body = response.getBody();
-  //   assertThat(body).isNotNull();
-  //   assertThat(body).contains("http://example.org/subject");
-  //   assertThat(body).contains("http://example.org/subject2");
-  //   assertThat(body).contains("http://example.org/predicate");
-  //   assertThat(body).contains("http://example.org/predicate2");
-  // }
+    // When - POST additional triples
+    HttpHeaders postHeaders = new HttpHeaders();
+    postHeaders.set("Content-Type", "text/turtle");
+    postHeaders.set("SPARQL-VC-Author", "Bob");
+    postHeaders.set("SPARQL-VC-Message", "Add triples");
+    HttpEntity<String> request = new HttpEntity<>(TURTLE_ADDITIONAL, postHeaders);
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.POST,
+        request,
+        String.class
+    );
+
+    // Then - Wait for async event processing
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    String etag = response.getHeaders().getFirst("ETag");
+    String commitId = etag.replaceAll("\"", "");
+
+    await().atMost(Duration.ofSeconds(5))
+        .until(() -> commitRepository.findByDatasetAndId(DEFAULT_DATASET, new CommitId(commitId))
+            .isPresent());
+
+    // Verify branch updated
+    Branch branch = branchRepository.findByDatasetAndName(DEFAULT_DATASET, "main")
+        .orElseThrow();
+    assertThat(branch.getCommitId().value()).isEqualTo(commitId);
+  }
+
+  @Test
+  void postGraph_shouldReturnMergedContent_whenGetAfterPost() {
+    // Given - PUT initial content
+    HttpHeaders putHeaders = new HttpHeaders();
+    putHeaders.set("Content-Type", "text/turtle");
+    putHeaders.set("SPARQL-VC-Author", "Alice");
+    putHeaders.set("SPARQL-VC-Message", "Create graph");
+    restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.PUT,
+        new HttpEntity<>(TestConstants.TURTLE_SIMPLE, putHeaders),
+        String.class
+    );
+
+    // POST additional content
+    HttpHeaders postHeaders = new HttpHeaders();
+    postHeaders.set("Content-Type", "text/turtle");
+    postHeaders.set("SPARQL-VC-Author", "Bob");
+    postHeaders.set("SPARQL-VC-Message", "Add triples");
+    restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.POST,
+        new HttpEntity<>(TURTLE_ADDITIONAL, postHeaders),
+        String.class
+    );
+
+    // Wait for event processing
+    await().atMost(Duration.ofSeconds(5))
+        .until(() -> branchRepository.findByDatasetAndName(DEFAULT_DATASET, "main")
+            .map(b -> !b.getCommitId().equals(initialCommitId))
+            .orElse(false));
+
+    // When - GET the graph
+    HttpHeaders getHeaders = new HttpHeaders();
+    getHeaders.set("Accept", "text/turtle");
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.GET,
+        new HttpEntity<>(getHeaders),
+        String.class
+    );
+
+    // Then - Should contain both original and added triples
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    String body = response.getBody();
+    assertThat(body).isNotNull();
+    assertThat(body).contains("http://example.org/subject");
+    assertThat(body).contains("http://example.org/subject2");
+    assertThat(body).contains("http://example.org/predicate");
+    assertThat(body).contains("http://example.org/predicate2");
+  }
 }

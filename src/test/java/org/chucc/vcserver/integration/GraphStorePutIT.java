@@ -1,6 +1,12 @@
 package org.chucc.vcserver.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+import java.time.Duration;
+import org.chucc.vcserver.domain.Branch;
+import org.chucc.vcserver.domain.Commit;
+import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.testutil.ITFixture;
 import org.chucc.vcserver.testutil.TestConstants;
 import org.junit.jupiter.api.Test;
@@ -13,6 +19,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * Integration tests for Graph Store Protocol PUT operation.
@@ -21,6 +28,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")
 class GraphStorePutIT extends ITFixture {
 
   @Autowired
@@ -95,38 +103,37 @@ class GraphStorePutIT extends ITFixture {
     // Note: Repository updates handled by event projectors (async)
   }
 
-  // TODO: No-op detection test requires event processing implementation
-  // @Test
-  // void putGraph_shouldReturn204_whenNoChangesDetected() {
-  //   // Given - Create initial graph
-  //   HttpHeaders headers1 = new HttpHeaders();
-  //   headers1.set("Content-Type", "text/turtle");
-  //   headers1.set("SPARQL-VC-Author", "Alice");
-  //   headers1.set("SPARQL-VC-Message", "Create graph");
-  //   restTemplate.exchange(
-  //       "/data?default=true&branch=main",
-  //       HttpMethod.PUT,
-  //       new HttpEntity<>(TURTLE_CONTENT, headers1),
-  //       String.class
-  //   );
-  //
-  //   // When - PUT same content again (no-op)
-  //   HttpHeaders headers2 = new HttpHeaders();
-  //   headers2.set("Content-Type", "text/turtle");
-  //   headers2.set("SPARQL-VC-Author", "Bob");
-  //   headers2.set("SPARQL-VC-Message", "No-op PUT");
-  //   HttpEntity<String> request = new HttpEntity<>(TURTLE_CONTENT, headers2);
-  //
-  //   ResponseEntity<String> response = restTemplate.exchange(
-  //       "/data?default=true&branch=main",
-  //       HttpMethod.PUT,
-  //       request,
-  //       String.class
-  //   );
-  //
-  //   // Then
-  //   assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-  // }
+  @Test
+  void putGraph_shouldReturn204_whenNoChangesDetected() {
+    // Given - Create initial graph
+    HttpHeaders headers1 = new HttpHeaders();
+    headers1.set("Content-Type", "text/turtle");
+    headers1.set("SPARQL-VC-Author", "Alice");
+    headers1.set("SPARQL-VC-Message", "Create graph");
+    restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.PUT,
+        new HttpEntity<>(TestConstants.TURTLE_SIMPLE, headers1),
+        String.class
+    );
+
+    // When - PUT same content again (no-op)
+    HttpHeaders headers2 = new HttpHeaders();
+    headers2.set("Content-Type", "text/turtle");
+    headers2.set("SPARQL-VC-Author", "Bob");
+    headers2.set("SPARQL-VC-Message", "No-op PUT");
+    HttpEntity<String> request = new HttpEntity<>(TestConstants.TURTLE_SIMPLE, headers2);
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.PUT,
+        request,
+        String.class
+    );
+
+    // Then
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+  }
 
   @Test
   void putGraph_shouldAcceptTurtle_whenContentTypeTurtle() {
@@ -347,79 +354,75 @@ class GraphStorePutIT extends ITFixture {
   }
 
   // ========== Full System Tests (async event processing) ==========
-  // Note: Event publishing and projection not yet implemented
-  // Tests below will be enabled when event processing is complete
 
-  // TODO: Re-enable when event projectors are implemented
-  // @Test
-  // void putGraph_shouldEventuallyUpdateRepository_whenCreatingGraph() {
-  //   // Given
-  //   HttpHeaders headers = new HttpHeaders();
-  //   headers.set("Content-Type", "text/turtle");
-  //   headers.set("SPARQL-VC-Author", "Alice");
-  //   headers.set("SPARQL-VC-Message", "Create graph via PUT");
-  //   HttpEntity<String> request = new HttpEntity<>(TURTLE_CONTENT, headers);
-  //
-  //   // When
-  //   ResponseEntity<String> response = restTemplate.exchange(
-  //       "/data?default=true&branch=main",
-  //       HttpMethod.PUT,
-  //       request,
-  //       String.class
-  //   );
-  //
-  //   // Then - Wait for async event processing
-  //   assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-  //   String etag = response.getHeaders().getFirst("ETag");
-  //   String commitId = etag.replaceAll("\"", "");
-  //
-  //   await().atMost(Duration.ofSeconds(5))
-  //       .until(() -> commitRepository.findByDatasetAndId(DATASET_NAME, new CommitId(commitId))
-  //           .isPresent());
-  //
-  //   // Verify branch updated
-  //   Branch branch = branchRepository.findByDatasetAndName(DATASET_NAME, "main")
-  //       .orElseThrow();
-  //   assertThat(branch.getCommitId().value()).isEqualTo(commitId);
-  // }
+  @Test
+  void putGraph_shouldEventuallyUpdateRepository_whenCreatingGraph() {
+    // Given
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("Content-Type", "text/turtle");
+    headers.set("SPARQL-VC-Author", "Alice");
+    headers.set("SPARQL-VC-Message", "Create graph via PUT");
+    HttpEntity<String> request = new HttpEntity<>(TestConstants.TURTLE_SIMPLE, headers);
 
-  // TODO: Re-enable when event projectors are implemented
-  // @Test
-  // void putGraph_shouldReturnNewContent_whenGetAfterPut() {
-  //   // Given - PUT new content
-  //   HttpHeaders putHeaders = new HttpHeaders();
-  //   putHeaders.set("Content-Type", "text/turtle");
-  //   putHeaders.set("SPARQL-VC-Author", "Alice");
-  //   putHeaders.set("SPARQL-VC-Message", "Create graph");
-  //   restTemplate.exchange(
-  //       "/data?default=true&branch=main",
-  //       HttpMethod.PUT,
-  //       new HttpEntity<>(TURTLE_CONTENT, putHeaders),
-  //       String.class
-  //   );
-  //
-  //   // Wait for event processing
-  //   await().atMost(Duration.ofSeconds(5))
-  //       .until(() -> branchRepository.findByDatasetAndName(DATASET_NAME, "main")
-  //           .map(b -> !b.getCommitId().equals(initialCommitId))
-  //           .orElse(false));
-  //
-  //   // When - GET the graph
-  //   HttpHeaders getHeaders = new HttpHeaders();
-  //   getHeaders.set("Accept", "text/turtle");
-  //   ResponseEntity<String> response = restTemplate.exchange(
-  //       "/data?default=true&branch=main",
-  //       HttpMethod.GET,
-  //       new HttpEntity<>(getHeaders),
-  //       String.class
-  //   );
-  //
-  //   // Then
-  //   assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-  //   String body = response.getBody();
-  //   assertThat(body).isNotNull();
-  //   assertThat(body).contains("http://example.org/subject");
-  //   assertThat(body).contains("http://example.org/predicate");
-  //   assertThat(body).contains("value");
-  // }
+    // When
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.PUT,
+        request,
+        String.class
+    );
+
+    // Then - Wait for async event processing
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    String etag = response.getHeaders().getFirst("ETag");
+    String commitId = etag.replaceAll("\"", "");
+
+    await().atMost(Duration.ofSeconds(5))
+        .until(() -> commitRepository.findByDatasetAndId(DEFAULT_DATASET, new CommitId(commitId))
+            .isPresent());
+
+    // Verify branch updated
+    Branch branch = branchRepository.findByDatasetAndName(DEFAULT_DATASET, "main")
+        .orElseThrow();
+    assertThat(branch.getCommitId().value()).isEqualTo(commitId);
+  }
+
+  @Test
+  void putGraph_shouldReturnNewContent_whenGetAfterPut() {
+    // Given - PUT new content
+    HttpHeaders putHeaders = new HttpHeaders();
+    putHeaders.set("Content-Type", "text/turtle");
+    putHeaders.set("SPARQL-VC-Author", "Alice");
+    putHeaders.set("SPARQL-VC-Message", "Create graph");
+    restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.PUT,
+        new HttpEntity<>(TestConstants.TURTLE_SIMPLE, putHeaders),
+        String.class
+    );
+
+    // Wait for event processing
+    await().atMost(Duration.ofSeconds(5))
+        .until(() -> branchRepository.findByDatasetAndName(DEFAULT_DATASET, "main")
+            .map(b -> !b.getCommitId().equals(initialCommitId))
+            .orElse(false));
+
+    // When - GET the graph
+    HttpHeaders getHeaders = new HttpHeaders();
+    getHeaders.set("Accept", "text/turtle");
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.GET,
+        new HttpEntity<>(getHeaders),
+        String.class
+    );
+
+    // Then
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    String body = response.getBody();
+    assertThat(body).isNotNull();
+    assertThat(body).contains("http://example.org/subject");
+    assertThat(body).contains("http://example.org/predicate");
+    assertThat(body).contains("value");
+  }
 }

@@ -239,15 +239,26 @@ mvn clean install                    # Full build output
 ### Token Usage Optimization
 
 - **Without `-q`**: ~50,000 tokens
-- **With `-q`**: ~3,000 tokens
-- **Savings**: 94% reduction
+- **With `-q` (unit tests)**: ~3,000 tokens
+- **With `-q` (integration tests)**: ~8,000 tokens (Spring Boot autoconfiguration output)
+- **Savings**: 84-94% reduction
 
 **Optimization Checklist:**
 - ✅ Use `mvn -q` for all commands
+- ✅ For integration tests, check only final results: `mvn -q test -Dtest=TestClass 2>&1 | tail -20`
 - ✅ Use Glob/Grep tools (not `ls`, `find`, `cat`)
 - ✅ Read specific file paths when known
 - ✅ Use `Read` with offset/limit for large files
 - ✅ Only re-run without `-q` when investigating failures
+
+**Integration Test Best Practice:**
+```bash
+# ✅ GOOD: Run test and check only results
+mvn -q test -Dtest=MyIntegrationTest 2>&1 | tail -20
+
+# ❌ AVOID: Full output wastes tokens
+mvn -q test -Dtest=MyIntegrationTest
+```
 
 ---
 
@@ -382,8 +393,11 @@ mvn test -Dsurefire.printSummary=true
 ### Test Selection
 
 ```bash
-# Specific test class
-mvn -q test -Dtest=GraphStorePutIntegrationTest
+# Specific unit test class
+mvn -q test -Dtest=SquashCommandHandlerTest
+
+# Specific integration test (use tail to reduce output)
+mvn -q test -Dtest=TimeTravelQueryIT 2>&1 | tail -20
 
 # Multiple classes
 mvn -q test -Dtest=GraphStoreControllerIT,BranchControllerIT

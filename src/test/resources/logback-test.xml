@@ -10,6 +10,8 @@
     <!-- Reduce Spring Boot noise -->
     <logger name="org.springframework" level="WARN"/>
     <logger name="org.springframework.boot" level="WARN"/>
+    <logger name="org.springframework.boot.autoconfigure" level="WARN"/>
+    <logger name="org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLogger" level="WARN"/>
     <logger name="org.springframework.test.context" level="WARN"/>
     <logger name="org.springframework.kafka" level="WARN"/>
 

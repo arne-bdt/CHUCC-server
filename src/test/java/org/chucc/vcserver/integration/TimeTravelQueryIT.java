@@ -281,7 +281,7 @@ class TimeTravelQueryIT extends ITFixture {
         @prefix ex: <http://example.org/> .
         ex:bob ex:name "Bob" .
         """;
-    Instant t2 = createCommitAndGetTimestamp(updatedData, "Updated data");
+    createCommitAndGetTimestamp(updatedData, "Updated data");
 
     // When - Query with asOf=T1 (should see initial data only)
     String query = "SELECT ?s ?name WHERE { ?s <http://example.org/name> ?name }";
@@ -308,7 +308,7 @@ class TimeTravelQueryIT extends ITFixture {
         @prefix ex: <http://example.org/> .
         ex:alice ex:name "Alice" .
         """;
-    Instant t1 = createCommitAndGetTimestamp(initialData, "Initial data");
+    createCommitAndGetTimestamp(initialData, "Initial data");
 
     // And - Update data (replaces, not merges)
     String updatedData = """
@@ -342,14 +342,14 @@ class TimeTravelQueryIT extends ITFixture {
         @prefix ex: <http://example.org/> .
         ex:alice ex:name "Alice" .
         """;
-    Instant t1 = createCommitAndGetTimestamp(initialData, "Initial data");
+    createCommitAndGetTimestamp(initialData, "Initial data");
 
     // And - Update data
     String updatedData = """
         @prefix ex: <http://example.org/> .
         ex:bob ex:name "Bob" .
         """;
-    Instant t2 = createCommitAndGetTimestamp(updatedData, "Updated data");
+    createCommitAndGetTimestamp(updatedData, "Updated data");
 
     // And - Delete graph at T3
     Instant t3 = deleteGraphAndGetTimestamp("Delete graph");
@@ -427,14 +427,14 @@ class TimeTravelQueryIT extends ITFixture {
         @prefix ex: <http://example.org/> .
         ex:alice ex:name "Alice" .
         """;
-    Instant t1 = createCommitAndGetTimestamp(initialData, "Initial data");
+    createCommitAndGetTimestamp(initialData, "Initial data");
 
     // And - Update data (current state)
     String updatedData = """
         @prefix ex: <http://example.org/> .
         ex:bob ex:name "Bob" .
         """;
-    Instant t2 = createCommitAndGetTimestamp(updatedData, "Updated data");
+    createCommitAndGetTimestamp(updatedData, "Updated data");
 
     // When - Query without asOf parameter (should return current state)
     URI uri = UriComponentsBuilder.fromPath("/sparql")

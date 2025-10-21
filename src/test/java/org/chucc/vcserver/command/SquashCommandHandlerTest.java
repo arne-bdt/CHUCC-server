@@ -74,7 +74,6 @@ class SquashCommandHandlerTest {
     CommitId idB = new CommitId(commitBId);
     CommitId idC = new CommitId(commitCId);
 
-    Commit commitA = new Commit(idA, List.of(), "alice", "Commit A", Instant.now());
     Commit commitB = new Commit(idB, List.of(idA), "bob", "Commit B", Instant.now());
     Commit commitC = new Commit(idC, List.of(idB), "bob", "Commit C", Instant.now());
 
@@ -155,7 +154,6 @@ class SquashCommandHandlerTest {
     CommitId idC = new CommitId(commitCId);
     CommitId idD = new CommitId(commitDId);
 
-    Commit commitA = new Commit(idA, List.of(), "alice", "Commit A", Instant.now());
     Commit commitB = new Commit(idB, List.of(idA), "bob", "Commit B", Instant.now());
     Commit commitC = new Commit(idC, List.of(idB), "bob", "Commit C", Instant.now());
     Commit commitD = new Commit(idD, List.of(idC), "bob", "Commit D", Instant.now());
@@ -254,9 +252,7 @@ class SquashCommandHandlerTest {
     CommitId idC = new CommitId(commitCId);
     CommitId idD = new CommitId(commitDId);
 
-    Commit commitA = new Commit(idA, List.of(), "alice", "Commit A", Instant.now());
     Commit commitB = new Commit(idB, List.of(idA), "bob", "Commit B", Instant.now());
-    Commit commitC = new Commit(idC, List.of(idB), "bob", "Commit C", Instant.now());
     Commit commitD = new Commit(idD, List.of(idC), "bob", "Commit D", Instant.now());
 
     Branch branch = new Branch("feature", idD);

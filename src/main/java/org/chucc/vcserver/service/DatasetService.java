@@ -345,31 +345,6 @@ public class DatasetService {
   }
 
   /**
-   * Recursively applies patches from commit history to build the dataset state.
-   * This method is kept for potential future use and backward compatibility.
-   *
-   * @param datasetName the dataset name
-   * @param commit the current commit
-   * @param datasetGraph the dataset graph to apply patches to
-   * @throws CommitNotFoundException if a parent commit is not found
-   */
-  @SuppressWarnings("PMD.UnusedPrivateMethod") // Kept for potential future use
-  private void applyPatchHistory(String datasetName, Commit commit,
-                                   DatasetGraphInMemory datasetGraph) {
-    // First, recursively process parent commits
-    for (CommitId parentId : commit.parents()) {
-      Commit parentCommit = commitRepository.findByDatasetAndId(datasetName, parentId)
-          .orElseThrow(() -> new CommitNotFoundException(
-              "Parent commit not found: " + parentId, true));
-      applyPatchHistory(datasetName, parentCommit, datasetGraph);
-    }
-
-    // Then apply this commit's patch
-    commitRepository.findPatchByDatasetAndId(datasetName, commit.id())
-        .ifPresent(patch -> RDFPatchOps.applyChange(datasetGraph, patch));
-  }
-
-  /**
    * Finds the nearest snapshot at or before the target commit.
    * Queries Kafka to find the best snapshot that is an ancestor of the target commit.
    *

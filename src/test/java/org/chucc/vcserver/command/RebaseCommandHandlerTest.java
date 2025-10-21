@@ -1,14 +1,12 @@
 package org.chucc.vcserver.command;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.rdfpatch.RDFPatch;
-import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
@@ -16,14 +14,12 @@ import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.BranchRebasedEvent;
 import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
-import org.chucc.vcserver.exception.RebaseConflictException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.chucc.vcserver.repository.TagRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 

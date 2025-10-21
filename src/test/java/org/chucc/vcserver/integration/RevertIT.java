@@ -2,7 +2,6 @@ package org.chucc.vcserver.integration;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.ByteArrayInputStream;
 import java.time.Instant;
 import java.util.List;
 import org.apache.jena.graph.Node;

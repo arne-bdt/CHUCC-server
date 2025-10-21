@@ -6,11 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -23,7 +20,6 @@ import org.chucc.vcserver.command.BatchGraphsCommand.GraphOperation;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.BatchGraphsCompletedEvent;
-import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
@@ -105,7 +101,6 @@ class BatchGraphsCommandHandlerTest {
 
     RDFPatch patch1 = RDFPatchOps.emptyPatch();
     RDFPatch patch2 = RDFPatchOps.emptyPatch();
-    RDFPatch combinedPatch = RDFPatchOps.emptyPatch();
 
     List<GraphOperation> operations = List.of(
         new GraphOperation("PUT", "http://example.org/g1", false,

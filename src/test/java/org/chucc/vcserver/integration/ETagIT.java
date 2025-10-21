@@ -1,11 +1,9 @@
 package org.chucc.vcserver.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.time.Duration;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;

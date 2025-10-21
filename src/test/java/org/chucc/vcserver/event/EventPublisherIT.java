@@ -1,10 +1,8 @@
 package org.chucc.vcserver.event;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.chucc.vcserver.config.KafkaProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,13 +49,7 @@ class EventPublisherIT {
   private EventPublisher eventPublisher;
 
   @Autowired
-  private KafkaProperties kafkaProperties;
-
-  @Autowired
   private EmbeddedKafkaBroker embeddedKafka;
-
-  @Autowired
-  private ObjectMapper objectMapper;
 
   private KafkaMessageListenerContainer<String, String> container;
   private ConsumerRecord<String, String> receivedRecord;

@@ -5,7 +5,6 @@ import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
 import org.chucc.vcserver.domain.Branch;
-import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.testutil.ITFixture;
 import org.chucc.vcserver.testutil.TestConstants;

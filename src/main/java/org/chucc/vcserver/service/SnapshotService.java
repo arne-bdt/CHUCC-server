@@ -24,7 +24,6 @@ import org.chucc.vcserver.domain.DatasetRef;
 import org.chucc.vcserver.domain.Snapshot;
 import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.SnapshotCreatedEvent;
-import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +42,6 @@ public class SnapshotService {
   private static final Logger logger = LoggerFactory.getLogger(SnapshotService.class);
 
   private final DatasetService datasetService;
-  private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
   private final EventPublisher eventPublisher;
   private final VersionControlProperties vcProperties;
@@ -56,7 +54,6 @@ public class SnapshotService {
    * Constructs a SnapshotService.
    *
    * @param datasetService the dataset service
-   * @param branchRepository the branch repository
    * @param commitRepository the commit repository
    * @param eventPublisher the event publisher
    * @param vcProperties the version control properties
@@ -67,13 +64,11 @@ public class SnapshotService {
       justification = "All dependencies are Spring-managed beans and are thread-safe")
   public SnapshotService(
       DatasetService datasetService,
-      BranchRepository branchRepository,
       CommitRepository commitRepository,
       EventPublisher eventPublisher,
       VersionControlProperties vcProperties,
       SnapshotKafkaStore kafkaStore) {
     this.datasetService = datasetService;
-    this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
     this.eventPublisher = eventPublisher;
     this.vcProperties = vcProperties;

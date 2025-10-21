@@ -50,7 +50,6 @@ class DatasetServiceCacheTest {
 
     SnapshotService snapshotService = new SnapshotService(
         null, // DatasetService will be set later if needed
-        branchRepository,
         commitRepository,
         eventPublisher,
         vcProperties,

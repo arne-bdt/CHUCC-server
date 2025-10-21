@@ -52,9 +52,6 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
 
   private final ObjectMapper objectMapper = new ObjectMapper();
 
-  private static final String TURTLE_UPDATED = "@prefix ex: <http://example.org/> .\n"
-      + "ex:subject ex:predicate \"updated\" .";
-
   /**
    * Set up clean state before each test.
    */

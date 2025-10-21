@@ -13,7 +13,6 @@ import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.chucc.vcserver.config.KafkaProperties;
 import org.chucc.vcserver.domain.Branch;
-import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.BranchCreatedEvent;
 import org.chucc.vcserver.event.BranchRebasedEvent;

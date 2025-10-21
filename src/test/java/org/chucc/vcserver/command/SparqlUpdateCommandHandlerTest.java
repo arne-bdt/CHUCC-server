@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -23,12 +22,10 @@ import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.exception.MalformedUpdateException;
 import org.chucc.vcserver.exception.PreconditionFailedException;
-import org.chucc.vcserver.exception.UpdateExecutionException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.service.ConflictDetectionService;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.GraphDiffService;
-import org.chucc.vcserver.service.PreconditionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,9 +53,6 @@ class SparqlUpdateCommandHandlerTest {
   @Mock
   private ConflictDetectionService conflictDetectionService;
 
-  @Mock
-  private PreconditionService preconditionService;
-
   private SparqlUpdateCommandHandler handler;
 
   @BeforeEach
@@ -72,8 +66,7 @@ class SparqlUpdateCommandHandlerTest {
         branchRepository,
         datasetService,
         graphDiffService,
-        conflictDetectionService,
-        preconditionService
+        conflictDetectionService
     );
   }
 

@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -399,7 +398,6 @@ class PutGraphCommandHandlerTest {
     CommitId baseCommit = CommitId.generate();
     Branch branch = new Branch("main", baseCommit);
 
-    Model emptyGraph = ModelFactory.createDefaultModel();
     Model newGraph = ModelFactory.createDefaultModel();
     newGraph.add(
         ResourceFactory.createResource("http://example.org/s1"),

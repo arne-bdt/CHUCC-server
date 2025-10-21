@@ -21,7 +21,6 @@ import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.service.ConflictDetectionService;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.GraphDiffService;
-import org.chucc.vcserver.service.PreconditionService;
 import org.chucc.vcserver.util.GraphCommandUtil;
 import org.chucc.vcserver.util.RdfPatchUtil;
 import org.slf4j.Logger;
@@ -67,7 +66,6 @@ public class SparqlUpdateCommandHandler implements CommandHandler<SparqlUpdateCo
   private final DatasetService datasetService;
   private final GraphDiffService graphDiffService;
   private final ConflictDetectionService conflictDetectionService;
-  private final PreconditionService preconditionService;
 
   /**
    * Constructs a new SPARQL UPDATE command handler.
@@ -77,7 +75,6 @@ public class SparqlUpdateCommandHandler implements CommandHandler<SparqlUpdateCo
    * @param datasetService the dataset service
    * @param graphDiffService the graph diff service
    * @param conflictDetectionService the conflict detection service
-   * @param preconditionService the precondition service
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
@@ -87,14 +84,12 @@ public class SparqlUpdateCommandHandler implements CommandHandler<SparqlUpdateCo
       BranchRepository branchRepository,
       DatasetService datasetService,
       GraphDiffService graphDiffService,
-      ConflictDetectionService conflictDetectionService,
-      PreconditionService preconditionService) {
+      ConflictDetectionService conflictDetectionService) {
     this.eventPublisher = eventPublisher;
     this.branchRepository = branchRepository;
     this.datasetService = datasetService;
     this.graphDiffService = graphDiffService;
     this.conflictDetectionService = conflictDetectionService;
-    this.preconditionService = preconditionService;
   }
 
   @Override

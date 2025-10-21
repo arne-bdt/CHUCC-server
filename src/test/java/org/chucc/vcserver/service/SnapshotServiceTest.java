@@ -49,7 +49,6 @@ class SnapshotServiceTest {
   void setUp() {
     snapshotService = new SnapshotService(
         datasetService,
-        branchRepository,
         commitRepository,
         eventPublisher,
         vcProperties,

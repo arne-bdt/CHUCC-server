@@ -4,7 +4,6 @@ import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.QueryParseException;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.vocabulary.RDF;
 import org.chucc.vcserver.domain.ResultFormat;

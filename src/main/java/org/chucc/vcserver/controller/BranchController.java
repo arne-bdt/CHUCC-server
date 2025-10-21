@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -136,6 +137,7 @@ public class BranchController {
    * Delete a branch.
    *
    * @param name branch name
+   * @param dataset dataset name (defaults to "default")
    * @param author the author of the deletion operation
    * @return no content on success
    */
@@ -159,12 +161,14 @@ public class BranchController {
   public ResponseEntity<Void> deleteBranch(
       @Parameter(description = "Branch name", required = true)
       @PathVariable String name,
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
       @Parameter(description = "Author of the deletion operation")
       @RequestHeader(value = "X-Author", defaultValue = "anonymous") String author
   ) {
     // Create command
     DeleteBranchCommand command = new DeleteBranchCommand(
-        "default",  // TODO: Get from request context
+        dataset,
         name,
         author
     );

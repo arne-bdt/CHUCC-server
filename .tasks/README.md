@@ -9,10 +9,8 @@ This directory contains task breakdowns for remaining features and enhancements 
 This roadmap tracks the **remaining tasks** for CHUCC Server. Completed tasks have been removed from this directory.
 
 **Remaining task areas:**
-1. **SPARQL Features** - Add time-travel query tests
-2. **Infrastructure** - Request context for dataset name
-3. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
-4. **Refactoring** - Migrate from Model API to Graph API for performance improvements
+1. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
+2. **Refactoring** - Migrate from Model API to Graph API for performance improvements
 
 ---
 
@@ -47,65 +45,23 @@ The following task areas have been **successfully completed** and their task fil
 - Enabled and fixed 10 integration tests verifying async event flow
 - Eventual consistency model validated end-to-end
 
+### ✅ Time-Travel SPARQL Queries (Completed)
+- 5 comprehensive integration tests verify historical data retrieval
+- Tests cover queries at different timestamps (T1, T2, after deletion, midpoint)
+- End-to-end testing using Graph Store Protocol HTTP API
+- Async projector verification with await() pattern
+- Query result correctness validated for all time-travel scenarios
+
 For details on completed work, see git history:
 ```bash
-git log --oneline --grep="cache\|snapshot\|deletion\|named graph\|CQRS\|event flow" --since="2025-10-01"
+git log --oneline --grep="cache\|snapshot\|deletion\|named graph\|CQRS\|event flow\|time-travel" --since="2025-10-01"
 ```
 
 ---
 
 ## Task Categories
 
-### 1. SPARQL Features
-
-**Goal:** Add comprehensive tests for time-travel SPARQL queries.
-
-**Current State:** Time-travel parameter validation exists, but query correctness not verified.
-
-**Target State:** Integration tests verify historical data retrieval works correctly.
-
-| Task | File | Priority | Est. Time | Status |
-|------|------|----------|-----------|--------|
-| 01. Implement Time-Travel Query Tests | `sparql-features/01-implement-time-travel-sparql-queries.md` | Medium | 3-4 hours | 📋 Not Started |
-
-**Dependencies:** Requires event publishing to be implemented (testing/01).
-
-**Test Scenarios:**
-1. Query at T1 returns initial data
-2. Query at T2 returns updated data
-3. Query after deletion returns empty results
-4. Query between T1 and T2 returns T1 state
-5. Query without asOf returns current state
-
----
-
-### 2. Infrastructure
-
-**Goal:** Remove hardcoded dataset names and support multi-dataset operations.
-
-**Current State:** Dataset name hardcoded as "default" in multiple controllers.
-
-**Target State:** Dataset name from request parameter or context.
-
-| Task | File | Priority | Est. Time | Status |
-|------|------|----------|-----------|--------|
-| 01. Implement Request Context for Dataset | `infrastructure/01-implement-request-context-for-dataset.md` | Low | 2-3 hours | 📋 Not Started |
-
-**Affected Controllers:**
-- GraphStoreController
-- BatchGraphsController
-- SparqlController
-- BranchController
-
-**Benefits:**
-- Removes hardcoded values
-- Enables future multi-dataset support
-- Foundation for multi-tenancy
-- API consistency improvement
-
----
-
-### 3. Java APIs
+### 1. Java APIs
 
 **Goal:** Create plain Java APIs for SPARQL Protocol and Graph Store Protocol that can be used without HTTP overhead.
 
@@ -155,7 +111,7 @@ Optional<Model> model = api.getGraph(
 
 ---
 
-### 4. Refactoring - Model API to Graph API Migration
+### 2. Refactoring - Model API to Graph API Migration
 
 **Goal:** Improve performance and efficiency by migrating from Apache Jena's Model API to the lower-level Graph API.
 
@@ -185,43 +141,13 @@ See detailed breakdown: [`refactoring/README.md`](./refactoring/README.md)
 
 ## Recommended Implementation Order
 
-### Phase 1: Infrastructure (High Priority)
-
-**Goal:** Improve infrastructure and remove hardcoded values
-
-1. 📋 `infrastructure/01-implement-request-context-for-dataset.md` (2-3 hours)
-
-**Rationale:**
-- Request context removes hardcoded values and enables multi-dataset support
-- Foundation for multi-tenancy
-- Relatively independent task
-
-**Estimated Time:** 2-3 hours total
-
----
-
-### Phase 2: Testing & Validation (Medium Priority)
-
-**Goal:** Verify time-travel queries work correctly
-
-2. 📋 `sparql-features/01-implement-time-travel-sparql-queries.md` (3-4 hours)
-
-**Rationale:**
-- Validates time-travel query correctness
-- Ensures version control features work as designed
-- Provides living documentation via tests
-
-**Estimated Time:** 3-4 hours
-
----
-
-### Phase 3: Refactoring Foundation (Medium Priority)
+### Phase 1: Refactoring Foundation (High Priority)
 
 **Goal:** Establish Graph API usage in foundational services
 
-3. 📋 `refactoring/01-migrate-rdf-parsing-service.md` (1-2 hours)
-4. 📋 `refactoring/02-migrate-graph-serialization-service.md` (1-2 hours)
-5. 📋 `refactoring/03-migrate-graph-diff-service.md` (2-3 hours)
+1. 📋 `refactoring/01-migrate-rdf-parsing-service.md` (1-2 hours)
+2. 📋 `refactoring/02-migrate-graph-serialization-service.md` (1-2 hours)
+3. 📋 `refactoring/03-migrate-graph-diff-service.md` (2-3 hours)
 
 **Rationale:** These changes unlock performance improvements across the entire codebase.
 
@@ -229,12 +155,12 @@ See detailed breakdown: [`refactoring/README.md`](./refactoring/README.md)
 
 ---
 
-### Phase 4: Java APIs (Lower Priority)
+### Phase 2: Java APIs (Medium Priority)
 
 **Goal:** Provide programmatic access for embedded use cases
 
-6. 📋 `java-api/01-create-java-sparql-api.md` (3-4 hours)
-7. 📋 `java-api/02-create-java-graph-store-api.md` (3-4 hours)
+4. 📋 `java-api/01-create-java-sparql-api.md` (3-4 hours)
+5. 📋 `java-api/02-create-java-graph-store-api.md` (3-4 hours)
 
 **Rationale:** Nice-to-have for embedded use. Can be deferred if time-constrained.
 
@@ -242,13 +168,13 @@ See detailed breakdown: [`refactoring/README.md`](./refactoring/README.md)
 
 ---
 
-### Phase 5: Refactoring Completion (Lower Priority)
+### Phase 3: Refactoring Completion (Lower Priority)
 
 **Goal:** Complete Model-to-Graph migration
 
-8. Tasks 04-10 (to be created after Phase 3)
+6. Tasks 04-10 (to be created after Phase 1)
 
-**Rationale:** Finish what was started in Phase 3.
+**Rationale:** Finish what was started in Phase 1.
 
 **Estimated Time:** 8-10 hours total
 
@@ -274,9 +200,9 @@ See detailed breakdown: [`refactoring/README.md`](./refactoring/README.md)
 
 ### For Project Managers
 
-- **Phase 1 tasks are critical** - unlock performance improvements
-- **Phase 2 tasks are features** - nice-to-have
-- **Phase 3 tasks are cleanup** - complete the refactoring
+- **Phase 1 tasks are critical** - unlock performance improvements across the codebase
+- **Phase 2 tasks are enhancements** - nice-to-have for embedded use
+- **Phase 3 tasks are completion** - finish the refactoring work
 
 ### For Architects
 
@@ -387,7 +313,7 @@ When adding new tasks:
 - ⏸️ **Deferred** - Task is lower priority
 - ❌ **Cancelled** - Task no longer needed
 
-**Current overall status:** 4 task areas remaining
+**Current overall status:** 2 task areas remaining
 
 ---
 
@@ -399,18 +325,17 @@ When adding new tasks:
 - ✅ Deletion features (2 tasks)
 - ✅ Named graph support (1 task)
 - ✅ CQRS event flow (1 task)
-- **Total completed:** 8 tasks
+- ✅ Time-travel SPARQL queries (1 task)
+- **Total completed:** 9 tasks
 
 **Remaining:**
-- 📋 SPARQL Features (1 task)
-- 📋 Infrastructure (1 task)
 - 📋 Java APIs (2 tasks)
 - 📋 Refactoring (3+ tasks)
-- **Total remaining:** 7+ tasks
+- **Total remaining:** 5+ tasks
 
-**Progress:** ~53% complete (8 of 15+ tasks)
+**Progress:** ~64% complete (9 of 14+ tasks)
 
 **Next Steps:**
-1. Add request context for dataset (infrastructure/01)
-2. Add time-travel query tests (sparql-features/01)
-3. Start refactoring foundation (refactoring/01-03)
+1. Start refactoring foundation (refactoring/01-03)
+2. Create Java APIs (java-api/01-02)
+3. Complete refactoring (additional tasks TBD)

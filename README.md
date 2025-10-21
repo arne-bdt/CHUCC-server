@@ -39,6 +39,19 @@ This server implements:
 - ✅ **RFC 7807 Problem Details** - Standardized error responses
 - ✅ **Multi-tenant** - Dataset scoping support
 
+### Performance & Scalability
+- ✅ **Snapshot Optimization** - Fast recovery and query materialization from snapshots
+- ✅ **LRU Cache Eviction** - Bounded memory usage with Caffeine-based cache
+- ✅ **Cache Metrics** - Monitor cache hit rates, evictions, and memory usage
+- ✅ **On-demand Snapshot Loading** - Snapshots loaded from Kafka when needed (not stored in memory)
+- ✅ **Metadata Caching** - Fast snapshot lookups with minimal memory footprint
+
+### Operations
+- ✅ **Branch Deletion** - Delete branches with protection for main branch
+- ✅ **Dataset Deletion** - Delete entire datasets with optional Kafka topic cleanup
+- ✅ **Confirmation Requirements** - Safeguards against accidental deletion
+- ✅ **Audit Trail** - All operations recorded as events in Kafka
+
 
 
 ### Example: Basic Query
@@ -178,15 +191,24 @@ To temporarily increase test logging, override in your test:
 
 ## Development Status
 
-🚧 **Pre-alpha** - API specification complete, implementation in progress
+✅ **Alpha** - Core functionality implemented, production-ready features
 
-- [x] Protocol specification
-- [x] OpenAPI specification
-- [x] JSON schemas
-- [ ] Core SPARQL endpoint
-- [ ] Version control layer
-- [ ] Storage backend
-- [ ] Test suite
+**Completed:**
+- ✅ Protocol specification (SPARQL 1.2 + Version Control Extension)
+- ✅ OpenAPI specification
+- ✅ JSON schemas
+- ✅ Core SPARQL endpoint (Query + Update)
+- ✅ Version control layer (branches, commits, merges, tags)
+- ✅ Storage backend (Apache Jena + Kafka event sourcing)
+- ✅ Comprehensive test suite (~911 tests)
+- ✅ Performance optimizations (snapshots, LRU cache)
+- ✅ Deletion operations (branches, datasets)
+
+**Remaining Tasks:**
+- 📋 Java API layer (programmatic access without HTTP)
+- 📋 Performance refactoring (Model API → Graph API migration)
+
+See [Task Roadmap](./.tasks/README.md) for detailed status and remaining work.
 
 ## Documentation
 

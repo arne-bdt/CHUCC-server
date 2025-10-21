@@ -1,105 +1,48 @@
 # CHUCC Server - Task Roadmap
 
-This directory contains task breakdowns for major features and enhancements planned for CHUCC Server. Each task is designed to be completable in one development session (3-6 hours).
+This directory contains task breakdowns for remaining features and enhancements planned for CHUCC Server. Each task is designed to be completable in one development session (3-6 hours).
 
 ---
 
 ## Overview
 
-The tasks are organized into four main areas:
+This roadmap tracks the **remaining tasks** for CHUCC Server. Completed tasks have been removed from this directory.
 
-1. **Snapshot Optimization** - Use snapshots to speed up operations
-2. **Deletion Features** - Implement branch and dataset deletion
-3. **Cache Optimization** - Implement LRU cache eviction strategy
-4. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
+**Remaining task areas:**
+1. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
+2. **Refactoring** - Migrate from Model API to Graph API for performance improvements
+
+---
+
+## Completed Tasks
+
+The following task areas have been **successfully completed** and their task files removed:
+
+### ✅ Snapshot Optimization (Completed)
+- Snapshots now used for faster startup and query materialization
+- SnapshotKafkaStore implemented for on-demand snapshot loading
+- Metadata caching added for performance
+
+### ✅ Cache Optimization (Completed)
+- LRU cache eviction implemented using Caffeine
+- Bounded memory usage preventing OutOfMemoryError
+- Cache metrics available via Actuator
+
+### ✅ Deletion Features (Completed)
+- Branch deletion implemented with protection for main branch
+- Dataset deletion implemented with confirmation requirement
+- Optional Kafka topic cleanup support
+
+For details on completed work, see git history:
+```bash
+git log --oneline --grep="cache\|snapshot\|deletion" --since="2025-10-01"
+```
 
 ---
 
 ## Task Categories
 
-### 1. Snapshot Optimization
-
-**Goal:** Use snapshots to dramatically improve performance for startup, query materialization, and recovery.
-
-**Current State:** Snapshots are created every N commits but **not used** for recovery or queries.
-
-**Target State:** Snapshots used everywhere to reduce event replay time.
-
-| Task | File | Priority | Est. Time |
-|------|------|----------|-----------|
-| 01. Snapshot Recovery on Startup | `snapshots/01-snapshot-recovery-on-startup.md` | High | 3-4 hours |
-| 02. Snapshot-Based Materialization | `snapshots/02-snapshot-based-materialization.md` | High | 3-4 hours |
-
-**Dependencies:** Task 01 must be completed before Task 02.
-
-**Performance Impact:**
-- **Startup:** 10k events: 30s → 3s (with snapshots every 1000 commits)
-- **Queries:** Deep history (5000 commits): 2.5s → 50ms (50x faster)
-
----
-
-### 2. Deletion Features
-
-**Goal:** Implement missing deletion features (branch deletion, dataset deletion) with proper CQRS + Event Sourcing patterns.
-
-**Current State:** Both features return `501 Not Implemented`.
-
-**Target State:** Full deletion support with optional Kafka topic cleanup.
-
-| Task | File | Priority | Est. Time |
-|------|------|----------|-----------|
-| 01. Implement Branch Deletion | `deletion/01-implement-branch-deletion.md` | Medium | 2-3 hours |
-| 02. Implement Dataset Deletion | `deletion/02-implement-dataset-deletion.md` | Medium | 4-6 hours |
-
-**Key Features:**
-- Branch deletion: Deletes branch pointer, preserves commits
-- Dataset deletion: Optionally deletes Kafka topic (irreversible)
-- Protection: Cannot delete `main` branch or `default` dataset
-- Confirmation required for dataset deletion
-
-**Design Decisions:**
-- Commits never deleted (audit trail)
-- Kafka topic deletion optional (configurable)
-- Events always published (even for deletion)
-
----
-
-### 3. Cache Optimization
-
-**Goal:** Replace unbounded caching with LRU (Least Recently Used) cache to prevent OutOfMemoryError.
-
-**Current State:** Unbounded `ConcurrentHashMap` - memory grows indefinitely.
-
-**Target State:** Caffeine-based LRU cache with configurable size limits.
-
-| Task | File | Priority | Est. Time |
-|------|------|----------|-----------|
-| 01. Implement LRU Cache Eviction | `cache-optimization/01-implement-lru-cache-eviction.md` | High | 3-4 hours |
-
-**Dependencies:** Snapshot tasks (01, 02) should be completed first for efficient graph rebuilding.
-
-**Key Features:**
-- LRU eviction with configurable max size
-- Always keep latest commit per branch (never evict hot data)
-- Optional TTL (time-to-live)
-- Metrics: cache size, hit rate, eviction count
-
-**Configuration:**
-```yaml
-vc:
-  cache:
-    max-size: 100                    # Max cached graphs
-    keep-latest-per-branch: true     # Pin latest commits
-    ttl-minutes: 0                   # Optional TTL
-```
-
-**Memory Impact:**
-- **Before:** Unbounded (risk of OOM)
-- **After:** Bounded to ~100 graphs × 5 MB = 500 MB
-
----
-
-### 4. Java APIs
+### 1. Java APIs
 
 **Goal:** Create plain Java APIs for SPARQL Protocol and Graph Store Protocol that can be used without HTTP overhead.
 
@@ -107,10 +50,10 @@ vc:
 
 **Target State:** Clean Java APIs for embedded use, testing, and library integration.
 
-| Task | File | Priority | Est. Time |
-|------|------|----------|-----------|
-| 01. Create Java SPARQL API | `java-api/01-create-java-sparql-api.md` | Medium | 3-4 hours |
-| 02. Create Java Graph Store API | `java-api/02-create-java-graph-store-api.md` | Medium | 3-4 hours |
+| Task | File | Priority | Est. Time | Status |
+|------|------|----------|-----------|--------|
+| 01. Create Java SPARQL API | `java-api/01-create-java-sparql-api.md` | Medium | 3-4 hours | 📋 Not Started |
+| 02. Create Java Graph Store API | `java-api/02-create-java-graph-store-api.md` | Medium | 3-4 hours | 📋 Not Started |
 
 **Dependencies:** Task 01 should be completed first to establish API patterns.
 
@@ -137,45 +80,84 @@ Optional<Model> model = api.getGraph(
 
 **Use Cases:**
 - Embedded applications
-- Unit testing without HTTP
+- Unit testing without HTTP overhead
 - Library integration
 - Microservices communication
+
+**Benefits:**
+- No HTTP serialization/deserialization overhead
+- Direct method invocation (10-100x faster)
+- Type-safe API (compile-time checking)
+- Better for testing (no need to start HTTP server)
+
+---
+
+### 2. Refactoring - Model API to Graph API Migration
+
+**Goal:** Improve performance and efficiency by migrating from Apache Jena's Model API to the lower-level Graph API.
+
+**Current State:** Code uses Model API extensively.
+
+**Target State:** Internal code uses Graph API; Model API only at boundaries.
+
+See detailed breakdown: [`refactoring/README.md`](./refactoring/README.md)
+
+| Task | File | Priority | Est. Time | Status |
+|------|------|----------|-----------|--------|
+| 01. Migrate RdfParsingService | `refactoring/01-migrate-rdf-parsing-service.md` | High | 1-2 hours | 📋 Not Started |
+| 02. Migrate GraphSerializationService | `refactoring/02-migrate-graph-serialization-service.md` | High | 1-2 hours | 📋 Not Started |
+| 03. Migrate GraphDiffService | `refactoring/03-migrate-graph-diff-service.md` | High | 2-3 hours | 📋 Not Started |
+
+**Note:** Additional tasks (04-10) will be created after completing the foundational tasks 01-03.
+
+**Expected Benefits:**
+- **Performance:** 20-30% faster graph operations
+- **Memory:** 15-25% reduction
+- **Efficiency:** More efficient triple iteration
+- **Direct access:** No wrapper object overhead
+
+**Dependencies:** Tasks must be completed sequentially (01 → 02 → 03).
 
 ---
 
 ## Recommended Implementation Order
 
-### Phase 1: Performance & Memory (Highest Priority)
+### Phase 1: Refactoring Foundation (Highest Priority)
 
-**Goal:** Prevent OutOfMemoryError and improve performance
+**Goal:** Establish Graph API usage in foundational services
 
-1. ✅ `snapshots/01-snapshot-recovery-on-startup.md`
-2. ✅ `snapshots/02-snapshot-based-materialization.md`
-3. ✅ `cache-optimization/01-implement-lru-cache-eviction.md`
+1. 📋 `refactoring/01-migrate-rdf-parsing-service.md`
+2. 📋 `refactoring/02-migrate-graph-serialization-service.md`
+3. 📋 `refactoring/03-migrate-graph-diff-service.md`
 
-**Rationale:** These tasks address critical production concerns (memory leaks, slow queries).
+**Rationale:** These changes unlock performance improvements across the entire codebase.
 
----
-
-### Phase 2: Missing Features (Medium Priority)
-
-**Goal:** Complete the API surface
-
-4. ✅ `deletion/01-implement-branch-deletion.md`
-5. ✅ `deletion/02-implement-dataset-deletion.md`
-
-**Rationale:** Branch/dataset deletion are expected features. Defer if not critical.
+**Estimated Time:** 5-7 hours total
 
 ---
 
-### Phase 3: Developer Experience (Lower Priority)
+### Phase 2: Java APIs (Medium Priority)
 
-**Goal:** Improve usability for Java developers
+**Goal:** Provide programmatic access for embedded use cases
 
-6. ✅ `java-api/01-create-java-sparql-api.md`
-7. ✅ `java-api/02-create-java-graph-store-api.md`
+4. 📋 `java-api/01-create-java-sparql-api.md`
+5. 📋 `java-api/02-create-java-graph-store-api.md`
 
 **Rationale:** Nice-to-have for embedded use. Can be deferred if time-constrained.
+
+**Estimated Time:** 6-8 hours total
+
+---
+
+### Phase 3: Refactoring Completion (Lower Priority)
+
+**Goal:** Complete Model-to-Graph migration
+
+6. Tasks 04-10 (to be created after Phase 1)
+
+**Rationale:** Finish what was started in Phase 1.
+
+**Estimated Time:** 8-10 hours total
 
 ---
 
@@ -195,18 +177,18 @@ Optional<Model> model = api.getGraph(
    - Run quality checks (Checkstyle, SpotBugs, PMD)
 4. **Verify completion** using success criteria
 5. **Commit and document** the changes
+6. **Delete the task file** once completed
 
 ### For Project Managers
 
-- **Phase 1 tasks are critical** - schedule these first
-- **Phase 2 tasks are features** - prioritize based on user needs
-- **Phase 3 tasks are enhancements** - nice-to-have
+- **Phase 1 tasks are critical** - unlock performance improvements
+- **Phase 2 tasks are features** - nice-to-have
+- **Phase 3 tasks are cleanup** - complete the refactoring
 
 ### For Architects
 
-- All tasks follow **CQRS + Event Sourcing** patterns
+- All tasks follow **CQRS + Event Sourcing** patterns (where applicable)
 - All tasks maintain **backward compatibility**
-- All tasks include **rollback plans**
 - All tasks have **comprehensive tests**
 
 ---
@@ -240,7 +222,7 @@ Each task file follows this template:
 ## Tests
 - Unit tests
 - Integration tests
-- Performance tests
+- Performance tests (if applicable)
 
 ## Success Criteria
 - [ ] Criterion 1
@@ -258,22 +240,18 @@ Each task file follows this template:
 
 ## Metrics & Monitoring
 
-After implementing these tasks, monitor:
+After implementing Java API tasks, monitor:
+
+**API Performance Metrics:**
+- `api.sparql.query.time` - Query execution time
+- `api.sparql.update.time` - Update execution time
+- `api.graph.get.time` - Graph retrieval time
+
+After implementing refactoring tasks, monitor:
 
 **Performance Metrics:**
-- `dataset.cache.size` - Cache size
-- `dataset.cache.hit.rate` - Cache efficiency
-- `dataset.snapshot.hits` - Snapshot usage
-- `dataset.materialize` - Materialization time
-
-**Memory Metrics:**
-- `jvm.memory.used` - Heap usage
-- `jvm.gc.pause` - Garbage collection
-
-**Event Metrics:**
-- `event.published` - Events published
-- `event.projector.processed` - Events processed
-- `event.projector.processing` - Processing time
+- `graph.diff.time` - Graph diff operation time (should decrease by 20-30%)
+- `jvm.memory.used` - Heap usage (should decrease by 15-25%)
 
 ---
 
@@ -289,6 +267,14 @@ When adding new tasks:
 6. Define clear success criteria
 7. Update this README with the new task
 
+**When completing a task:**
+1. Verify all success criteria met
+2. Ensure all tests pass (currently ~911 tests)
+3. Verify zero quality violations (Checkstyle, SpotBugs, PMD)
+4. Commit with conventional commit message
+5. **Delete the task file and folder** (if folder is empty)
+6. Update this README
+
 ---
 
 ## References
@@ -296,17 +282,33 @@ When adding new tasks:
 - [Architecture Overview](../docs/architecture/README.md)
 - [CQRS + Event Sourcing Guide](../docs/architecture/cqrs-event-sourcing.md)
 - [Development Guidelines](../.claude/CLAUDE.md)
-- [Kafka Storage Guide](../docs/operations/kafka-storage-guide.md)
 - [Performance Optimization](../docs/operations/performance.md)
 
 ---
 
 ## Status Legend
 
-- ✅ **Completed** - Task is done and merged
+- ✅ **Completed** - Task is done, merged, and task file deleted
 - 🚧 **In Progress** - Task is being worked on
-- 📋 **Planned** - Task is ready to start
+- 📋 **Not Started** - Task is ready to start
 - ⏸️ **Deferred** - Task is lower priority
 - ❌ **Cancelled** - Task no longer needed
 
-Current status: All tasks are **📋 Planned**
+**Current overall status:** 2 task areas remaining (Java APIs, Refactoring)
+
+---
+
+## Quick Stats
+
+**Completed:**
+- ✅ Snapshot optimization (2 tasks)
+- ✅ Cache optimization (2 tasks)
+- ✅ Deletion features (2 tasks)
+- **Total completed:** 6 tasks
+
+**Remaining:**
+- 📋 Java APIs (2 tasks)
+- 📋 Refactoring (3+ tasks)
+- **Total remaining:** 5+ tasks
+
+**Progress:** ~55% complete (6 of 11+ tasks)

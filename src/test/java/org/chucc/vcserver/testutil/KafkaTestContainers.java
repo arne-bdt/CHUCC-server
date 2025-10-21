@@ -58,8 +58,13 @@ public final class KafkaTestContainers {
    * Creates a new Kafka container with reuse disabled.
    * Useful for tests that require isolation.
    *
+   * <p><strong>Note:</strong> The caller is responsible for managing the lifecycle
+   * of the returned container. Typically used with {@code @Container} annotation
+   * in test classes, which handles automatic cleanup.
+   *
    * @return configured KafkaContainer instance with reuse disabled
    */
+  @SuppressWarnings("resource") // Caller manages container lifecycle via @Container annotation
   public static KafkaContainer createKafkaContainerNoReuse() {
     return new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE))
         .withReuse(false);

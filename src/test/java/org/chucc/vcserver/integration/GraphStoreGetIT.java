@@ -109,11 +109,51 @@ class GraphStoreGetIT {
     branchRepository.save(DATASET_NAME, mainBranch);
   }
 
-  // TODO: Named graph support - requires proper RDF Patch quad handling
-  // @Test
-  // void getGraph_shouldReturn200_whenNamedGraphExistsAtBranchHead() {
-  //   Test retrieving named graphs from the dataset
-  // }
+  @Test
+  void getGraph_shouldReturn200_whenNamedGraphExistsAtBranchHead() {
+    // Given - Setup commit with named graph data
+    CommitId namedGraphCommitId = CommitId.generate();
+    Commit namedGraphCommit = new Commit(
+        namedGraphCommitId,
+        java.util.List.of(commit2Id),
+        "Alice",
+        "Add named graph",
+        java.time.Instant.now()
+    );
+
+    // Create RDF Patch with quad for named graph
+    String patchWithNamedGraph = "TX .\n"
+        + "A <http://example.org/subject> <http://example.org/predicate> \"namedValue\" "
+        + "<http://example.org/graph1> .\n"
+        + "TC .";
+    commitRepository.save(DATASET_NAME, namedGraphCommit,
+        RDFPatchOps.read(new java.io.ByteArrayInputStream(patchWithNamedGraph.getBytes(
+            java.nio.charset.StandardCharsets.UTF_8))));
+
+    // Update main branch to point to new commit
+    Branch mainBranch = new Branch("main", namedGraphCommitId);
+    branchRepository.save(DATASET_NAME, mainBranch);
+
+    // When - Get named graph
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("Accept", "text/turtle");
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/data?graph=http://example.org/graph1&branch=main",
+        HttpMethod.GET,
+        new HttpEntity<>(headers),
+        String.class
+    );
+
+    // Then
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getHeaders().getETag()).isNotNull();
+    assertThat(response.getHeaders().getFirst("SPARQL-Version-Control")).isEqualTo("true");
+
+    String body = response.getBody();
+    assertThat(body).isNotNull();
+    assertThat(body).contains("http://example.org/subject");
+    assertThat(body).contains("namedValue");
+  }
 
   @Test
   void getGraph_shouldReturn200_whenDefaultGraphRequestedAtBranchHead() {

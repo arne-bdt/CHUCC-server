@@ -425,4 +425,72 @@ class GraphStorePutIT extends ITFixture {
     assertThat(body).contains("http://example.org/predicate");
     assertThat(body).contains("value");
   }
+
+  // ========== Named Graph Tests ==========
+
+  @Test
+  void putGraph_shouldReturn200_whenCreatingNamedGraph() {
+    // Given
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("Content-Type", "text/turtle");
+    headers.set("SPARQL-VC-Author", "Alice");
+    headers.set("SPARQL-VC-Message", "Create named graph");
+
+    HttpEntity<String> request = new HttpEntity<>(TestConstants.TURTLE_SIMPLE, headers);
+
+    // When
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/data?graph=http://example.org/graph1&branch=main",
+        HttpMethod.PUT,
+        request,
+        String.class
+    );
+
+    // Then - API response verification (synchronous)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getHeaders().getFirst("Location")).isNotNull();
+    assertThat(response.getHeaders().getFirst("Location")).matches("/version/commits/.*");
+    assertThat(response.getHeaders().getFirst("ETag")).isNotNull();
+    assertThat(response.getHeaders().getFirst("ETag")).matches("\"[0-9a-f-]+\"");
+    assertThat(response.getHeaders().getFirst("SPARQL-Version-Control")).isEqualTo("true");
+  }
+
+  @Test
+  void putGraph_shouldReturnNamedGraphContent_whenGetAfterPut() {
+    // Given - PUT to named graph
+    HttpHeaders putHeaders = new HttpHeaders();
+    putHeaders.set("Content-Type", "text/turtle");
+    putHeaders.set("SPARQL-VC-Author", "Alice");
+    putHeaders.set("SPARQL-VC-Message", "Create named graph");
+    restTemplate.exchange(
+        "/data?graph=http://example.org/graph1&branch=main",
+        HttpMethod.PUT,
+        new HttpEntity<>(TestConstants.TURTLE_SIMPLE, putHeaders),
+        String.class
+    );
+
+    // Wait for event processing
+    await().atMost(Duration.ofSeconds(5))
+        .until(() -> branchRepository.findByDatasetAndName(DEFAULT_DATASET, "main")
+            .map(b -> !b.getCommitId().equals(initialCommitId))
+            .orElse(false));
+
+    // When - GET the named graph
+    HttpHeaders getHeaders = new HttpHeaders();
+    getHeaders.set("Accept", "text/turtle");
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/data?graph=http://example.org/graph1&branch=main",
+        HttpMethod.GET,
+        new HttpEntity<>(getHeaders),
+        String.class
+    );
+
+    // Then
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    String body = response.getBody();
+    assertThat(body).isNotNull();
+    assertThat(body).contains("http://example.org/subject");
+    assertThat(body).contains("http://example.org/predicate");
+    assertThat(body).contains("value");
+  }
 }

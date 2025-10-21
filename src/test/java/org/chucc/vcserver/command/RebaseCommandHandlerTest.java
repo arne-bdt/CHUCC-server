@@ -79,7 +79,6 @@ class RebaseCommandHandlerTest {
 
     // Create commits
     Commit commitA = new Commit(idA, List.of(), "alice", "Commit A", Instant.now());
-    Commit commitB = new Commit(idB, List.of(idA), "alice", "Commit B", Instant.now());
     Commit commitC = new Commit(idC, List.of(idB), "alice", "Commit C", Instant.now());
     Commit commitD = new Commit(idD, List.of(idA), "bob", "Commit D", Instant.now());
 

@@ -11,8 +11,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import org.apache.jena.rdfpatch.RDFPatch;
-import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
 import org.chucc.vcserver.domain.Branch;
@@ -88,8 +86,6 @@ class SparqlUpdateCommandHandlerTest {
         "Add triple",
         Optional.empty()
     );
-
-    RDFPatch nonEmptyPatch = RDFPatchOps.emptyPatch(); // Mock non-empty
 
     when(branchRepository.findByDatasetAndName("default", "main"))
         .thenReturn(Optional.of(branch));

@@ -86,7 +86,6 @@ class RefServiceTest {
     // Given
     CommitId commitId1 = CommitId.generate();
     CommitId commitId2 = CommitId.generate();
-    CommitId commitId3 = CommitId.generate();
 
     Branch main = new Branch("main", commitId1);
     Branch develop = new Branch("develop", commitId2);

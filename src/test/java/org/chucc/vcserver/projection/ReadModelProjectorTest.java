@@ -59,7 +59,6 @@ class ReadModelProjectorTest {
     // Given
     String dataset = "test-dataset";
     String commitIdStr = "550e8400-e29b-41d4-a716-446655440000";
-    CommitId commitId = CommitId.of(commitIdStr);
     String rdfPatchStr = "TX .";
 
     CommitCreatedEvent event = new CommitCreatedEvent(

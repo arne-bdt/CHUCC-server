@@ -423,16 +423,4 @@ class RevertIT {
     JsonNode jsonResponse = objectMapper.readTree(response.getBody());
     assertThat(jsonResponse.get("branch").asText()).isEqualTo("main");
   }
-
-  /**
-   * Serializes an RDF Patch to a string.
-   *
-   * @param patch the RDF Patch
-   * @return the serialized patch string
-   */
-  private String serializePatch(RDFPatch patch) {
-    java.io.ByteArrayOutputStream outputStream = new java.io.ByteArrayOutputStream();
-    RDFPatchOps.write(outputStream, patch);
-    return outputStream.toString(java.nio.charset.StandardCharsets.UTF_8);
-  }
 }

@@ -18,9 +18,6 @@ public final class KafkaTestContainers {
       "testcontainers.kafka.image",
       "apache/kafka-native:4.1.0" // fallback default - native image for faster tests
   );
-  private static final boolean KAFKA_REUSE = Boolean.parseBoolean(
-      TEST_PROPERTIES.getProperty("testcontainers.kafka.reuse", "false")
-  );
 
   private static KafkaContainer sharedContainer;
   private static boolean containerStarted = false;

@@ -82,7 +82,7 @@ class DatasetServiceTest {
   @Test
   void shouldGetDatasetForBranchRef() {
     // Given
-    Branch mainBranch = service.createDataset(DATASET_NAME, AUTHOR);
+    service.createDataset(DATASET_NAME, AUTHOR);
     DatasetRef ref = DatasetRef.forBranch(DATASET_NAME, "main");
 
     // When
@@ -110,7 +110,7 @@ class DatasetServiceTest {
   @Test
   void shouldGetMutableDataset() {
     // Given
-    Branch mainBranch = service.createDataset(DATASET_NAME, AUTHOR);
+    service.createDataset(DATASET_NAME, AUTHOR);
     DatasetRef ref = DatasetRef.forBranch(DATASET_NAME, "main");
 
     // When
@@ -177,7 +177,7 @@ class DatasetServiceTest {
   @Test
   void shouldClearCache() {
     // Given
-    Branch mainBranch = service.createDataset(DATASET_NAME, AUTHOR);
+    service.createDataset(DATASET_NAME, AUTHOR);
     DatasetRef ref = DatasetRef.forBranch(DATASET_NAME, "main");
     service.getDataset(ref); // Populate cache
 

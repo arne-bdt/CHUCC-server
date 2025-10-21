@@ -39,13 +39,6 @@ class GraphStorePatchIT extends ITFixture {
       TC .
       """;
 
-  private static final String RDF_PATCH_MODIFY = """
-      TX .
-      D <http://example.org/subject> <http://example.org/predicate> "value" .
-      A <http://example.org/subject> <http://example.org/predicate> "modified" .
-      TC .
-      """;
-
   private static final String RDF_PATCH_EMPTY = """
       TX .
       TC .

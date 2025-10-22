@@ -33,6 +33,11 @@ public class KafkaConfig {
 
   private final KafkaProperties kafkaProperties;
 
+  /**
+   * Constructs a KafkaConfig with the specified properties.
+   *
+   * @param kafkaProperties the Kafka configuration properties
+   */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
       justification = "KafkaProperties is a Spring configuration bean, "

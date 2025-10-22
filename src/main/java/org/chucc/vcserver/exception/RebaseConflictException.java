@@ -19,11 +19,24 @@ public class RebaseConflictException extends VcException {
   )
   private final transient List<ConflictItem> conflicts;
 
+  /**
+   * Constructs a new RebaseConflictException with the specified message and conflicts.
+   *
+   * @param message the detail message
+   * @param conflicts the list of conflict items
+   */
   public RebaseConflictException(String message, List<ConflictItem> conflicts) {
     super(message, "rebase_conflict", 409);
     this.conflicts = conflicts != null ? new ArrayList<>(conflicts) : new ArrayList<>();
   }
 
+  /**
+   * Constructs a new RebaseConflictException with the specified message, conflicts, and cause.
+   *
+   * @param message the detail message
+   * @param conflicts the list of conflict items
+   * @param cause the cause of this exception
+   */
   public RebaseConflictException(String message, List<ConflictItem> conflicts,
                                  Throwable cause) {
     super(message, "rebase_conflict", 409, cause);

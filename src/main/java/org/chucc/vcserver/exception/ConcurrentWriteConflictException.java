@@ -19,11 +19,22 @@ public class ConcurrentWriteConflictException extends VcException {
   )
   private final transient List<ConflictItem> conflicts;
 
+  /**
+   * Constructs a new ConcurrentWriteConflictException with the specified message.
+   *
+   * @param message the detail message
+   */
   public ConcurrentWriteConflictException(String message) {
     super(message, "concurrent_write_conflict", 409);
     this.conflicts = new ArrayList<>();
   }
 
+  /**
+   * Constructs a new ConcurrentWriteConflictException with the specified message and cause.
+   *
+   * @param message the detail message
+   * @param cause the cause of this exception
+   */
   public ConcurrentWriteConflictException(String message, Throwable cause) {
     super(message, "concurrent_write_conflict", 409, cause);
     this.conflicts = new ArrayList<>();

@@ -13,16 +13,36 @@ public class ConflictProblemDetail extends ProblemDetail {
 
   private List<ConflictItem> conflicts;
 
+  /**
+   * Default constructor for JSON deserialization.
+   */
   public ConflictProblemDetail() {
     super();
   }
 
+  /**
+   * Constructs a ConflictProblemDetail with the specified properties.
+   *
+   * @param title the problem title
+   * @param status the HTTP status code
+   * @param code the application-specific error code
+   * @param conflicts the list of conflict items
+   */
   public ConflictProblemDetail(String title, int status, String code,
                                List<ConflictItem> conflicts) {
     super(title, status, code);
     this.conflicts = conflicts != null ? new ArrayList<>(conflicts) : null;
   }
 
+  /**
+   * Constructs a ConflictProblemDetail with the specified properties including type URI.
+   *
+   * @param type the problem type URI
+   * @param title the problem title
+   * @param status the HTTP status code
+   * @param code the application-specific error code
+   * @param conflicts the list of conflict items
+   */
   public ConflictProblemDetail(String type, String title, int status, String code,
                                List<ConflictItem> conflicts) {
     super(type, title, status, code);

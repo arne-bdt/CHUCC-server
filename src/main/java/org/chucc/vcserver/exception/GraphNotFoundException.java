@@ -7,10 +7,21 @@ package org.chucc.vcserver.exception;
  */
 public class GraphNotFoundException extends VcException {
 
+  /**
+   * Constructs a new GraphNotFoundException with the specified message.
+   *
+   * @param message the detail message
+   */
   public GraphNotFoundException(String message) {
     super(message, "graph_not_found", 404);
   }
 
+  /**
+   * Constructs a new GraphNotFoundException with the specified message and cause.
+   *
+   * @param message the detail message
+   * @param cause the cause of this exception
+   */
   public GraphNotFoundException(String message, Throwable cause) {
     super(message, "graph_not_found", 404, cause);
   }

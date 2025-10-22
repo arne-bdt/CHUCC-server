@@ -612,6 +612,12 @@ public class ReadModelProjector {
    * Exception thrown when event projection fails.
    */
   public static class ProjectionException extends RuntimeException {
+    /**
+     * Constructs a new ProjectionException with the specified message and cause.
+     *
+     * @param message the detail message
+     * @param cause the cause of this exception
+     */
     public ProjectionException(String message, Throwable cause) {
       super(message, cause);
     }

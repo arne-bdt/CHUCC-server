@@ -27,6 +27,12 @@ public class EventPublisher {
   private final KafkaTemplate<String, VersionControlEvent> kafkaTemplate;
   private final KafkaProperties kafkaProperties;
 
+  /**
+   * Constructs an EventPublisher with the specified Kafka template and properties.
+   *
+   * @param kafkaTemplate the Kafka template for sending events
+   * @param kafkaProperties the Kafka configuration properties
+   */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
       justification = "Both KafkaTemplate and KafkaProperties are Spring beans,"

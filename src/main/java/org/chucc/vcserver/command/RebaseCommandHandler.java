@@ -197,8 +197,6 @@ public class RebaseCommandHandler implements CommandHandler<RebaseCommand> {
    * @return list of commits to rebase, in chronological order
    */
   private List<Commit> findCommitRange(String dataset, CommitId from, CommitId to) {
-    List<Commit> result = new ArrayList<>();
-    Set<CommitId> visited = new HashSet<>();
     Set<CommitId> fromAncestors = new HashSet<>();
 
     // First, find all ancestors of 'from' (to exclude them)
@@ -206,6 +204,8 @@ public class RebaseCommandHandler implements CommandHandler<RebaseCommand> {
     fromAncestors.add(from); // Also exclude 'from' itself
 
     // Then, walk back from 'to' and collect commits that are not ancestors of 'from'
+    List<Commit> result = new ArrayList<>();
+    Set<CommitId> visited = new HashSet<>();
     Deque<CommitId> queue = new ArrayDeque<>();
     queue.add(to);
 

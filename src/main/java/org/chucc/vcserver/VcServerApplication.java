@@ -10,6 +10,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SuppressWarnings("PMD.UseUtilityClass") // Spring Boot requires instantiable main class
 public class VcServerApplication {
 
+  /**
+   * Application entry point.
+   *
+   * @param args command-line arguments
+   */
   public static void main(String[] args) {
     SpringApplication.run(VcServerApplication.class, args);
   }

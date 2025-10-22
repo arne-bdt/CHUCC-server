@@ -2,11 +2,10 @@ package org.chucc.vcserver.exception;
 
 /**
  * Exception thrown when an If-Match precondition fails due to concurrent modification.
- * <p>
- * Returns HTTP 409 Conflict for version control concurrent write scenarios.
+ *
+ * <p>Returns HTTP 409 Conflict for version control concurrent write scenarios.
  * This indicates that the client's expected commit ID (from If-Match header)
  * does not match the current HEAD commit, signaling a concurrent modification conflict.
- * </p>
  */
 public class PreconditionFailedException extends VcException {
 

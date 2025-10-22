@@ -9,11 +9,10 @@ import org.springframework.stereotype.Service;
 
 /**
  * Service for checking HTTP preconditions (If-Match headers) for version control operations.
- * <p>
- * Implements optimistic concurrency control per SPARQL 1.2 Protocol §6.
+ *
+ * <p>Implements optimistic concurrency control per SPARQL 1.2 Protocol §6.
  * Precondition checks fail fast (412) before applying patches, while semantic
  * conflict detection (409) still occurs afterward.
- * </p>
  */
 @Service
 public class PreconditionService {
@@ -38,10 +37,9 @@ public class PreconditionService {
 
   /**
    * Checks If-Match precondition for branch write operations.
-   * <p>
-   * Returns silently if check passes or if no precondition is specified.
+   *
+   * <p>Returns silently if check passes or if no precondition is specified.
    * Throws PreconditionFailedException if check fails.
-   * </p>
    *
    * @param datasetName the dataset name
    * @param branchName the branch name
@@ -74,11 +72,10 @@ public class PreconditionService {
 
   /**
    * Checks If-Match precondition for graph write operations.
-   * <p>
-   * Uses graph-level ETag (last commit that modified the graph) rather than branch HEAD.
+   *
+   * <p>Uses graph-level ETag (last commit that modified the graph) rather than branch HEAD.
    * Returns silently if check passes or if no precondition is specified.
    * Throws PreconditionFailedException if check fails.
-   * </p>
    *
    * @param datasetName the dataset name
    * @param branchName the branch name

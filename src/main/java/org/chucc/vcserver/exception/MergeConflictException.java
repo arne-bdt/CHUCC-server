@@ -19,11 +19,24 @@ public class MergeConflictException extends VcException {
   )
   private final transient List<ConflictItem> conflicts;
 
+  /**
+   * Constructs a new MergeConflictException with the specified message and conflicts.
+   *
+   * @param message the detail message
+   * @param conflicts the list of conflict items
+   */
   public MergeConflictException(String message, List<ConflictItem> conflicts) {
     super(message, "merge_conflict", 409);
     this.conflicts = conflicts != null ? new ArrayList<>(conflicts) : new ArrayList<>();
   }
 
+  /**
+   * Constructs a new MergeConflictException with the specified message, conflicts, and cause.
+   *
+   * @param message the detail message
+   * @param conflicts the list of conflict items
+   * @param cause the cause of this exception
+   */
   public MergeConflictException(String message, List<ConflictItem> conflicts,
                                 Throwable cause) {
     super(message, "merge_conflict", 409, cause);

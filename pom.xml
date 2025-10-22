@@ -265,33 +265,29 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
                 <version>${maven-checkstyle-plugin.version}</version>
+                <dependencies>
+                    <!-- Upgrade Checkstyle to 10.21.0 for latest google_checks.xml -->
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>10.21.0</version>
+                    </dependency>
+                </dependencies>
                 <configuration>
+                    <!-- Single configuration: Google Style + CHUCC custom checks -->
+                    <!-- LineLength max=100, includes UnusedImports and TodoComment -->
+                    <configLocation>google_checks_chucc.xml</configLocation>
                     <consoleOutput>true</consoleOutput>
                     <failsOnError>true</failsOnError>
                     <violationSeverity>warning</violationSeverity>
                 </configuration>
                 <executions>
-                    <!-- First execution: Google Style checks -->
                     <execution>
-                        <id>google-checks</id>
+                        <id>checkstyle</id>
                         <phase>validate</phase>
                         <goals>
                             <goal>check</goal>
                         </goals>
-                        <configuration>
-                            <configLocation>google_checks.xml</configLocation>
-                        </configuration>
-                    </execution>
-                    <!-- Second execution: Additional unused code checks -->
-                    <execution>
-                        <id>unused-code-checks</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <configuration>
-                            <configLocation>checkstyle-custom.xml</configLocation>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>

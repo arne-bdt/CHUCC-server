@@ -20,12 +20,12 @@ management:
 logging:
   level:
     kafka: ERROR
-    org.apache.jena: ERROR
-    org.apache.kafka: ERROR
-    org.apache.zookeeper: ERROR
-    org.chucc: WARN
-    org.springframework: ERROR
-    org.springframework.kafka: ERROR
-    org.testcontainers: ERROR
-    state.change.logger: ERROR
-    tc.testcontainers: ERROR
+    "[org.apache.jena]": ERROR
+    "[org.apache.kafka]": ERROR
+    "[org.apache.zookeeper]": ERROR
+    "[org.chucc]": WARN
+    "[org.springframework]": ERROR
+    "[org.springframework.kafka]": ERROR
+    "[org.testcontainers]": ERROR
+    "[state.change.logger]": ERROR
+    "[tc.testcontainers]": ERROR

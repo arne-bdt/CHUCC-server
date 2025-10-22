@@ -8,12 +8,13 @@
     </appender>
 
     <!-- Reduce Spring Boot noise -->
-    <logger name="org.springframework" level="WARN"/>
-    <logger name="org.springframework.boot" level="WARN"/>
-    <logger name="org.springframework.boot.autoconfigure" level="WARN"/>
-    <logger name="org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLogger" level="WARN"/>
+    <logger name="org.springframework" level="ERROR"/>
+    <logger name="org.springframework.boot" level="ERROR"/>
+    <logger name="org.springframework.boot.env" level="ERROR"/>
+    <logger name="org.springframework.boot.web" level="ERROR"/>
     <logger name="org.springframework.test.context" level="WARN"/>
     <logger name="org.springframework.kafka" level="WARN"/>
+    <logger name="org.springframework.web" level="ERROR"/>
 
     <!-- Reduce Kafka noise -->
     <logger name="org.apache.kafka" level="WARN"/>
@@ -40,8 +41,8 @@
     <logger name="org.chucc.vcserver.command.DeleteBranchCommandHandler" level="ERROR"/>
     <logger name="org.chucc.vcserver.command.DeleteDatasetCommandHandler" level="ERROR"/>
 
-    <!-- Keep application logs visible at DEBUG level for integration tests -->
-    <logger name="org.chucc" level="DEBUG"/>
+    <!-- Application logs at INFO level by default (use -Dlogging.level.org.chucc=DEBUG to enable debug logs) -->
+    <logger name="org.chucc" level="INFO"/>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>

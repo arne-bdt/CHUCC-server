@@ -136,6 +136,8 @@ public class SparqlController {
   )
   @SuppressWarnings("PMD.UnusedFormalParameter") // Reserved parameters for future use
   public ResponseEntity<?> querySparqlGet(
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
       @Parameter(description = "The SPARQL query string", required = true)
       @RequestParam String query,
       @Parameter(description = "Default graph URI(s)")
@@ -153,7 +155,7 @@ public class SparqlController {
       HttpServletRequest request
   ) {
     // Note: defaultGraphUri, namedGraphUri, and vcCommit are reserved for future use
-    return executeQueryOperation(query, branch, commit, asOf, request);
+    return executeQueryOperation(dataset, query, branch, commit, asOf, request);
   }
 
   /**
@@ -170,18 +172,20 @@ public class SparqlController {
    */
   @SuppressWarnings("PMD.UnusedFormalParameter") // vcCommit reserved for future use
   private ResponseEntity<?> handleQueryViaPost(
+      String dataset,
       String queryString,
       String branch,
       String commit,
       String asOf,
       String vcCommit,
       HttpServletRequest request) {
-    return executeQueryOperation(queryString, branch, commit, asOf, request);
+    return executeQueryOperation(dataset, queryString, branch, commit, asOf, request);
   }
 
   /**
    * Execute a SPARQL query operation (shared logic for GET and POST).
    *
+   * @param dataset dataset name
    * @param query the SPARQL query string
    * @param branch target branch (optional)
    * @param commit target commit (optional)
@@ -191,6 +195,7 @@ public class SparqlController {
    */
   @SuppressWarnings("PMD.AvoidDuplicateLiterals") // Duplicate error codes are acceptable
   private ResponseEntity<?> executeQueryOperation(
+      String dataset,
       String query,
       String branch,
       String commit,
@@ -207,25 +212,24 @@ public class SparqlController {
           .body(new ProblemDetail(e.getMessage(), 400, "SELECTOR_CONFLICT"));
     }
 
-    // Default dataset name
-    String datasetName = "default";
+    // Use dataset parameter passed from caller
 
     try {
       // 1. Resolve selectors to target commit
       CommitId targetCommit = selectorResolutionService.resolve(
-          datasetName, branch, commit, asOf);
+          dataset, branch, commit, asOf);
 
       // 2. Materialize dataset at that commit
       // Note: Dataset is a lightweight wrapper around the cached DatasetGraph.
       // The underlying DatasetGraph is managed by DatasetService cache and shared
       // across requests for the same commit. No explicit closing needed.
-      Dataset dataset = datasetService.materializeAtCommit(datasetName, targetCommit);
+      Dataset materializedDataset = datasetService.materializeAtCommit(dataset, targetCommit);
 
       // 3. Determine result format from Accept header
       ResultFormat format = determineResultFormat(request.getHeader("Accept"));
 
       // 4. Execute query
-      String results = sparqlQueryService.executeQuery(dataset, query, format);
+      String results = sparqlQueryService.executeQuery(materializedDataset, query, format);
 
       // 5. Return results with ETag header containing commit ID
       return ResponseEntity.ok()
@@ -342,6 +346,8 @@ public class SparqlController {
   @SuppressWarnings({"PMD.AvoidDuplicateLiterals", "PMD.CyclomaticComplexity",
       "PMD.ExcessiveParameterList"})
   public ResponseEntity<?> executeSparqlPost(
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
       @RequestBody String body,
       @Parameter(description = "Commit message (SHOULD provide for updates)")
       @RequestHeader(name = "SPARQL-VC-Message", required = false) String message,
@@ -373,7 +379,7 @@ public class SparqlController {
 
     // Handle SPARQL Query via POST
     if (isQuery) {
-      return handleQueryViaPost(body, branch, commit, asOf, vcCommit, request);
+      return handleQueryViaPost(dataset, body, branch, commit, asOf, vcCommit, request);
     }
 
     // If neither query nor update, return 501
@@ -386,7 +392,7 @@ public class SparqlController {
     }
 
     // SPARQL UPDATE operation
-    final String datasetName = "default";
+    // Use dataset parameter from method signature
     final String branchName = (branchHeader != null && !branchHeader.isBlank())
         ? branchHeader : "main";
 
@@ -431,7 +437,7 @@ public class SparqlController {
 
     // Create and execute command
     SparqlUpdateCommand command = new SparqlUpdateCommand(
-        datasetName,
+        dataset,
         branchName,
         body,
         author,
@@ -454,7 +460,7 @@ public class SparqlController {
 
       return ResponseEntity.ok()
           .eTag("\"" + commitId + "\"")
-          .location(java.net.URI.create("/version/datasets/" + datasetName
+          .location(java.net.URI.create("/version/datasets/" + dataset
               + "/commits/" + commitId))
           .contentType(MediaType.APPLICATION_JSON)
           .body("{\"message\":\"Update successful\",\"commitId\":\""

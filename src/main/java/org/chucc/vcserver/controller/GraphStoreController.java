@@ -37,8 +37,6 @@ import org.springframework.web.bind.annotation.RestController;
     description = "SPARQL 1.2 Graph Store Protocol operations with version control")
 public class GraphStoreController {
 
-  private static final String DATASET_NAME = "default";
-
   @SuppressFBWarnings(
       value = "URF_UNREAD_FIELD",
       justification = "Field reserved for future implementation of write operations")
@@ -198,6 +196,8 @@ public class GraphStoreController {
   @SuppressWarnings({"PMD.UseObjectForClearerAPI", "PMD.LooseCoupling"})
   // Method signature matches GSP spec; HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<String> getGraph(
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
       @Parameter(description = "Named graph IRI")
       @RequestParam(required = false) String graph,
       @Parameter(description = "Default graph flag")
@@ -214,14 +214,15 @@ public class GraphStoreController {
 
     // Validate parameters and resolve selector
     org.chucc.vcserver.domain.CommitId commitId =
-        resolveGraphSelector(graph, isDefault, branch, commit, asOf);
+        resolveGraphSelector(dataset, graph, isDefault, branch, commit, asOf);
 
     // Get the graph from the dataset (throws GraphNotFoundException if not found)
-    org.apache.jena.rdf.model.Model model = getModelFromDataset(graph, isDefault, commitId);
+    org.apache.jena.rdf.model.Model model =
+        getModelFromDataset(dataset, graph, isDefault, commitId);
 
     // Compute graph-level ETag (last commit that modified this graph)
     org.chucc.vcserver.domain.CommitId graphEtag =
-        datasetService.findLastModifyingCommit(DATASET_NAME, commitId, graph);
+        datasetService.findLastModifyingCommit(dataset, commitId, graph);
 
     // Build response headers
     HttpHeaders headers = buildResponseHeaders(
@@ -279,6 +280,8 @@ public class GraphStoreController {
   @SuppressWarnings({"PMD.UseObjectForClearerAPI", "PMD.LooseCoupling"})
   // Method signature matches GSP spec; HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<Void> headGraph(
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
       @Parameter(description = "Named graph IRI")
       @RequestParam(required = false) String graph,
       @Parameter(description = "Default graph flag")
@@ -292,14 +295,14 @@ public class GraphStoreController {
 
     // Validate parameters and resolve selector (reuse GET logic)
     org.chucc.vcserver.domain.CommitId commitId =
-        resolveGraphSelector(graph, isDefault, branch, commit, asOf);
+        resolveGraphSelector(dataset, graph, isDefault, branch, commit, asOf);
 
     // Check graph existence (throws GraphNotFoundException if not found)
-    getModelFromDataset(graph, isDefault, commitId);
+    getModelFromDataset(dataset, graph, isDefault, commitId);
 
     // Compute graph-level ETag (last commit that modified this graph)
     org.chucc.vcserver.domain.CommitId graphEtag =
-        datasetService.findLastModifyingCommit(DATASET_NAME, commitId, graph);
+        datasetService.findLastModifyingCommit(dataset, commitId, graph);
 
     // Build response headers (same as GET, but default to text/turtle for content-type)
     HttpHeaders headers = buildResponseHeaders(graphEtag, "text/turtle");
@@ -378,6 +381,8 @@ public class GraphStoreController {
   @SuppressWarnings({"PMD.UseObjectForClearerAPI", "PMD.LooseCoupling"})
   // Method signature matches GSP spec; HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<?> putGraph(
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
       @Parameter(description = "Named graph IRI")
       @RequestParam(required = false) String graph,
       @Parameter(description = "Default graph flag")
@@ -432,7 +437,7 @@ public class GraphStoreController {
       baseCommitId = new org.chucc.vcserver.domain.CommitId(baseCommitStr);
     } else {
       // No If-Match provided, use current HEAD
-      baseCommitId = selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+      baseCommitId = selectorResolutionService.resolve(dataset, effectiveBranch, null, null);
     }
 
     // Set default values for author and message
@@ -443,7 +448,7 @@ public class GraphStoreController {
     // Create command
     org.chucc.vcserver.command.PutGraphCommand command =
         new org.chucc.vcserver.command.PutGraphCommand(
-            DATASET_NAME,
+            dataset,
             graph,
             isDefault != null && isDefault,
             effectiveBranch,
@@ -548,6 +553,8 @@ public class GraphStoreController {
   @SuppressWarnings({"PMD.UseObjectForClearerAPI", "PMD.LooseCoupling"})
   // Method signature matches GSP spec; HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<?> postGraph(
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
       @Parameter(description = "Named graph IRI")
       @RequestParam(required = false) String graph,
       @Parameter(description = "Default graph flag")
@@ -602,7 +609,7 @@ public class GraphStoreController {
       baseCommitId = new org.chucc.vcserver.domain.CommitId(baseCommitStr);
     } else {
       // No If-Match provided, use current HEAD
-      baseCommitId = selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+      baseCommitId = selectorResolutionService.resolve(dataset, effectiveBranch, null, null);
     }
 
     // Set default values for author and message
@@ -613,7 +620,7 @@ public class GraphStoreController {
     // Create command
     org.chucc.vcserver.command.PostGraphCommand command =
         new org.chucc.vcserver.command.PostGraphCommand(
-            DATASET_NAME,
+            dataset,
             graph,
             isDefault != null && isDefault,
             effectiveBranch,
@@ -699,6 +706,8 @@ public class GraphStoreController {
   @SuppressWarnings({"PMD.UseObjectForClearerAPI", "PMD.LooseCoupling"})
   // Method signature matches GSP spec; HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<?> deleteGraph(
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
       @Parameter(description = "Named graph IRI")
       @RequestParam(required = false) String graph,
       @Parameter(description = "Default graph flag")
@@ -750,7 +759,7 @@ public class GraphStoreController {
       baseCommitId = new org.chucc.vcserver.domain.CommitId(baseCommitStr);
     } else {
       // No If-Match provided, use current HEAD
-      baseCommitId = selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+      baseCommitId = selectorResolutionService.resolve(dataset, effectiveBranch, null, null);
     }
 
     // Set default values for author and message
@@ -761,7 +770,7 @@ public class GraphStoreController {
     // Create command
     org.chucc.vcserver.command.DeleteGraphCommand command =
         new org.chucc.vcserver.command.DeleteGraphCommand(
-            DATASET_NAME,
+            dataset,
             graph,
             isDefault != null && isDefault,
             effectiveBranch,
@@ -848,6 +857,8 @@ public class GraphStoreController {
   @SuppressWarnings({"PMD.UseObjectForClearerAPI", "PMD.LooseCoupling"})
   // Method signature matches GSP spec; HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<?> patchGraph(
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
       @Parameter(description = "Named graph IRI")
       @RequestParam(required = false) String graph,
       @Parameter(description = "Default graph flag")
@@ -912,7 +923,7 @@ public class GraphStoreController {
       baseCommitId = new org.chucc.vcserver.domain.CommitId(baseCommitStr);
     } else {
       // No If-Match provided, use current HEAD
-      baseCommitId = selectorResolutionService.resolve(DATASET_NAME, effectiveBranch, null, null);
+      baseCommitId = selectorResolutionService.resolve(dataset, effectiveBranch, null, null);
     }
 
     // Set default values for author and message
@@ -923,7 +934,7 @@ public class GraphStoreController {
     // Create command
     org.chucc.vcserver.command.PatchGraphCommand command =
         new org.chucc.vcserver.command.PatchGraphCommand(
-            DATASET_NAME,
+            dataset,
             graph,
             isDefault != null && isDefault,
             effectiveBranch,
@@ -983,9 +994,9 @@ public class GraphStoreController {
    * @return the resolved CommitId
    */
   private org.chucc.vcserver.domain.CommitId resolveGraphSelector(
-      String graph, Boolean isDefault, String branch, String commit, String asOf) {
+      String dataset, String graph, Boolean isDefault, String branch, String commit, String asOf) {
     validateParameters(graph, isDefault, branch, commit, asOf);
-    return selectorResolutionService.resolve(DATASET_NAME, branch, commit, asOf);
+    return selectorResolutionService.resolve(dataset, branch, commit, asOf);
   }
 
   /**
@@ -998,12 +1009,13 @@ public class GraphStoreController {
    * @throws org.chucc.vcserver.exception.GraphNotFoundException if named graph not found
    */
   private org.apache.jena.rdf.model.Model getModelFromDataset(
-      String graph, Boolean isDefault, org.chucc.vcserver.domain.CommitId commitId) {
+      String dataset, String graph, Boolean isDefault,
+      org.chucc.vcserver.domain.CommitId commitId) {
     if (isDefault != null && isDefault) {
-      return datasetService.getDefaultGraph(DATASET_NAME, commitId);
+      return datasetService.getDefaultGraph(dataset, commitId);
     } else {
       org.apache.jena.rdf.model.Model model =
-          datasetService.getGraph(DATASET_NAME, commitId, graph);
+          datasetService.getGraph(dataset, commitId, graph);
       if (model == null) {
         throw new org.chucc.vcserver.exception.GraphNotFoundException(graph);
       }

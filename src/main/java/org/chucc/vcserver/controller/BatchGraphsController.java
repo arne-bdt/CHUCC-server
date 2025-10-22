@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -26,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -37,8 +39,6 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Batch Operations",
     description = "Batch graph operations for atomic multi-graph updates")
 public class BatchGraphsController {
-
-  private static final String DATASET_NAME = "default";
 
   private final SelectorResolutionService selectorResolutionService;
   private final BatchGraphsCommandHandler commandHandler;
@@ -66,6 +66,7 @@ public class BatchGraphsController {
   /**
    * Executes batch graph operations (PUT, POST, PATCH, DELETE) atomically.
    *
+   * @param dataset the dataset name (defaults to "default")
    * @param request the batch graphs request
    * @return response with commit IDs (200), no-op (204), or error (400, 409)
    * @throws JsonProcessingException if JSON serialization fails
@@ -99,14 +100,17 @@ public class BatchGraphsController {
           )
       }
   )
-  public ResponseEntity<String> executeBatch(@RequestBody BatchGraphsRequest request)
+  public ResponseEntity<String> executeBatch(
+      @Parameter(description = "Dataset name")
+      @RequestParam(defaultValue = "default") String dataset,
+      @RequestBody BatchGraphsRequest request)
       throws JsonProcessingException {
     // Validate request
     request.validate();
 
     // Resolve branch selector to commit ID
     CommitId baseCommit = selectorResolutionService.resolve(
-        DATASET_NAME,
+        dataset,
         request.getBranch(),
         null,  // No commit selector
         null   // No asOf selector
@@ -128,7 +132,7 @@ public class BatchGraphsController {
 
     // Create and execute command
     BatchGraphsCommand command = new BatchGraphsCommand(
-        DATASET_NAME,
+        dataset,
         request.getBranch(),
         baseCommit,
         operations,

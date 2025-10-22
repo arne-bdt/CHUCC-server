@@ -120,7 +120,7 @@ class PostGraphCommandHandlerTest {
     when(datasetService.getGraph("default", baseCommit, "http://example.org/graph1"))
         .thenReturn(currentGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
-        .thenReturn(newContent);
+        .thenReturn(newContent.getGraph());
     when(graphDiffService.computePostDiff(currentGraph, newContent, "http://example.org/graph1"))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
@@ -178,7 +178,7 @@ class PostGraphCommandHandlerTest {
     when(datasetService.getGraph("default", baseCommit, "http://example.org/graph1"))
         .thenReturn(currentGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
-        .thenReturn(newContent);
+        .thenReturn(newContent.getGraph());
     when(graphDiffService.computePostDiff(currentGraph, newContent, "http://example.org/graph1"))
         .thenReturn(emptyPatch);
     when(graphDiffService.isPatchEmpty(emptyPatch)).thenReturn(true);
@@ -224,7 +224,7 @@ class PostGraphCommandHandlerTest {
     when(datasetService.getDefaultGraph("default", baseCommit))
         .thenReturn(currentGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
-        .thenReturn(newContent);
+        .thenReturn(newContent.getGraph());
     when(graphDiffService.computePostDiff(currentGraph, newContent, null))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
@@ -266,7 +266,7 @@ class PostGraphCommandHandlerTest {
     when(datasetService.getGraph(anyString(), any(), anyString()))
         .thenReturn(currentGraph);
     when(rdfParsingService.parseRdf(anyString(), anyString()))
-        .thenReturn(newContent);
+        .thenReturn(newContent.getGraph());
     when(graphDiffService.computePostDiff(any(), any(), anyString()))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
@@ -346,7 +346,7 @@ class PostGraphCommandHandlerTest {
     when(datasetService.getGraph("default", baseCommit, "http://example.org/graph1"))
         .thenReturn(currentGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
-        .thenReturn(newContent);
+        .thenReturn(newContent.getGraph());
     when(graphDiffService.computePostDiff(currentGraph, newContent, "http://example.org/graph1"))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
@@ -423,7 +423,7 @@ class PostGraphCommandHandlerTest {
     when(datasetService.getGraph("default", baseCommit, "http://example.org/newGraph"))
         .thenReturn(null); // Graph doesn't exist
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
-        .thenReturn(newContent);
+        .thenReturn(newContent.getGraph());
     when(graphDiffService.computePostDiff(any(Model.class), eq(newContent),
             eq("http://example.org/newGraph")))
         .thenReturn(patch);

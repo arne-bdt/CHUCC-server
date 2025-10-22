@@ -1,11 +1,11 @@
 package org.chucc.vcserver.service;
 
 import java.io.StringReader;
-import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.graph.Graph;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RiotException;
+import org.apache.jena.sparql.graph.GraphFactory;
 import org.chucc.vcserver.util.RdfContentTypeUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,15 +19,15 @@ import org.springframework.web.server.ResponseStatusException;
 public class RdfParsingService {
 
   /**
-   * Parses RDF content from a string into a Jena Model.
+   * Parses RDF content from a string into a Jena Graph.
    *
    * @param content the RDF content to parse
    * @param contentType the content type (e.g., "text/turtle", "application/rdf+xml")
-   * @return the parsed RDF model
+   * @return the parsed RDF graph
    * @throws ResponseStatusException with 415 if the content type is unsupported
    * @throws ResponseStatusException with 400 if the content is malformed
    */
-  public Model parseRdf(String content, String contentType) {
+  public Graph parseRdf(String content, String contentType) {
     Lang lang = RdfContentTypeUtil.determineLang(contentType);
 
     if (lang == null) {
@@ -39,13 +39,13 @@ public class RdfParsingService {
 
     // Handle empty content
     if (content == null || content.isBlank()) {
-      return ModelFactory.createDefaultModel();
+      return GraphFactory.createDefaultGraph();
     }
 
     try (StringReader reader = new StringReader(content)) {
-      Model model = ModelFactory.createDefaultModel();
-      RDFDataMgr.read(model, reader, null, lang);
-      return model;
+      Graph graph = GraphFactory.createDefaultGraph();
+      RDFDataMgr.read(graph, reader, null, lang);
+      return graph;
     } catch (RiotException e) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,

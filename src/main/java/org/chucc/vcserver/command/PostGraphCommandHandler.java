@@ -1,6 +1,7 @@
 package org.chucc.vcserver.command;
 
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.event.EventPublisher;
@@ -94,9 +95,8 @@ public class PostGraphCommandHandler implements CommandHandler<PostGraphCommand>
     );
 
     // Parse new RDF content
-    Model newContent = rdfParsingService.parseRdf(
-        command.rdfContent(),
-        command.contentType()
+    Model newContent = ModelFactory.createModelForGraph(
+        rdfParsingService.parseRdf(command.rdfContent(), command.contentType())
     );
 
     // Compute additive diff (only ADD operations for new triples)

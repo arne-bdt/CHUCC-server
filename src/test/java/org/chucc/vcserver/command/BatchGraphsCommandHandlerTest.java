@@ -123,8 +123,10 @@ class BatchGraphsCommandHandlerTest {
         .thenReturn(Optional.of(branch));
     when(datasetService.getGraph(eq("default"), eq(baseCommit), anyString()))
         .thenReturn(ModelFactory.createDefaultModel());
-    when(rdfParsingService.parseRdf(eq("data1"), eq("text/turtle"))).thenReturn(graph1);
-    when(rdfParsingService.parseRdf(eq("data2"), eq("text/turtle"))).thenReturn(graph2);
+    when(rdfParsingService.parseRdf(eq("data1"), eq("text/turtle")))
+        .thenReturn(graph1.getGraph());
+    when(rdfParsingService.parseRdf(eq("data2"), eq("text/turtle")))
+        .thenReturn(graph2.getGraph());
     when(graphDiffService.computePutDiff(any(), eq(graph1), eq("http://example.org/g1")))
         .thenReturn(patch1);
     when(graphDiffService.computePutDiff(any(), eq(graph2), eq("http://example.org/g2")))
@@ -168,7 +170,8 @@ class BatchGraphsCommandHandlerTest {
         .thenReturn(Optional.of(branch));
     when(datasetService.getGraph(eq("default"), eq(baseCommit), anyString()))
         .thenReturn(emptyGraph);
-    when(rdfParsingService.parseRdf(anyString(), eq("text/turtle"))).thenReturn(emptyGraph);
+    when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
+        .thenReturn(emptyGraph.getGraph());
     when(graphDiffService.computePutDiff(any(), any(), anyString()))
         .thenReturn(emptyPatch);
     when(graphDiffService.isPatchEmpty(any())).thenReturn(true);
@@ -224,8 +227,10 @@ class BatchGraphsCommandHandlerTest {
         .thenReturn(Optional.of(branch));
     when(datasetService.getGraph(eq("default"), any(), anyString()))
         .thenReturn(ModelFactory.createDefaultModel());
-    when(rdfParsingService.parseRdf(eq("data1"), eq("text/turtle"))).thenReturn(graph1);
-    when(rdfParsingService.parseRdf(eq("data2"), eq("text/turtle"))).thenReturn(graph2);
+    when(rdfParsingService.parseRdf(eq("data1"), eq("text/turtle")))
+        .thenReturn(graph1.getGraph());
+    when(rdfParsingService.parseRdf(eq("data2"), eq("text/turtle")))
+        .thenReturn(graph2.getGraph());
     when(graphDiffService.computePutDiff(any(), eq(graph1), eq("http://example.org/g1")))
         .thenReturn(patch1);
     when(graphDiffService.computePutDiff(any(), eq(graph2), eq("http://example.org/g2")))

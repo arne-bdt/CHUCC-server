@@ -1,6 +1,7 @@
 package org.chucc.vcserver.command;
 
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.event.EventPublisher;
@@ -95,9 +96,8 @@ public class PutGraphCommandHandler implements CommandHandler<PutGraphCommand> {
     );
 
     // Parse new RDF content
-    Model newGraph = rdfParsingService.parseRdf(
-        command.rdfContent(),
-        command.contentType()
+    Model newGraph = ModelFactory.createModelForGraph(
+        rdfParsingService.parseRdf(command.rdfContent(), command.contentType())
     );
 
     // Compute diff (DELETE all old quads, ADD all new quads)

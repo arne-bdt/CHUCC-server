@@ -120,7 +120,7 @@ class PutGraphCommandHandlerTest {
     when(datasetService.getGraph("default", baseCommit, "http://example.org/graph1"))
         .thenReturn(oldGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
-        .thenReturn(newGraph);
+        .thenReturn(newGraph.getGraph());
     when(graphDiffService.computePutDiff(oldGraph, newGraph, "http://example.org/graph1"))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
@@ -178,7 +178,7 @@ class PutGraphCommandHandlerTest {
     when(datasetService.getGraph("default", baseCommit, "http://example.org/graph1"))
         .thenReturn(oldGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
-        .thenReturn(newGraph);
+        .thenReturn(newGraph.getGraph());
     when(graphDiffService.computePutDiff(oldGraph, newGraph, "http://example.org/graph1"))
         .thenReturn(emptyPatch);
     when(graphDiffService.isPatchEmpty(emptyPatch)).thenReturn(true);
@@ -224,7 +224,7 @@ class PutGraphCommandHandlerTest {
     when(datasetService.getDefaultGraph("default", baseCommit))
         .thenReturn(oldGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
-        .thenReturn(newGraph);
+        .thenReturn(newGraph.getGraph());
     when(graphDiffService.computePutDiff(oldGraph, newGraph, null))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
@@ -266,7 +266,7 @@ class PutGraphCommandHandlerTest {
     when(datasetService.getGraph(anyString(), any(), anyString()))
         .thenReturn(oldGraph);
     when(rdfParsingService.parseRdf(anyString(), anyString()))
-        .thenReturn(newGraph);
+        .thenReturn(newGraph.getGraph());
     when(graphDiffService.computePutDiff(any(), any(), anyString()))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
@@ -347,7 +347,7 @@ class PutGraphCommandHandlerTest {
     when(datasetService.getGraph("default", baseCommit, "http://example.org/graph1"))
         .thenReturn(oldGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
-        .thenReturn(newGraph);
+        .thenReturn(newGraph.getGraph());
     when(graphDiffService.computePutDiff(oldGraph, newGraph, "http://example.org/graph1"))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
@@ -425,7 +425,7 @@ class PutGraphCommandHandlerTest {
     when(datasetService.getGraph("default", baseCommit, "http://example.org/newGraph"))
         .thenReturn(null); // Graph doesn't exist
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
-        .thenReturn(newGraph);
+        .thenReturn(newGraph.getGraph());
     when(graphDiffService.computePutDiff(any(Model.class), eq(newGraph),
             eq("http://example.org/newGraph")))
         .thenReturn(patch);

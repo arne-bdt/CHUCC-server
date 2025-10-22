@@ -64,9 +64,11 @@ public class OpenApiConfig {
                 2. **Create/update a graph**: `PUT /data?graph=http://example.org/g` \
                 with Turtle content
                 3. **Query version history**: `GET /version/history?branch=main`
-                4. **Time-travel query**: `GET /data?graph=http://example.org/g&asOf=2025-10-01T12:00:00Z`
+                4. **Time-travel query**:
+                `GET /data?graph=http://example.org/g&asOf=2025-10-01T12:00:00Z`
 
-                For more details, see the [protocol specification](https://www.w3.org/TR/sparql12-protocol/).
+                For more details, see the
+                [protocol specification](https://www.w3.org/TR/sparql12-protocol/).
                 """)
             .version("1.0.0")
             .contact(new Contact()

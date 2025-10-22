@@ -3,8 +3,8 @@ package org.chucc.vcserver.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.apache.jena.rdf.model.Model;
-import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.graph.Graph;
+import org.apache.jena.graph.NodeFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
@@ -30,12 +30,12 @@ class RdfParsingServiceTest {
         """;
 
     // When
-    Model model = service.parseRdf(turtle, "text/turtle");
+    Graph graph = service.parseRdf(turtle, "text/turtle");
 
     // Then
-    assertThat(model).isNotNull();
-    assertThat(model.isEmpty()).isFalse();
-    assertThat(model.size()).isEqualTo(1);
+    assertThat(graph).isNotNull();
+    assertThat(graph.isEmpty()).isFalse();
+    assertThat(graph.size()).isEqualTo(1);
   }
 
   @Test
@@ -44,11 +44,11 @@ class RdfParsingServiceTest {
     String ntriples = "<http://example.org/s> <http://example.org/p> \"value\" .";
 
     // When
-    Model model = service.parseRdf(ntriples, "application/n-triples");
+    Graph graph = service.parseRdf(ntriples, "application/n-triples");
 
     // Then
-    assertThat(model).isNotNull();
-    assertThat(model.size()).isEqualTo(1);
+    assertThat(graph).isNotNull();
+    assertThat(graph.size()).isEqualTo(1);
   }
 
   @Test
@@ -63,11 +63,11 @@ class RdfParsingServiceTest {
         """;
 
     // When
-    Model model = service.parseRdf(jsonLd, "application/ld+json");
+    Graph graph = service.parseRdf(jsonLd, "application/ld+json");
 
     // Then
-    assertThat(model).isNotNull();
-    assertThat(model.isEmpty()).isFalse();
+    assertThat(graph).isNotNull();
+    assertThat(graph.isEmpty()).isFalse();
   }
 
   @Test
@@ -84,11 +84,11 @@ class RdfParsingServiceTest {
         """;
 
     // When
-    Model model = service.parseRdf(rdfXml, "application/rdf+xml");
+    Graph graph = service.parseRdf(rdfXml, "application/rdf+xml");
 
     // Then
-    assertThat(model).isNotNull();
-    assertThat(model.size()).isEqualTo(1);
+    assertThat(graph).isNotNull();
+    assertThat(graph.size()).isEqualTo(1);
   }
 
   @Test
@@ -100,11 +100,11 @@ class RdfParsingServiceTest {
         """;
 
     // When
-    Model model = service.parseRdf(n3, "text/n3");
+    Graph graph = service.parseRdf(n3, "text/n3");
 
     // Then
-    assertThat(model).isNotNull();
-    assertThat(model.size()).isEqualTo(1);
+    assertThat(graph).isNotNull();
+    assertThat(graph.size()).isEqualTo(1);
   }
 
   @Test
@@ -113,11 +113,11 @@ class RdfParsingServiceTest {
     String empty = "";
 
     // When
-    Model model = service.parseRdf(empty, "text/turtle");
+    Graph graph = service.parseRdf(empty, "text/turtle");
 
     // Then
-    assertThat(model).isNotNull();
-    assertThat(model.isEmpty()).isTrue();
+    assertThat(graph).isNotNull();
+    assertThat(graph.isEmpty()).isTrue();
   }
 
   @Test
@@ -153,11 +153,11 @@ class RdfParsingServiceTest {
         """;
 
     // When
-    Model model = service.parseRdf(turtle, "text/turtle; charset=utf-8");
+    Graph graph = service.parseRdf(turtle, "text/turtle; charset=utf-8");
 
     // Then
-    assertThat(model).isNotNull();
-    assertThat(model.size()).isEqualTo(1);
+    assertThat(graph).isNotNull();
+    assertThat(graph.size()).isEqualTo(1);
   }
 
   @Test
@@ -169,11 +169,11 @@ class RdfParsingServiceTest {
         """;
 
     // When - test application/x-turtle alternative
-    Model model = service.parseRdf(turtle, "application/x-turtle");
+    Graph graph = service.parseRdf(turtle, "application/x-turtle");
 
     // Then
-    assertThat(model).isNotNull();
-    assertThat(model.size()).isEqualTo(1);
+    assertThat(graph).isNotNull();
+    assertThat(graph.size()).isEqualTo(1);
   }
 
   @Test
@@ -185,11 +185,11 @@ class RdfParsingServiceTest {
         """;
 
     // When
-    Model model = service.parseRdf(turtle, null);
+    Graph graph = service.parseRdf(turtle, null);
 
     // Then
-    assertThat(model).isNotNull();
-    assertThat(model.size()).isEqualTo(1);
+    assertThat(graph).isNotNull();
+    assertThat(graph.size()).isEqualTo(1);
   }
 
   @Test
@@ -205,14 +205,17 @@ class RdfParsingServiceTest {
         """;
 
     // When
-    Model model = service.parseRdf(turtle, "text/turtle");
+    Graph graph = service.parseRdf(turtle, "text/turtle");
 
     // Then
-    assertThat(model).isNotNull();
-    assertThat(model.size()).isEqualTo(3);
-    assertThat(model.contains(
-        (org.apache.jena.rdf.model.Resource) null,
-        RDF.type,
-        (org.apache.jena.rdf.model.RDFNode) null)).isTrue();
+    assertThat(graph).isNotNull();
+    assertThat(graph.size()).isEqualTo(3);
+    // Check that there's at least one rdf:type triple
+    boolean hasTypeTriple = graph.find(
+        null,
+        NodeFactory.createURI("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+        null
+    ).hasNext();
+    assertThat(hasTypeTriple).isTrue();
   }
 }

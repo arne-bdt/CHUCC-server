@@ -267,9 +267,8 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
     );
 
     // Parse new content
-    Model newGraph = rdfParsingService.parseRdf(
-        operation.rdfContent(),
-        operation.contentType()
+    Model newGraph = ModelFactory.createModelForGraph(
+        rdfParsingService.parseRdf(operation.rdfContent(), operation.contentType())
     );
 
     // Compute diff
@@ -297,9 +296,8 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
     );
 
     // Parse new content
-    Model newTriples = rdfParsingService.parseRdf(
-        operation.rdfContent(),
-        operation.contentType()
+    Model newTriples = ModelFactory.createModelForGraph(
+        rdfParsingService.parseRdf(operation.rdfContent(), operation.contentType())
     );
 
     // Compute diff (ADD only)

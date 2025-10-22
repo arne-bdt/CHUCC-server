@@ -16,18 +16,32 @@ public class ProjectorProperties {
 
   /**
    * Gets the Kafka listener configuration.
+   * Note: This returns the actual internal object (not a copy) as required by Spring Boot
+   * configuration properties binding. The EI_EXPOSE_REP warning is suppressed because
+   * Spring Boot requires direct access to bind nested properties.
    *
    * @return the Kafka listener configuration
    */
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "EI_EXPOSE_REP",
+      justification = "Spring Boot ConfigurationProperties requires direct access"
+          + " to nested objects")
   public KafkaListener getKafkaListener() {
     return kafkaListener;
   }
 
   /**
    * Sets the Kafka listener configuration.
+   * Note: This stores the external object directly (not a copy) as required by Spring Boot
+   * configuration properties binding. The EI_EXPOSE_REP2 warning is suppressed because
+   * Spring Boot requires direct access to bind nested properties.
    *
    * @param kafkaListener the Kafka listener configuration
    */
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "EI_EXPOSE_REP2",
+      justification = "Spring Boot ConfigurationProperties requires direct access"
+          + " to nested objects")
   public void setKafkaListener(KafkaListener kafkaListener) {
     this.kafkaListener = kafkaListener;
   }

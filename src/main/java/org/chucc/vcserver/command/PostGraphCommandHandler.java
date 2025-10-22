@@ -1,7 +1,7 @@
 package org.chucc.vcserver.command;
 
+import org.apache.jena.graph.Graph;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.event.EventPublisher;
@@ -86,7 +86,7 @@ public class PostGraphCommandHandler implements CommandHandler<PostGraphCommand>
     );
 
     // Get current graph state (or empty model if graph doesn't exist)
-    Model currentGraph = GraphCommandUtil.getCurrentGraph(
+    Model currentModel = GraphCommandUtil.getCurrentGraph(
         datasetService,
         command.dataset(),
         command.baseCommit(),
@@ -95,13 +95,11 @@ public class PostGraphCommandHandler implements CommandHandler<PostGraphCommand>
     );
 
     // Parse new RDF content
-    Model newContent = ModelFactory.createModelForGraph(
-        rdfParsingService.parseRdf(command.rdfContent(), command.contentType())
-    );
+    Graph newContent = rdfParsingService.parseRdf(command.rdfContent(), command.contentType());
 
     // Compute additive diff (only ADD operations for new triples)
     RDFPatch patch = graphDiffService.computePostDiff(
-        currentGraph,
+        currentModel.getGraph(),
         newContent,
         command.isDefaultGraph() ? null : command.graphIri()
     );

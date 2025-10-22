@@ -81,11 +81,11 @@ public class DeleteGraphCommandHandler implements CommandHandler<DeleteGraphComm
     );
 
     // Get current graph state
-    Model currentGraph = getCurrentGraph(command);
+    Model currentModel = getCurrentGraph(command);
 
     // Compute delete diff (DELETE all quads)
     RDFPatch patch = graphDiffService.computeDeleteDiff(
-        currentGraph,
+        currentModel.getGraph(),
         command.isDefaultGraph() ? null : command.graphIri()
     );
 

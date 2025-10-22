@@ -4,8 +4,8 @@ import java.io.ByteArrayOutputStream;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.jena.graph.Graph;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
@@ -258,7 +258,7 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
       boolean isDefaultGraph) {
 
     // Get current graph
-    Model oldGraph = GraphCommandUtil.getCurrentGraph(
+    Model oldModel = GraphCommandUtil.getCurrentGraph(
         datasetService,
         dataset,
         baseCommit,
@@ -267,13 +267,11 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
     );
 
     // Parse new content
-    Model newGraph = ModelFactory.createModelForGraph(
-        rdfParsingService.parseRdf(operation.rdfContent(), operation.contentType())
-    );
+    Graph newGraph = rdfParsingService.parseRdf(operation.rdfContent(), operation.contentType());
 
     // Compute diff
     return graphDiffService.computePutDiff(
-        oldGraph,
+        oldModel.getGraph(),
         newGraph,
         isDefaultGraph ? null : graphIri
     );
@@ -287,7 +285,7 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
       boolean isDefaultGraph) {
 
     // Get current graph
-    Model oldGraph = GraphCommandUtil.getCurrentGraph(
+    Model oldModel = GraphCommandUtil.getCurrentGraph(
         datasetService,
         dataset,
         baseCommit,
@@ -296,13 +294,11 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
     );
 
     // Parse new content
-    Model newTriples = ModelFactory.createModelForGraph(
-        rdfParsingService.parseRdf(operation.rdfContent(), operation.contentType())
-    );
+    Graph newTriples = rdfParsingService.parseRdf(operation.rdfContent(), operation.contentType());
 
     // Compute diff (ADD only)
     return graphDiffService.computePostDiff(
-        oldGraph,
+        oldModel.getGraph(),
         newTriples,
         isDefaultGraph ? null : graphIri
     );
@@ -332,7 +328,7 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
       boolean isDefaultGraph) {
 
     // Get current graph
-    Model oldGraph = GraphCommandUtil.getCurrentGraph(
+    Model oldModel = GraphCommandUtil.getCurrentGraph(
         datasetService,
         dataset,
         baseCommit,
@@ -341,9 +337,9 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
     );
 
     // Compute diff (DELETE all)
-    Model emptyGraph = ModelFactory.createDefaultModel();
+    Graph emptyGraph = org.apache.jena.sparql.graph.GraphFactory.createDefaultGraph();
     return graphDiffService.computePutDiff(
-        oldGraph,
+        oldModel.getGraph(),
         emptyGraph,
         isDefaultGraph ? null : graphIri
     );

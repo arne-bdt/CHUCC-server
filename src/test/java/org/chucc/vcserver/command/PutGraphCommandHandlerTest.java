@@ -121,7 +121,7 @@ class PutGraphCommandHandlerTest {
         .thenReturn(oldGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
         .thenReturn(newGraph.getGraph());
-    when(graphDiffService.computePutDiff(oldGraph, newGraph, "http://example.org/graph1"))
+    when(graphDiffService.computePutDiff(oldGraph.getGraph(), newGraph.getGraph(), "http://example.org/graph1"))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
 
@@ -179,7 +179,7 @@ class PutGraphCommandHandlerTest {
         .thenReturn(oldGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
         .thenReturn(newGraph.getGraph());
-    when(graphDiffService.computePutDiff(oldGraph, newGraph, "http://example.org/graph1"))
+    when(graphDiffService.computePutDiff(oldGraph.getGraph(), newGraph.getGraph(), "http://example.org/graph1"))
         .thenReturn(emptyPatch);
     when(graphDiffService.isPatchEmpty(emptyPatch)).thenReturn(true);
 
@@ -225,7 +225,7 @@ class PutGraphCommandHandlerTest {
         .thenReturn(oldGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
         .thenReturn(newGraph.getGraph());
-    when(graphDiffService.computePutDiff(oldGraph, newGraph, null))
+    when(graphDiffService.computePutDiff(oldGraph.getGraph(), newGraph.getGraph(), null))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
 
@@ -235,7 +235,7 @@ class PutGraphCommandHandlerTest {
     // Then
     assertThat(event).isNotNull();
     verify(datasetService).getDefaultGraph("default", baseCommit);
-    verify(graphDiffService).computePutDiff(oldGraph, newGraph, null);
+    verify(graphDiffService).computePutDiff(oldGraph.getGraph(), newGraph.getGraph(), null);
   }
 
   @Test
@@ -267,7 +267,7 @@ class PutGraphCommandHandlerTest {
         .thenReturn(oldGraph);
     when(rdfParsingService.parseRdf(anyString(), anyString()))
         .thenReturn(newGraph.getGraph());
-    when(graphDiffService.computePutDiff(any(), any(), anyString()))
+    when(graphDiffService.computePutDiff(any(org.apache.jena.graph.Graph.class), any(org.apache.jena.graph.Graph.class), anyString()))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
 
@@ -348,7 +348,7 @@ class PutGraphCommandHandlerTest {
         .thenReturn(oldGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
         .thenReturn(newGraph.getGraph());
-    when(graphDiffService.computePutDiff(oldGraph, newGraph, "http://example.org/graph1"))
+    when(graphDiffService.computePutDiff(oldGraph.getGraph(), newGraph.getGraph(), "http://example.org/graph1"))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
 
@@ -426,7 +426,7 @@ class PutGraphCommandHandlerTest {
         .thenReturn(null); // Graph doesn't exist
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
         .thenReturn(newGraph.getGraph());
-    when(graphDiffService.computePutDiff(any(Model.class), eq(newGraph),
+    when(graphDiffService.computePutDiff(any(org.apache.jena.graph.Graph.class), eq(newGraph.getGraph()),
             eq("http://example.org/newGraph")))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
@@ -437,7 +437,7 @@ class PutGraphCommandHandlerTest {
     // Then
     assertThat(event).isNotNull();
     // Should compute diff with empty model when graph doesn't exist
-    verify(graphDiffService).computePutDiff(any(Model.class), eq(newGraph),
+    verify(graphDiffService).computePutDiff(any(org.apache.jena.graph.Graph.class), eq(newGraph.getGraph()),
         eq("http://example.org/newGraph"));
   }
 }

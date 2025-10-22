@@ -127,9 +127,9 @@ class BatchGraphsCommandHandlerTest {
         .thenReturn(graph1.getGraph());
     when(rdfParsingService.parseRdf(eq("data2"), eq("text/turtle")))
         .thenReturn(graph2.getGraph());
-    when(graphDiffService.computePutDiff(any(), eq(graph1), eq("http://example.org/g1")))
+    when(graphDiffService.computePutDiff(any(org.apache.jena.graph.Graph.class), eq(graph1.getGraph()), eq("http://example.org/g1")))
         .thenReturn(patch1);
-    when(graphDiffService.computePutDiff(any(), eq(graph2), eq("http://example.org/g2")))
+    when(graphDiffService.computePutDiff(any(org.apache.jena.graph.Graph.class), eq(graph2.getGraph()), eq("http://example.org/g2")))
         .thenReturn(patch2);
     when(graphDiffService.isPatchEmpty(any())).thenReturn(false);
 
@@ -172,7 +172,7 @@ class BatchGraphsCommandHandlerTest {
         .thenReturn(emptyGraph);
     when(rdfParsingService.parseRdf(anyString(), eq("text/turtle")))
         .thenReturn(emptyGraph.getGraph());
-    when(graphDiffService.computePutDiff(any(), any(), anyString()))
+    when(graphDiffService.computePutDiff(any(org.apache.jena.graph.Graph.class), any(org.apache.jena.graph.Graph.class), anyString()))
         .thenReturn(emptyPatch);
     when(graphDiffService.isPatchEmpty(any())).thenReturn(true);
 
@@ -231,9 +231,9 @@ class BatchGraphsCommandHandlerTest {
         .thenReturn(graph1.getGraph());
     when(rdfParsingService.parseRdf(eq("data2"), eq("text/turtle")))
         .thenReturn(graph2.getGraph());
-    when(graphDiffService.computePutDiff(any(), eq(graph1), eq("http://example.org/g1")))
+    when(graphDiffService.computePutDiff(any(org.apache.jena.graph.Graph.class), eq(graph1.getGraph()), eq("http://example.org/g1")))
         .thenReturn(patch1);
-    when(graphDiffService.computePutDiff(any(), eq(graph2), eq("http://example.org/g2")))
+    when(graphDiffService.computePutDiff(any(org.apache.jena.graph.Graph.class), eq(graph2.getGraph()), eq("http://example.org/g2")))
         .thenReturn(patch2);
     when(graphDiffService.isPatchEmpty(any())).thenReturn(false);
 

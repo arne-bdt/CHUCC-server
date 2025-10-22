@@ -106,7 +106,7 @@ class DeleteGraphCommandHandlerTest {
         .thenReturn(Optional.of(branch));
     when(datasetService.getGraph("default", baseCommit, "http://example.org/graph1"))
         .thenReturn(currentGraph);
-    when(graphDiffService.computeDeleteDiff(currentGraph, "http://example.org/graph1"))
+    when(graphDiffService.computeDeleteDiff(currentGraph.getGraph(), "http://example.org/graph1"))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
 
@@ -148,7 +148,7 @@ class DeleteGraphCommandHandlerTest {
         .thenReturn(Optional.of(branch));
     when(datasetService.getGraph("default", baseCommit, "http://example.org/graph1"))
         .thenReturn(emptyGraph);
-    when(graphDiffService.computeDeleteDiff(emptyGraph, "http://example.org/graph1"))
+    when(graphDiffService.computeDeleteDiff(emptyGraph.getGraph(), "http://example.org/graph1"))
         .thenReturn(emptyPatch);
     when(graphDiffService.isPatchEmpty(emptyPatch)).thenReturn(true);
 
@@ -189,7 +189,7 @@ class DeleteGraphCommandHandlerTest {
         .thenReturn(Optional.of(branch));
     when(datasetService.getDefaultGraph("default", baseCommit))
         .thenReturn(currentGraph);
-    when(graphDiffService.computeDeleteDiff(currentGraph, null))
+    when(graphDiffService.computeDeleteDiff(currentGraph.getGraph(), null))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
 
@@ -199,7 +199,7 @@ class DeleteGraphCommandHandlerTest {
     // Then
     assertThat(event).isNotNull();
     verify(datasetService).getDefaultGraph("default", baseCommit);
-    verify(graphDiffService).computeDeleteDiff(currentGraph, null);
+    verify(graphDiffService).computeDeleteDiff(currentGraph.getGraph(), null);
   }
 
   @Test
@@ -231,7 +231,7 @@ class DeleteGraphCommandHandlerTest {
         .thenReturn(Optional.of(branch));
     when(datasetService.getGraph(anyString(), any(), anyString()))
         .thenReturn(currentGraph);
-    when(graphDiffService.computeDeleteDiff(any(), anyString()))
+    when(graphDiffService.computeDeleteDiff(any(org.apache.jena.graph.Graph.class), anyString()))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
 
@@ -304,7 +304,7 @@ class DeleteGraphCommandHandlerTest {
         .thenReturn(Optional.of(branch));
     when(datasetService.getGraph("default", baseCommit, "http://example.org/graph1"))
         .thenReturn(currentGraph);
-    when(graphDiffService.computeDeleteDiff(currentGraph, "http://example.org/graph1"))
+    when(graphDiffService.computeDeleteDiff(currentGraph.getGraph(), "http://example.org/graph1"))
         .thenReturn(patch);
     when(graphDiffService.isPatchEmpty(patch)).thenReturn(false);
 

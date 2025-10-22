@@ -3,11 +3,12 @@ package org.chucc.vcserver.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.ByteArrayOutputStream;
-import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.graph.Graph;
+import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.graph.Triple;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
+import org.apache.jena.sparql.graph.GraphFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -26,19 +27,19 @@ class GraphDiffServiceTest {
   @Test
   void computePutDiff_shouldGenerateDeletesAndAdds_whenBothGraphsNonEmpty() {
     // Given
-    Model oldGraph = ModelFactory.createDefaultModel();
-    oldGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "oldValue"
-    );
+    Graph oldGraph = GraphFactory.createDefaultGraph();
+    oldGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("oldValue")
+    ));
 
-    Model newGraph = ModelFactory.createDefaultModel();
-    newGraph.add(
-        ResourceFactory.createResource("http://example.org/s2"),
-        ResourceFactory.createProperty("http://example.org/p2"),
-        "newValue"
-    );
+    Graph newGraph = GraphFactory.createDefaultGraph();
+    newGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s2"),
+        NodeFactory.createURI("http://example.org/p2"),
+        NodeFactory.createLiteralString("newValue")
+    ));
 
     // When
     RDFPatch patch = service.computePutDiff(
@@ -54,14 +55,14 @@ class GraphDiffServiceTest {
   @Test
   void computePutDiff_shouldGenerateOnlyDeletes_whenNewGraphEmpty() {
     // Given
-    Model oldGraph = ModelFactory.createDefaultModel();
-    oldGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value"
-    );
+    Graph oldGraph = GraphFactory.createDefaultGraph();
+    oldGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value")
+    ));
 
-    Model newGraph = ModelFactory.createDefaultModel();
+    Graph newGraph = GraphFactory.createDefaultGraph();
 
     // When
     RDFPatch patch = service.computePutDiff(
@@ -77,14 +78,14 @@ class GraphDiffServiceTest {
   @Test
   void computePutDiff_shouldGenerateOnlyAdds_whenOldGraphEmpty() {
     // Given
-    Model oldGraph = ModelFactory.createDefaultModel();
+    Graph oldGraph = GraphFactory.createDefaultGraph();
 
-    Model newGraph = ModelFactory.createDefaultModel();
-    newGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value"
-    );
+    Graph newGraph = GraphFactory.createDefaultGraph();
+    newGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value")
+    ));
 
     // When
     RDFPatch patch = service.computePutDiff(
@@ -100,19 +101,19 @@ class GraphDiffServiceTest {
   @Test
   void computePutDiff_shouldGenerateEmptyPatch_whenGraphsIdentical() {
     // Given
-    Model oldGraph = ModelFactory.createDefaultModel();
-    oldGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value"
-    );
+    Graph oldGraph = GraphFactory.createDefaultGraph();
+    oldGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value")
+    ));
 
-    Model newGraph = ModelFactory.createDefaultModel();
-    newGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value"
-    );
+    Graph newGraph = GraphFactory.createDefaultGraph();
+    newGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value")
+    ));
 
     // When
     RDFPatch patch = service.computePutDiff(
@@ -125,8 +126,8 @@ class GraphDiffServiceTest {
   @Test
   void computePutDiff_shouldGenerateEmptyPatch_whenBothGraphsEmpty() {
     // Given
-    Model oldGraph = ModelFactory.createDefaultModel();
-    Model newGraph = ModelFactory.createDefaultModel();
+    Graph oldGraph = GraphFactory.createDefaultGraph();
+    Graph newGraph = GraphFactory.createDefaultGraph();
 
     // When
     RDFPatch patch = service.computePutDiff(
@@ -139,14 +140,14 @@ class GraphDiffServiceTest {
   @Test
   void computePutDiff_shouldHandleDefaultGraph_whenGraphIriNull() {
     // Given
-    Model oldGraph = ModelFactory.createDefaultModel();
-    oldGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value"
-    );
+    Graph oldGraph = GraphFactory.createDefaultGraph();
+    oldGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value")
+    ));
 
-    Model newGraph = ModelFactory.createDefaultModel();
+    Graph newGraph = GraphFactory.createDefaultGraph();
 
     // When
     RDFPatch patch = service.computePutDiff(oldGraph, newGraph, null);
@@ -161,24 +162,24 @@ class GraphDiffServiceTest {
   @Test
   void computePutDiff_shouldHandleMultipleTriples() {
     // Given
-    Model oldGraph = ModelFactory.createDefaultModel();
-    oldGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value1"
-    );
-    oldGraph.add(
-        ResourceFactory.createResource("http://example.org/s2"),
-        ResourceFactory.createProperty("http://example.org/p2"),
-        "value2"
-    );
+    Graph oldGraph = GraphFactory.createDefaultGraph();
+    oldGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value1")
+    ));
+    oldGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s2"),
+        NodeFactory.createURI("http://example.org/p2"),
+        NodeFactory.createLiteralString("value2")
+    ));
 
-    Model newGraph = ModelFactory.createDefaultModel();
-    newGraph.add(
-        ResourceFactory.createResource("http://example.org/s3"),
-        ResourceFactory.createProperty("http://example.org/p3"),
-        "value3"
-    );
+    Graph newGraph = GraphFactory.createDefaultGraph();
+    newGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s3"),
+        NodeFactory.createURI("http://example.org/p3"),
+        NodeFactory.createLiteralString("value3")
+    ));
 
     // When
     RDFPatch patch = service.computePutDiff(
@@ -207,13 +208,13 @@ class GraphDiffServiceTest {
   @Test
   void isPatchEmpty_shouldReturnFalse_whenPatchHasOperations() {
     // Given
-    Model oldGraph = ModelFactory.createDefaultModel();
-    Model newGraph = ModelFactory.createDefaultModel();
-    newGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value"
-    );
+    Graph oldGraph = GraphFactory.createDefaultGraph();
+    Graph newGraph = GraphFactory.createDefaultGraph();
+    newGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value")
+    ));
 
     RDFPatch patch = service.computePutDiff(oldGraph, newGraph, null);
 
@@ -227,19 +228,19 @@ class GraphDiffServiceTest {
   @Test
   void computePostDiff_shouldGenerateOnlyAdds_whenNewTriplesPresent() {
     // Given
-    Model currentGraph = ModelFactory.createDefaultModel();
-    currentGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "existingValue"
-    );
+    Graph currentGraph = GraphFactory.createDefaultGraph();
+    currentGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("existingValue")
+    ));
 
-    Model newContent = ModelFactory.createDefaultModel();
-    newContent.add(
-        ResourceFactory.createResource("http://example.org/s2"),
-        ResourceFactory.createProperty("http://example.org/p2"),
-        "newValue"
-    );
+    Graph newContent = GraphFactory.createDefaultGraph();
+    newContent.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s2"),
+        NodeFactory.createURI("http://example.org/p2"),
+        NodeFactory.createLiteralString("newValue")
+    ));
 
     // When
     RDFPatch patch = service.computePostDiff(
@@ -255,19 +256,19 @@ class GraphDiffServiceTest {
   @Test
   void computePostDiff_shouldGenerateEmptyPatch_whenAllTriplesAlreadyPresent() {
     // Given
-    Model currentGraph = ModelFactory.createDefaultModel();
-    currentGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value"
-    );
+    Graph currentGraph = GraphFactory.createDefaultGraph();
+    currentGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value")
+    ));
 
-    Model newContent = ModelFactory.createDefaultModel();
-    newContent.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value"
-    );
+    Graph newContent = GraphFactory.createDefaultGraph();
+    newContent.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value")
+    ));
 
     // When
     RDFPatch patch = service.computePostDiff(
@@ -280,14 +281,14 @@ class GraphDiffServiceTest {
   @Test
   void computePostDiff_shouldGenerateAdds_whenCurrentGraphEmpty() {
     // Given
-    Model currentGraph = ModelFactory.createDefaultModel();
+    Graph currentGraph = GraphFactory.createDefaultGraph();
 
-    Model newContent = ModelFactory.createDefaultModel();
-    newContent.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value"
-    );
+    Graph newContent = GraphFactory.createDefaultGraph();
+    newContent.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value")
+    ));
 
     // When
     RDFPatch patch = service.computePostDiff(
@@ -303,14 +304,14 @@ class GraphDiffServiceTest {
   @Test
   void computePostDiff_shouldHandleDefaultGraph_whenGraphIriNull() {
     // Given
-    Model currentGraph = ModelFactory.createDefaultModel();
+    Graph currentGraph = GraphFactory.createDefaultGraph();
 
-    Model newContent = ModelFactory.createDefaultModel();
-    newContent.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value"
-    );
+    Graph newContent = GraphFactory.createDefaultGraph();
+    newContent.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value")
+    ));
 
     // When
     RDFPatch patch = service.computePostDiff(currentGraph, newContent, null);
@@ -325,24 +326,24 @@ class GraphDiffServiceTest {
   @Test
   void computePostDiff_shouldHandlePartialOverlap() {
     // Given
-    Model currentGraph = ModelFactory.createDefaultModel();
-    currentGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "existingValue"
-    );
+    Graph currentGraph = GraphFactory.createDefaultGraph();
+    currentGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("existingValue")
+    ));
 
-    Model newContent = ModelFactory.createDefaultModel();
-    newContent.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "existingValue"
-    );
-    newContent.add(
-        ResourceFactory.createResource("http://example.org/s2"),
-        ResourceFactory.createProperty("http://example.org/p2"),
-        "newValue"
-    );
+    Graph newContent = GraphFactory.createDefaultGraph();
+    newContent.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("existingValue")
+    ));
+    newContent.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s2"),
+        NodeFactory.createURI("http://example.org/p2"),
+        NodeFactory.createLiteralString("newValue")
+    ));
 
     // When
     RDFPatch patch = service.computePostDiff(
@@ -362,14 +363,14 @@ class GraphDiffServiceTest {
   @Test
   void computePostDiff_shouldGenerateEmptyPatch_whenNewContentEmpty() {
     // Given
-    Model currentGraph = ModelFactory.createDefaultModel();
-    currentGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value"
-    );
+    Graph currentGraph = GraphFactory.createDefaultGraph();
+    currentGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value")
+    ));
 
-    Model newContent = ModelFactory.createDefaultModel();
+    Graph newContent = GraphFactory.createDefaultGraph();
 
     // When
     RDFPatch patch = service.computePostDiff(
@@ -382,17 +383,17 @@ class GraphDiffServiceTest {
   @Test
   void computeDeleteDiff_shouldGenerateOnlyDeletes_whenGraphHasTriples() {
     // Given
-    Model currentGraph = ModelFactory.createDefaultModel();
-    currentGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value1"
-    );
-    currentGraph.add(
-        ResourceFactory.createResource("http://example.org/s2"),
-        ResourceFactory.createProperty("http://example.org/p2"),
-        "value2"
-    );
+    Graph currentGraph = GraphFactory.createDefaultGraph();
+    currentGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value1")
+    ));
+    currentGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s2"),
+        NodeFactory.createURI("http://example.org/p2"),
+        NodeFactory.createLiteralString("value2")
+    ));
 
     // When
     RDFPatch patch = service.computeDeleteDiff(
@@ -409,7 +410,7 @@ class GraphDiffServiceTest {
   @Test
   void computeDeleteDiff_shouldGenerateEmptyPatch_whenGraphIsEmpty() {
     // Given
-    Model currentGraph = ModelFactory.createDefaultModel();
+    Graph currentGraph = GraphFactory.createDefaultGraph();
 
     // When
     RDFPatch patch = service.computeDeleteDiff(
@@ -422,12 +423,12 @@ class GraphDiffServiceTest {
   @Test
   void computeDeleteDiff_shouldHandleDefaultGraph_whenGraphIriNull() {
     // Given
-    Model currentGraph = ModelFactory.createDefaultModel();
-    currentGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value"
-    );
+    Graph currentGraph = GraphFactory.createDefaultGraph();
+    currentGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value")
+    ));
 
     // When
     RDFPatch patch = service.computeDeleteDiff(currentGraph, null);
@@ -442,22 +443,22 @@ class GraphDiffServiceTest {
   @Test
   void computeDeleteDiff_shouldDeleteAllTriples_whenMultipleTriples() {
     // Given
-    Model currentGraph = ModelFactory.createDefaultModel();
-    currentGraph.add(
-        ResourceFactory.createResource("http://example.org/s1"),
-        ResourceFactory.createProperty("http://example.org/p1"),
-        "value1"
-    );
-    currentGraph.add(
-        ResourceFactory.createResource("http://example.org/s2"),
-        ResourceFactory.createProperty("http://example.org/p2"),
-        "value2"
-    );
-    currentGraph.add(
-        ResourceFactory.createResource("http://example.org/s3"),
-        ResourceFactory.createProperty("http://example.org/p3"),
-        "value3"
-    );
+    Graph currentGraph = GraphFactory.createDefaultGraph();
+    currentGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s1"),
+        NodeFactory.createURI("http://example.org/p1"),
+        NodeFactory.createLiteralString("value1")
+    ));
+    currentGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s2"),
+        NodeFactory.createURI("http://example.org/p2"),
+        NodeFactory.createLiteralString("value2")
+    ));
+    currentGraph.add(Triple.create(
+        NodeFactory.createURI("http://example.org/s3"),
+        NodeFactory.createURI("http://example.org/p3"),
+        NodeFactory.createLiteralString("value3")
+    ));
 
     // When
     RDFPatch patch = service.computeDeleteDiff(

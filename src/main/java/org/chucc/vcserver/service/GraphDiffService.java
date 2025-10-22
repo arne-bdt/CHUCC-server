@@ -1,10 +1,9 @@
 package org.chucc.vcserver.service;
 
 import java.io.ByteArrayOutputStream;
+import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
-import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
@@ -27,7 +26,7 @@ public class GraphDiffService {
    * @param graphIri the graph IRI (null for default graph)
    * @return the RDF Patch representing the replacement
    */
-  public RDFPatch computePutDiff(Model oldGraph, Model newGraph, String graphIri) {
+  public RDFPatch computePutDiff(Graph oldGraph, Graph newGraph, String graphIri) {
     RDFChangesCollector collector = new RDFChangesCollector();
 
     // Start transaction
@@ -38,28 +37,28 @@ public class GraphDiffService {
         : org.apache.jena.sparql.core.Quad.defaultGraphNodeGenerated;
 
     // Delete triples that are in old but not in new
-    for (Statement stmt : oldGraph.listStatements().toList()) {
-      if (!newGraph.contains(stmt)) {
+    oldGraph.find().forEachRemaining(triple -> {
+      if (!newGraph.contains(triple)) {
         collector.delete(
             graphNode,
-            stmt.getSubject().asNode(),
-            stmt.getPredicate().asNode(),
-            stmt.getObject().asNode()
+            triple.getSubject(),
+            triple.getPredicate(),
+            triple.getObject()
         );
       }
-    }
+    });
 
     // Add triples that are in new but not in old
-    for (Statement stmt : newGraph.listStatements().toList()) {
-      if (!oldGraph.contains(stmt)) {
+    newGraph.find().forEachRemaining(triple -> {
+      if (!oldGraph.contains(triple)) {
         collector.add(
             graphNode,
-            stmt.getSubject().asNode(),
-            stmt.getPredicate().asNode(),
-            stmt.getObject().asNode()
+            triple.getSubject(),
+            triple.getPredicate(),
+            triple.getObject()
         );
       }
-    }
+    });
 
     // Commit transaction
     collector.txnCommit();
@@ -76,7 +75,7 @@ public class GraphDiffService {
    * @param graphIri the graph IRI (null for default graph)
    * @return the RDF Patch representing the additive merge
    */
-  public RDFPatch computePostDiff(Model currentGraph, Model newContent, String graphIri) {
+  public RDFPatch computePostDiff(Graph currentGraph, Graph newContent, String graphIri) {
     RDFChangesCollector collector = new RDFChangesCollector();
 
     // Start transaction
@@ -87,16 +86,16 @@ public class GraphDiffService {
         : org.apache.jena.sparql.core.Quad.defaultGraphNodeGenerated;
 
     // Add only triples that are in newContent but not in currentGraph
-    for (Statement stmt : newContent.listStatements().toList()) {
-      if (!currentGraph.contains(stmt)) {
+    newContent.find().forEachRemaining(triple -> {
+      if (!currentGraph.contains(triple)) {
         collector.add(
             graphNode,
-            stmt.getSubject().asNode(),
-            stmt.getPredicate().asNode(),
-            stmt.getObject().asNode()
+            triple.getSubject(),
+            triple.getPredicate(),
+            triple.getObject()
         );
       }
-    }
+    });
 
     // Commit transaction
     collector.txnCommit();
@@ -112,7 +111,7 @@ public class GraphDiffService {
    * @param graphIri the graph IRI (null for default graph)
    * @return the RDF Patch representing the deletion
    */
-  public RDFPatch computeDeleteDiff(Model currentGraph, String graphIri) {
+  public RDFPatch computeDeleteDiff(Graph currentGraph, String graphIri) {
     RDFChangesCollector collector = new RDFChangesCollector();
 
     // Start transaction
@@ -123,14 +122,14 @@ public class GraphDiffService {
         : org.apache.jena.sparql.core.Quad.defaultGraphNodeGenerated;
 
     // Delete all triples in the graph
-    for (Statement stmt : currentGraph.listStatements().toList()) {
+    currentGraph.find().forEachRemaining(triple -> {
       collector.delete(
           graphNode,
-          stmt.getSubject().asNode(),
-          stmt.getPredicate().asNode(),
-          stmt.getObject().asNode()
+          triple.getSubject(),
+          triple.getPredicate(),
+          triple.getObject()
       );
-    }
+    });
 
     // Commit transaction
     collector.txnCommit();

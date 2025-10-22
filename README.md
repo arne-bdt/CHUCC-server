@@ -44,7 +44,7 @@ This server implements:
 - ✅ **Fast-forward merges** - Automatic when possible
 - ✅ **Conflict detection** - Structured representation of merge conflicts
 - ✅ **RFC 7807 Problem Details** - Standardized error responses
-- ✅ **Multi-tenant** - Dataset scoping support
+- ✅ **Multi-dataset** - Dataset parameter support on key endpoints
 
 ### Performance & Scalability
 - ✅ **Snapshot Optimization** - Fast recovery and query materialization from snapshots
@@ -217,7 +217,6 @@ To temporarily increase test logging, override in your test:
 - ✅ Performance refactoring (Model API → Graph API migration complete)
 
 **Remaining Tasks:**
-- 📋 Request context for multi-dataset support
 - 📋 Java API layer (programmatic access without HTTP)
 
 See [Task Roadmap](./.tasks/README.md) for detailed status and remaining work.

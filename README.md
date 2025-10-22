@@ -217,6 +217,7 @@ To temporarily increase test logging, override in your test:
 - ✅ Performance refactoring (Model API → Graph API migration complete)
 
 **Remaining Tasks:**
+- 📋 Consistent dataset parameter support (remove hardcoded "default" values)
 - 📋 Java API layer (programmatic access without HTTP)
 
 See [Task Roadmap](./.tasks/README.md) for detailed status and remaining work.

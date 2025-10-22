@@ -9,7 +9,8 @@ This directory contains task breakdowns for remaining features and enhancements 
 This roadmap tracks the **remaining tasks** for CHUCC Server. Completed tasks have been removed from this directory.
 
 **Remaining task areas:**
-1. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
+1. **Infrastructure** - Improve API consistency and remove hardcoded values
+2. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
 
 ---
 
@@ -68,7 +69,41 @@ git log --oneline --grep="cache\|snapshot\|deletion\|named graph\|CQRS\|event fl
 
 ## Task Categories
 
-### 1. Java APIs
+### 1. Infrastructure
+
+**Goal:** Improve API consistency by implementing dataset parameter support across all endpoints.
+
+**Current State:** Dataset names hardcoded as "default" in some controllers (BatchGraphsController, GraphStoreController, SparqlController).
+
+**Target State:** All endpoints consistently accept optional `?dataset=name` query parameter.
+
+| Task | File | Priority | Est. Time | Status |
+|------|------|----------|-----------|--------|
+| 01. Implement Dataset Parameter Consistently | `infrastructure/01-implement-dataset-parameter-consistently.md` | Medium | 2-3 hours | 📋 Not Started |
+
+**Affected Controllers:**
+- BatchGraphsController - Remove hardcoded `DATASET_NAME`
+- GraphStoreController - Remove hardcoded `DATASET_NAME`
+- SparqlController - Remove hardcoded `datasetName` (2 places)
+
+**Benefits:**
+- ✅ Consistent API across all endpoints
+- ✅ Removes hardcoded values
+- ✅ Enables future multi-dataset support
+- ✅ Foundation for multi-tenancy
+- ✅ Backward compatible (default value = "default")
+
+**API Example:**
+```bash
+# All endpoints will support optional dataset parameter
+curl "http://localhost:3030/data?dataset=my-dataset&graph=http://example.org/g1"
+curl "http://localhost:3030/sparql?dataset=my-dataset&query=SELECT+*+WHERE+{+?s+?p+?o+}"
+curl "http://localhost:3030/batch?dataset=my-dataset" -d '{...}'
+```
+
+---
+
+### 2. Java APIs
 
 **Goal:** Create plain Java APIs for SPARQL Protocol and Graph Store Protocol that can be used without HTTP overhead.
 
@@ -120,12 +155,28 @@ Optional<Model> model = api.getGraph(
 
 ## Recommended Implementation Order
 
-### Java APIs (Medium Priority)
+### Phase 1: Infrastructure (Medium Priority)
+
+**Goal:** Improve API consistency and remove hardcoded values
+
+1. 📋 `infrastructure/01-implement-dataset-parameter-consistently.md` (2-3 hours)
+
+**Rationale:**
+- Removes technical debt (hardcoded values)
+- Improves API consistency
+- Foundation for future multi-dataset support
+- Quick win (low risk, backward compatible)
+
+**Estimated Time:** 2-3 hours total
+
+---
+
+### Phase 2: Java APIs (Medium Priority)
 
 **Goal:** Provide programmatic access for embedded use cases
 
-1. 📋 `java-api/01-create-java-sparql-api.md` (3-4 hours)
-2. 📋 `java-api/02-create-java-graph-store-api.md` (3-4 hours)
+2. 📋 `java-api/01-create-java-sparql-api.md` (3-4 hours)
+3. 📋 `java-api/02-create-java-graph-store-api.md` (3-4 hours)
 
 **Rationale:** Nice-to-have for embedded use. Can be deferred if time-constrained.
 
@@ -283,10 +334,12 @@ When adding new tasks:
 - **Total completed:** 12 tasks
 
 **Remaining:**
+- 📋 Infrastructure (1 task)
 - 📋 Java APIs (2 tasks)
-- **Total remaining:** 2 tasks
+- **Total remaining:** 3 tasks
 
-**Progress:** ~86% complete (12 of 14 tasks)
+**Progress:** ~80% complete (12 of 15 tasks)
 
 **Next Steps:**
-1. Create Java APIs (java-api/01-02)
+1. Implement dataset parameter consistently (infrastructure/01)
+2. Create Java APIs (java-api/01-02)

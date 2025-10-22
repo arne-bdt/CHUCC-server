@@ -44,7 +44,7 @@ This server implements:
 - ✅ **Fast-forward merges** - Automatic when possible
 - ✅ **Conflict detection** - Structured representation of merge conflicts
 - ✅ **RFC 7807 Problem Details** - Standardized error responses
-- ✅ **Multi-dataset** - Dataset parameter support on key endpoints
+- ✅ **Multi-dataset** - Dataset parameter support consistently across all endpoints
 
 ### Performance & Scalability
 - ✅ **Snapshot Optimization** - Fast recovery and query materialization from snapshots
@@ -215,10 +215,11 @@ To temporarily increase test logging, override in your test:
 - ✅ Deletion operations (branches, datasets)
 - ✅ Time-travel query validation tests (5 comprehensive integration tests)
 - ✅ Performance refactoring (Model API → Graph API migration complete)
+- ✅ Consistent dataset parameter support (removed all hardcoded "default" values)
 
 **Remaining Tasks:**
-- 📋 Consistent dataset parameter support (remove hardcoded "default" values)
 - 📋 Java API layer (programmatic access without HTTP)
+- 📋 Kafka CQRS/ES best practices (partition keys, deduplication, schema registry)
 
 See [Task Roadmap](./.tasks/README.md) for detailed status and remaining work.
 

@@ -9,9 +9,8 @@ This directory contains task breakdowns for remaining features and enhancements 
 This roadmap tracks the **remaining tasks** for CHUCC Server. Completed tasks have been removed from this directory.
 
 **Remaining task areas:**
-1. **Infrastructure** - Improve API consistency and remove hardcoded values
-2. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
-3. **Kafka Best Practices** - 🔴 **CRITICAL** - Implement Kafka CQRS/Event Sourcing best practices
+1. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
+2. **Kafka Best Practices** - 🔴 **CRITICAL** - Implement Kafka CQRS/Event Sourcing best practices
 
 ---
 
@@ -61,50 +60,24 @@ The following task areas have been **successfully completed** and their task fil
 - 15-25% memory reduction in graph processing
 - All 911+ tests pass with zero quality violations
 
+### ✅ Dataset Parameter Implementation (Completed)
+- BatchGraphsController now accepts dataset parameter
+- GraphStoreController now accepts dataset parameter (all 6 GSP operations)
+- SparqlController now accepts dataset parameter (query + update)
+- All hardcoded "default" values removed
+- Backward compatible with default value = "default"
+- Full API consistency across all endpoints
+
 For details on completed work, see git history:
 ```bash
-git log --oneline --grep="cache\|snapshot\|deletion\|named graph\|CQRS\|event flow\|time-travel\|migrate.*Graph" --since="2025-10-01"
+git log --oneline --grep="cache\|snapshot\|deletion\|named graph\|CQRS\|event flow\|time-travel\|migrate.*Graph\|dataset parameter" --since="2025-10-01"
 ```
 
 ---
 
 ## Task Categories
 
-### 1. Infrastructure
-
-**Goal:** Improve API consistency by implementing dataset parameter support across all endpoints.
-
-**Current State:** Dataset names hardcoded as "default" in some controllers (BatchGraphsController, GraphStoreController, SparqlController).
-
-**Target State:** All endpoints consistently accept optional `?dataset=name` query parameter.
-
-| Task | File | Priority | Est. Time | Status |
-|------|------|----------|-----------|--------|
-| 01. Implement Dataset Parameter Consistently | `infrastructure/01-implement-dataset-parameter-consistently.md` | Medium | 2-3 hours | 📋 Not Started |
-
-**Affected Controllers:**
-- BatchGraphsController - Remove hardcoded `DATASET_NAME`
-- GraphStoreController - Remove hardcoded `DATASET_NAME`
-- SparqlController - Remove hardcoded `datasetName` (2 places)
-
-**Benefits:**
-- ✅ Consistent API across all endpoints
-- ✅ Removes hardcoded values
-- ✅ Enables future multi-dataset support
-- ✅ Foundation for multi-tenancy
-- ✅ Backward compatible (default value = "default")
-
-**API Example:**
-```bash
-# All endpoints will support optional dataset parameter
-curl "http://localhost:3030/data?dataset=my-dataset&graph=http://example.org/g1"
-curl "http://localhost:3030/sparql?dataset=my-dataset&query=SELECT+*+WHERE+{+?s+?p+?o+}"
-curl "http://localhost:3030/batch?dataset=my-dataset" -d '{...}'
-```
-
----
-
-### 2. Java APIs
+### 1. Java APIs
 
 **Goal:** Create plain Java APIs for SPARQL Protocol and Graph Store Protocol that can be used without HTTP overhead.
 
@@ -154,7 +127,7 @@ Optional<Model> model = api.getGraph(
 
 ---
 
-### 3. Kafka Best Practices
+### 2. Kafka Best Practices
 
 **Goal:** Implement Kafka CQRS/Event Sourcing best practices based on industry standards.
 
@@ -210,23 +183,7 @@ Optional<Model> model = api.getGraph(
 
 ## Recommended Implementation Order
 
-### Phase 1: Infrastructure (Medium Priority)
-
-**Goal:** Improve API consistency and remove hardcoded values
-
-1. 📋 `infrastructure/01-implement-dataset-parameter-consistently.md` (2-3 hours)
-
-**Rationale:**
-- Removes technical debt (hardcoded values)
-- Improves API consistency
-- Foundation for future multi-dataset support
-- Quick win (low risk, backward compatible)
-
-**Estimated Time:** 2-3 hours total
-
----
-
-### Phase 2: Java APIs (Medium Priority)
+### Phase 1: Java APIs (Medium Priority)
 
 **Goal:** Provide programmatic access for embedded use cases
 
@@ -372,7 +329,7 @@ When adding new tasks:
 - ⏸️ **Deferred** - Task is lower priority
 - ❌ **Cancelled** - Task no longer needed
 
-**Current overall status:** 2 task areas remaining
+**Current overall status:** 1 task area remaining
 
 ---
 
@@ -386,22 +343,21 @@ When adding new tasks:
 - ✅ CQRS event flow (1 task)
 - ✅ Time-travel SPARQL queries (1 task)
 - ✅ Model API to Graph API migration (3 tasks)
-- **Total completed:** 12 tasks
+- ✅ Dataset parameter implementation (1 task)
+- **Total completed:** 13 tasks
 
 **Remaining:**
-- 📋 Infrastructure (1 task)
 - 📋 Java APIs (2 tasks)
 - 🔴 Kafka Best Practices (6 tasks) - **CRITICAL**
-- **Total remaining:** 9 tasks
+- **Total remaining:** 8 tasks
 
-**Progress:** ~57% complete (12 of 21 tasks)
+**Progress:** ~62% complete (13 of 21 tasks)
 
 **Next Steps (Priority Order):**
 1. 🔴 **CRITICAL:** Fix partition key strategy (kafka-best-practices/01) ← **START HERE**
 2. 🔴 **CRITICAL:** Implement event deduplication (kafka-best-practices/02)
 3. 🔴 High: Integrate Schema Registry (kafka-best-practices/04)
 4. 🟡 Medium: Add event metadata headers (kafka-best-practices/03)
-5. 🟡 Medium: Implement dataset parameter consistently (infrastructure/01)
-6. 🟡 Medium: Transaction support for consumers (kafka-best-practices/06)
-7. 🟢 Low: Snapshot compaction strategy (kafka-best-practices/05)
-8. 🟢 Low: Create Java APIs (java-api/01-02)
+5. 🟡 Medium: Transaction support for consumers (kafka-best-practices/06)
+6. 🟢 Low: Snapshot compaction strategy (kafka-best-practices/05)
+7. 🟢 Low: Create Java APIs (java-api/01-02)

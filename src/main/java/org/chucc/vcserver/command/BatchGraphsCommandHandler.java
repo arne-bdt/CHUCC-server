@@ -160,10 +160,9 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
   }
 
   private VersionControlEvent handleMultipleMode(BatchGraphsCommand command, Branch branch) {
-    record OperationResult(int operationIndex, GraphOperation operation, RDFPatch patch) { }
+    record OperationResult(int operationIndex, GraphOperation operation, RDFPatch patch) {}
 
-    List<CommitCreatedEvent> commits = new ArrayList<>();
-    List<OperationResult> nonEmptyResults = new ArrayList<>();
+    final List<OperationResult> nonEmptyResults = new ArrayList<>();
 
     // Execute all operations against base commit and collect non-empty patches
     for (int i = 0; i < command.operations().size(); i++) {
@@ -197,6 +196,7 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
     );
 
     // Create chain of commits (each builds on previous)
+    final List<CommitCreatedEvent> commits = new ArrayList<>();
     CommitId currentCommit = command.baseCommit();
     for (OperationResult result : nonEmptyResults) {
       CommitId commitId = CommitId.generate();

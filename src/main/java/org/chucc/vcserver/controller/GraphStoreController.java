@@ -230,8 +230,8 @@ public class GraphStoreController {
             org.apache.jena.riot.RDFLanguages.contentTypeToLang(accept))
     );
 
-    // Serialize the graph
-    String serialized = serializationService.serializeGraph(model, accept);
+    // Serialize the graph (convert Model to Graph)
+    String serialized = serializationService.serializeGraph(model.getGraph(), accept);
 
     return ResponseEntity.ok().headers(headers).body(serialized);
   }

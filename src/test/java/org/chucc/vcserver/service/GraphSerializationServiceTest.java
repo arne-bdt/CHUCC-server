@@ -3,9 +3,10 @@ package org.chucc.vcserver.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.graph.Graph;
+import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.graph.Triple;
+import org.apache.jena.sparql.graph.GraphFactory;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,22 +20,23 @@ import org.springframework.web.server.ResponseStatusException;
 class GraphSerializationServiceTest {
 
   private GraphSerializationService service;
-  private Model testModel;
+  private Graph testGraph;
 
   @BeforeEach
   void setUp() {
     service = new GraphSerializationService();
 
-    // Create a simple test model
-    testModel = ModelFactory.createDefaultModel();
-    Resource subject = testModel.createResource("http://example.org/subject");
-    subject.addProperty(RDF.type, RDFS.Class);
-    subject.addProperty(RDFS.label, "Test Subject");
+    // Create a simple test graph
+    testGraph = GraphFactory.createDefaultGraph();
+    var subject = NodeFactory.createURI("http://example.org/subject");
+    testGraph.add(Triple.create(subject, RDF.type.asNode(), RDFS.Class.asNode()));
+    testGraph.add(Triple.create(subject, RDFS.label.asNode(),
+        NodeFactory.createLiteralString("Test Subject")));
   }
 
   @Test
   void serializeGraph_shouldSerializeToTurtle() {
-    String result = service.serializeGraph(testModel, "text/turtle");
+    String result = service.serializeGraph(testGraph, "text/turtle");
 
     assertThat(result).isNotBlank();
     assertThat(result).contains("<http://example.org/subject>");
@@ -45,7 +47,7 @@ class GraphSerializationServiceTest {
 
   @Test
   void serializeGraph_shouldSerializeToNTriples() {
-    String result = service.serializeGraph(testModel, "application/n-triples");
+    String result = service.serializeGraph(testGraph, "application/n-triples");
 
     assertThat(result).isNotBlank();
     assertThat(result).contains("<http://example.org/subject>");
@@ -54,7 +56,7 @@ class GraphSerializationServiceTest {
 
   @Test
   void serializeGraph_shouldSerializeToJsonLd() {
-    String result = service.serializeGraph(testModel, "application/ld+json");
+    String result = service.serializeGraph(testGraph, "application/ld+json");
 
     assertThat(result).isNotBlank();
     assertThat(result).contains("@");
@@ -63,7 +65,7 @@ class GraphSerializationServiceTest {
 
   @Test
   void serializeGraph_shouldSerializeToRdfXml() {
-    String result = service.serializeGraph(testModel, "application/rdf+xml");
+    String result = service.serializeGraph(testGraph, "application/rdf+xml");
 
     assertThat(result).isNotBlank();
     assertThat(result).contains("<rdf:RDF");
@@ -72,7 +74,7 @@ class GraphSerializationServiceTest {
 
   @Test
   void serializeGraph_shouldSerializeToN3() {
-    String result = service.serializeGraph(testModel, "text/n3");
+    String result = service.serializeGraph(testGraph, "text/n3");
 
     assertThat(result).isNotBlank();
     assertThat(result).contains("<http://example.org/subject>");
@@ -80,7 +82,7 @@ class GraphSerializationServiceTest {
 
   @Test
   void serializeGraph_shouldDefaultToTurtleWhenAcceptIsNull() {
-    String result = service.serializeGraph(testModel, null);
+    String result = service.serializeGraph(testGraph, null);
 
     assertThat(result).isNotBlank();
     assertThat(result).contains("<http://example.org/subject>");
@@ -88,7 +90,7 @@ class GraphSerializationServiceTest {
 
   @Test
   void serializeGraph_shouldDefaultToTurtleWhenAcceptIsBlank() {
-    String result = service.serializeGraph(testModel, "");
+    String result = service.serializeGraph(testGraph, "");
 
     assertThat(result).isNotBlank();
     assertThat(result).contains("<http://example.org/subject>");
@@ -96,7 +98,7 @@ class GraphSerializationServiceTest {
 
   @Test
   void serializeGraph_shouldHandleContentTypeWithQuality() {
-    String result = service.serializeGraph(testModel, "text/turtle;q=0.9");
+    String result = service.serializeGraph(testGraph, "text/turtle;q=0.9");
 
     assertThat(result).isNotBlank();
     assertThat(result).contains("<http://example.org/subject>");
@@ -104,7 +106,7 @@ class GraphSerializationServiceTest {
 
   @Test
   void serializeGraph_shouldHandleContentTypeWithCharset() {
-    String result = service.serializeGraph(testModel, "text/turtle; charset=utf-8");
+    String result = service.serializeGraph(testGraph, "text/turtle; charset=utf-8");
 
     assertThat(result).isNotBlank();
     assertThat(result).contains("<http://example.org/subject>");
@@ -112,7 +114,7 @@ class GraphSerializationServiceTest {
 
   @Test
   void serializeGraph_shouldThrow406ForUnsupportedFormat() {
-    assertThatThrownBy(() -> service.serializeGraph(testModel, "unsupported/format"))
+    assertThatThrownBy(() -> service.serializeGraph(testGraph, "unsupported/format"))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(ex -> {
           ResponseStatusException rse = (ResponseStatusException) ex;
@@ -123,9 +125,9 @@ class GraphSerializationServiceTest {
 
   @Test
   void serializeGraph_shouldHandleEmptyModel() {
-    Model emptyModel = ModelFactory.createDefaultModel();
+    Graph emptyGraph = GraphFactory.createDefaultGraph();
 
-    String result = service.serializeGraph(emptyModel, "text/turtle");
+    String result = service.serializeGraph(emptyGraph, "text/turtle");
 
     assertThat(result).isNotNull();
   }
@@ -133,9 +135,9 @@ class GraphSerializationServiceTest {
   @Test
   void serializeGraph_shouldHandleAlternativeContentTypes() {
     // Test alternative MIME types for the same format
-    String result1 = service.serializeGraph(testModel, "application/x-turtle");
-    String result2 = service.serializeGraph(testModel, "text/plain");
-    String result3 = service.serializeGraph(testModel, "application/json");
+    String result1 = service.serializeGraph(testGraph, "application/x-turtle");
+    String result2 = service.serializeGraph(testGraph, "text/plain");
+    String result3 = service.serializeGraph(testGraph, "application/json");
 
     assertThat(result1).isNotBlank();
     assertThat(result2).isNotBlank();

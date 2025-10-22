@@ -1,7 +1,7 @@
 package org.chucc.vcserver.service;
 
 import java.io.StringWriter;
-import org.apache.jena.rdf.model.Model;
+import org.apache.jena.graph.Graph;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.chucc.vcserver.util.RdfContentTypeUtil;
@@ -17,14 +17,14 @@ import org.springframework.web.server.ResponseStatusException;
 public class GraphSerializationService {
 
   /**
-   * Serializes an RDF model to the requested format based on content type.
+   * Serializes an RDF graph to the requested format based on content type.
    *
-   * @param model the RDF model to serialize
+   * @param graph the RDF graph to serialize
    * @param contentType the requested content type
    * @return the serialized graph as a string
    * @throws ResponseStatusException with 406 if the format is not supported
    */
-  public String serializeGraph(Model model, String contentType) {
+  public String serializeGraph(Graph graph, String contentType) {
     Lang lang = RdfContentTypeUtil.determineLang(contentType);
 
     if (lang == null) {
@@ -35,7 +35,7 @@ public class GraphSerializationService {
     }
 
     StringWriter writer = new StringWriter();
-    RDFDataMgr.write(writer, model, lang);
+    RDFDataMgr.write(writer, graph, lang);
     return writer.toString();
   }
 

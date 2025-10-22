@@ -19,9 +19,11 @@ Currently, **dataset names are inconsistently handled** across controllers:
 
 ### Controllers Already Using Dataset Parameter (Reference Pattern)
 1. **AdvancedOpsController** - `@RequestParam(defaultValue = "default") String dataset`
-2. **BranchController** - `@RequestParam(defaultValue = "default") String dataset`
+2. **BranchController** - `@RequestParam(defaultValue = "default") String dataset` ✅ (Fixed - was in original task)
 3. **CommitController** - `@RequestParam(defaultValue = "default") String dataset`
 4. **RefsController** - `@RequestParam(value = "dataset", defaultValue = "default") String datasetName`
+
+**Note:** BranchController was listed in the original cancelled task as needing updates, but has since been fixed.
 
 ---
 
@@ -45,6 +47,28 @@ curl "http://localhost:3030/data?graph=http://example.org/g1&dataset=mydata"
 # ❌ Cannot specify - SparqlController uses hardcoded "default"
 curl "http://localhost:3030/sparql?query=SELECT+*+WHERE+{+?s+?p+?o+}&dataset=mydata"
 # ^ dataset parameter is ignored
+```
+
+**API Changes:**
+
+### Before (Current State)
+```bash
+# Cannot specify custom dataset
+GET /data?default=true&branch=main
+GET /sparql?query=...&branch=main
+POST /batch?branch=main
+```
+
+### After (Backward Compatible)
+```bash
+# Default dataset (unchanged behavior)
+GET /data?default=true&branch=main
+GET /data?dataset=default&default=true&branch=main  # Explicit
+
+# Custom dataset (new capability)
+GET /data?dataset=my-dataset&default=true&branch=main
+GET /sparql?dataset=my-dataset&query=...&branch=main
+POST /batch?dataset=my-dataset&branch=main
 ```
 
 ---
@@ -106,10 +130,33 @@ Add `@RequestParam(defaultValue = "default") String dataset` to all affected end
 1. Remove line 41: `private static final String DATASET_NAME = "default";`
 2. Add parameter to `batchGraphs()` method:
    ```java
-   @PostMapping("/batch")
+   // Before
+   private static final String DATASET_NAME = "default";
+
+   @PostMapping
    public ResponseEntity<BatchGraphsResponse> batchGraphs(
+       @RequestBody BatchGraphsRequest request,
+       @RequestHeader(value = "X-Author", defaultValue = "anonymous") String author) {
+     PutGraphsCommand command = new PutGraphsCommand(
+         DATASET_NAME,
+         operations,
+         // ...
+     );
+   }
+
+   // After
+   @PostMapping
+   public ResponseEntity<BatchGraphsResponse> batchGraphs(
+       @Parameter(description = "Dataset name")
        @RequestParam(defaultValue = "default") String dataset,
-       @RequestBody BatchGraphsRequest request) {
+       @RequestBody BatchGraphsRequest request,
+       @RequestHeader(value = "X-Author", defaultValue = "anonymous") String author) {
+     PutGraphsCommand command = new PutGraphsCommand(
+         dataset,
+         operations,
+         // ...
+     );
+   }
    ```
 3. Replace all uses of `DATASET_NAME` with `dataset` parameter
 
@@ -200,6 +247,59 @@ Add `@RequestParam(defaultValue = "default") String dataset` to all affected end
    - Verify backward compatibility (no dataset parameter should still work)
 
 **Test Pattern:**
+
+**Unit Test Pattern (with MockMvc):**
+```java
+@WebMvcTest(GraphStoreController.class)
+class GraphStoreControllerTest {
+
+  @MockBean
+  private DatasetService datasetService;
+
+  @MockBean
+  private SelectorResolutionService selectorResolutionService;
+
+  @Autowired
+  private MockMvc mockMvc;
+
+  @Test
+  void getGraph_shouldUseDefaultDataset_whenParameterOmitted() throws Exception {
+    // When
+    mockMvc.perform(get("/data")
+        .param("default", "true")
+        .param("branch", "main"))
+        .andExpect(status().isOk());
+
+    // Then
+    verify(selectorResolutionService).resolve(
+        eq("default"),  // Should use default
+        eq("main"),
+        isNull(),
+        isNull()
+    );
+  }
+
+  @Test
+  void getGraph_shouldUseCustomDataset_whenParameterProvided() throws Exception {
+    // When
+    mockMvc.perform(get("/data")
+        .param("dataset", "my-dataset")
+        .param("default", "true")
+        .param("branch", "main"))
+        .andExpect(status().isOk());
+
+    // Then
+    verify(selectorResolutionService).resolve(
+        eq("my-dataset"),  // Should use custom dataset
+        eq("main"),
+        isNull(),
+        isNull()
+    );
+  }
+}
+```
+
+**Integration Test Pattern (with TestRestTemplate):**
 ```java
 @Test
 void operation_withCustomDataset_shouldUseProvidedDataset() {
@@ -396,6 +496,41 @@ curl "http://localhost:3030/sparql?query=SELECT+*+WHERE+{+?s+?p+?o+}"
 
 ---
 
+## Rollback Plan
+
+If issues arise after implementation:
+
+**1. Revert Commits**
+- Each controller should be a separate commit for granular rollback
+- Use `git revert <commit-hash>` to undo specific changes
+
+**2. Feature Flag (Optional)**
+If needed, add a feature flag to disable the new parameter handling:
+```yaml
+# application.yml
+vc:
+  multi-dataset:
+    enabled: false  # Disable custom dataset parameter handling
+```
+
+**3. Backward Compatibility Guarantee**
+- No rollback needed for API clients
+- Default value ensures existing behavior unchanged
+- Zero breaking changes
+
+**Rollback Commands:**
+```bash
+# Revert individual controller changes
+git revert <commit-hash-for-sparql-controller>
+git revert <commit-hash-for-graphstore-controller>
+git revert <commit-hash-for-batch-controller>
+
+# Or revert all at once (if single commit)
+git revert <commit-hash>
+```
+
+---
+
 ## Future Enhancements
 
 After this task is complete, future work could include:
@@ -415,10 +550,81 @@ After this task is complete, future work could include:
    - Authentication and authorization per dataset
    - Dataset isolation and access control
 
-4. **Request Scope Bean** (Future Architecture)
-   - Spring `@RequestScope` bean for RequestContext
-   - Eliminates need to pass dataset through all layers
-   - Cleaner service method signatures
+4. **Phase 2: Request Scope Bean** (Future Architecture)
+
+   After basic dataset parameter implementation, consider adding a request-scoped context:
+
+   **Create RequestContext Bean:**
+   ```java
+   @Component
+   @Scope(value = WebApplicationContext.SCOPE_REQUEST, proxyMode = ScopedProxyMode.TARGET_CLASS)
+   public class RequestContext {
+     private String dataset;
+     private String user;
+     private String tenant;  // Multi-tenancy support
+
+     // Getters/setters
+     public String getDataset() { return dataset; }
+     public void setDataset(String dataset) { this.dataset = dataset; }
+     public String getUser() { return user; }
+     public void setUser(String user) { this.user = user; }
+   }
+   ```
+
+   **Populate via Interceptor:**
+   ```java
+   @Component
+   public class RequestContextInterceptor implements HandlerInterceptor {
+
+     @Autowired
+     private RequestContext requestContext;
+
+     @Override
+     public boolean preHandle(HttpServletRequest request,
+                               HttpServletResponse response,
+                               Object handler) {
+       // Extract dataset from request parameter
+       String dataset = request.getParameter("dataset");
+       if (dataset == null) dataset = "default";
+       requestContext.setDataset(dataset);
+
+       // Extract user from auth header (future)
+       String user = extractUserFromAuthHeader(request);
+       requestContext.setUser(user);
+
+       return true;
+     }
+
+     private String extractUserFromAuthHeader(HttpServletRequest request) {
+       String authHeader = request.getHeader("Authorization");
+       // Parse JWT or Basic Auth
+       return authHeader != null ? parseUser(authHeader) : "anonymous";
+     }
+   }
+   ```
+
+   **Use in Services:**
+   ```java
+   @Service
+   public class SomeService {
+
+     @Autowired
+     private RequestContext requestContext;
+
+     public void doSomething() {
+       String dataset = requestContext.getDataset();
+       String user = requestContext.getUser();
+       // Use without passing through all layers
+     }
+   }
+   ```
+
+   **Benefits:**
+   - ✅ No need to pass dataset through all method signatures
+   - ✅ Supports multi-tenancy (tenant-specific datasets)
+   - ✅ Can include authentication context
+   - ✅ Cleaner service method signatures
+   - ✅ Available throughout entire request lifecycle
 
 ---
 

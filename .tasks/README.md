@@ -11,6 +11,7 @@ This roadmap tracks the **remaining tasks** for CHUCC Server. Completed tasks ha
 **Remaining task areas:**
 1. **Infrastructure** - Improve API consistency and remove hardcoded values
 2. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
+3. **Kafka Best Practices** - 🔴 **CRITICAL** - Implement Kafka CQRS/Event Sourcing best practices
 
 ---
 
@@ -150,6 +151,60 @@ Optional<Model> model = api.getGraph(
 - Direct method invocation (10-100x faster)
 - Type-safe API (compile-time checking)
 - Better for testing (no need to start HTTP server)
+
+---
+
+### 3. Kafka Best Practices
+
+**Goal:** Implement Kafka CQRS/Event Sourcing best practices based on industry standards.
+
+**Current State:** CHUCC Server uses Kafka for event sourcing but violates several critical best practices:
+- ❌ Partition key is NOT aggregate-ID (breaks ordering guarantees)
+- ❌ No event deduplication (at-least-once without idempotency)
+- ❌ Missing event metadata headers (correlationId, causationId, schemaVersion)
+- ❌ No Schema Registry (JSON without versioning)
+- ⚠️ Snapshots not in separate compacted topic
+- ⚠️ Consumer isolation level not set to read_committed
+
+**Target State:** Full compliance with Kafka CQRS/ES best practices (German checklist).
+
+| Task | File | Priority | Est. Time | Status |
+|------|------|----------|-----------|--------|
+| 01. Fix Partition Key Strategy | `kafka-best-practices/01-fix-partition-key-strategy.md` | 🔴 **CRITICAL** | 3-4 hours | 📋 Not Started |
+| 02. Implement Event Deduplication | `kafka-best-practices/02-implement-event-deduplication.md` | 🔴 **CRITICAL** | 3-4 hours | 📋 Not Started |
+| 03. Add Event Metadata Headers | `kafka-best-practices/03-add-event-metadata-headers.md` | 🟡 Medium | 2-3 hours | 📋 Not Started |
+| 04. Integrate Schema Registry | `kafka-best-practices/04-integrate-schema-registry.md` | 🔴 High | 4-5 hours | 📋 Not Started |
+| 05. Snapshot Compaction Strategy | `kafka-best-practices/05-snapshot-compaction-strategy.md` | 🟡 Low-Medium | 2-3 hours | 📋 Not Started |
+| 06. Transaction Support for Consumers | `kafka-best-practices/06-add-transaction-support-for-consumers.md` | 🟡 Medium | 2 hours | 📋 Not Started |
+
+**Dependencies:**
+- Task 02 depends on Task 01 (recommended, not blocking)
+- Task 03 depends on Task 02 (for eventId)
+- Task 04 depends on Task 03 (for schemaVersion)
+
+**Impact:**
+
+**Critical Issues (Must Fix):**
+1. **Partition Key Strategy** - Events for same branch may process out of order ⚠️
+2. **Event Deduplication** - Duplicate processing on consumer rebalance ⚠️
+
+**High Priority (Production-Ready):**
+3. **Schema Registry** - Cannot safely evolve event schemas
+4. **Event Metadata Headers** - No distributed tracing capability
+
+**Medium Priority (Optimizations):**
+5. **Snapshot Compaction** - Storage efficiency
+6. **Transaction Support** - Data integrity for consumers
+
+**Estimated Total Time:** 17-21 hours (spread across 6 tasks)
+
+**Recommended Order:**
+1. 🔴 Fix Partition Key (Task 01) - 3-4 hours
+2. 🔴 Event Deduplication (Task 02) - 3-4 hours
+3. 🟡 Event Metadata (Task 03) - 2-3 hours
+4. 🔴 Schema Registry (Task 04) - 4-5 hours
+5. 🟡 Transaction Support (Task 06) - 2 hours
+6. 🟡 Snapshot Compaction (Task 05) - 2-3 hours
 
 ---
 
@@ -336,10 +391,17 @@ When adding new tasks:
 **Remaining:**
 - 📋 Infrastructure (1 task)
 - 📋 Java APIs (2 tasks)
-- **Total remaining:** 3 tasks
+- 🔴 Kafka Best Practices (6 tasks) - **CRITICAL**
+- **Total remaining:** 9 tasks
 
-**Progress:** ~80% complete (12 of 15 tasks)
+**Progress:** ~57% complete (12 of 21 tasks)
 
-**Next Steps:**
-1. Implement dataset parameter consistently (infrastructure/01)
-2. Create Java APIs (java-api/01-02)
+**Next Steps (Priority Order):**
+1. 🔴 **CRITICAL:** Fix partition key strategy (kafka-best-practices/01) ← **START HERE**
+2. 🔴 **CRITICAL:** Implement event deduplication (kafka-best-practices/02)
+3. 🔴 High: Integrate Schema Registry (kafka-best-practices/04)
+4. 🟡 Medium: Add event metadata headers (kafka-best-practices/03)
+5. 🟡 Medium: Implement dataset parameter consistently (infrastructure/01)
+6. 🟡 Medium: Transaction support for consumers (kafka-best-practices/06)
+7. 🟢 Low: Snapshot compaction strategy (kafka-best-practices/05)
+8. 🟢 Low: Create Java APIs (java-api/01-02)

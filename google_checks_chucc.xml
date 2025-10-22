@@ -451,9 +451,11 @@
     <module name="UnusedLocalVariable"/>
 
     <!-- Detect TODO/FIXME/XXX comments -->
+    <!-- Severity is "info" to make them visible to humans without causing AI agents -->
+    <!-- to work around the check by rephrasing (e.g., "Future:" instead of "TODO:") -->
     <module name="TodoComment">
       <property name="format" value="(TODO)|(FIXME)|(XXX)"/>
-      <property name="severity" value="warning"/>
+      <property name="severity" value="info"/>
     </module>
 
   </module>

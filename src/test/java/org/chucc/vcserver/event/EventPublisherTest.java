@@ -65,7 +65,7 @@ class EventPublisherTest {
     ProducerRecord<String, VersionControlEvent> record = recordCaptor.getValue();
 
     assertEquals("vc.test-dataset.events", record.topic());
-    assertEquals("main", record.key()); // Partitioned by branch name
+    assertEquals("test-dataset:main", record.key()); // Partitioned by aggregate ID
     assertEquals(event, record.value());
 
     // Verify headers
@@ -73,6 +73,10 @@ class EventPublisherTest {
     assertHeaderExists(record, EventHeaders.EVENT_TYPE, "BranchCreated");
     assertHeaderExists(record, EventHeaders.BRANCH, "main");
     assertHeaderExists(record, EventHeaders.COMMIT_ID, "commit-123");
+
+    // Verify aggregate headers
+    assertHeaderExists(record, "aggregateType", "Branch");
+    assertHeaderExists(record, "aggregateId", "test-dataset:main");
   }
 
   @Test
@@ -93,7 +97,7 @@ class EventPublisherTest {
     ProducerRecord<String, VersionControlEvent> record = recordCaptor.getValue();
 
     assertEquals("vc.my-dataset.events", record.topic());
-    assertEquals("my-dataset", record.key()); // Commits partitioned by dataset
+    assertEquals("my-dataset:commit-456", record.key()); // Detached commit uses commit aggregate
     assertEquals(event, record.value());
 
     // Verify headers
@@ -101,6 +105,42 @@ class EventPublisherTest {
     assertHeaderExists(record, EventHeaders.EVENT_TYPE, "CommitCreated");
     assertHeaderExists(record, EventHeaders.COMMIT_ID, "commit-456");
     assertHeaderExists(record, EventHeaders.CONTENT_TYPE, "text/rdf-patch; charset=utf-8");
+
+    // Verify aggregate headers
+    assertHeaderExists(record, "aggregateType", "Commit");
+    assertHeaderExists(record, "aggregateId", "my-dataset:commit-456");
+  }
+
+  @Test
+  void testPublishCommitCreatedEventWithBranch() {
+    CommitCreatedEvent event = new CommitCreatedEvent(
+        "my-dataset",
+        "commit-789",
+        List.of("commit-456"),
+        "feature-x",  // Branch specified
+        "Test commit on branch",
+        "Alice <alice@example.com>",
+        Instant.now(),
+        "H 1 .\n"
+    );
+
+    eventPublisher.publish(event);
+
+    verify(kafkaTemplate).send(recordCaptor.capture());
+    ProducerRecord<String, VersionControlEvent> record = recordCaptor.getValue();
+
+    assertEquals("vc.my-dataset.events", record.topic());
+    assertEquals("my-dataset:feature-x", record.key()); // Commit with branch uses branch aggregate
+    assertEquals(event, record.value());
+
+    // Verify headers
+    assertHeaderExists(record, EventHeaders.DATASET, "my-dataset");
+    assertHeaderExists(record, EventHeaders.EVENT_TYPE, "CommitCreated");
+    assertHeaderExists(record, EventHeaders.COMMIT_ID, "commit-789");
+
+    // Verify aggregate headers
+    assertHeaderExists(record, "aggregateType", "Branch");
+    assertHeaderExists(record, "aggregateId", "my-dataset:feature-x");
   }
 
   @Test
@@ -123,6 +163,10 @@ class EventPublisherTest {
     assertHeaderExists(record, EventHeaders.DATASET, "prod-dataset");
     assertHeaderExists(record, EventHeaders.EVENT_TYPE, "TagCreated");
     assertHeaderExists(record, EventHeaders.COMMIT_ID, "commit-789");
+
+    // Verify aggregate headers
+    assertHeaderExists(record, "aggregateType", "Dataset");
+    assertHeaderExists(record, "aggregateId", "prod-dataset");
   }
 
   @Test
@@ -141,12 +185,16 @@ class EventPublisherTest {
     ProducerRecord<String, VersionControlEvent> record = recordCaptor.getValue();
 
     assertEquals("vc.test-dataset.events", record.topic());
-    assertEquals("develop", record.key()); // Partitioned by branch name
+    assertEquals("test-dataset:develop", record.key()); // Partitioned by aggregate ID
 
     assertHeaderExists(record, EventHeaders.DATASET, "test-dataset");
     assertHeaderExists(record, EventHeaders.EVENT_TYPE, "BranchReset");
     assertHeaderExists(record, EventHeaders.BRANCH, "develop");
     assertHeaderExists(record, EventHeaders.COMMIT_ID, "new-commit");
+
+    // Verify aggregate headers
+    assertHeaderExists(record, "aggregateType", "Branch");
+    assertHeaderExists(record, "aggregateId", "test-dataset:develop");
   }
 
   @Test
@@ -168,12 +216,16 @@ class EventPublisherTest {
     ProducerRecord<String, VersionControlEvent> record = recordCaptor.getValue();
 
     assertEquals("vc.test-dataset.events", record.topic());
-    assertEquals("test-dataset", record.key()); // Reverts partitioned by dataset
+    assertEquals("test-dataset:main", record.key()); // Reverts partitioned by branch aggregate
 
     assertHeaderExists(record, EventHeaders.DATASET, "test-dataset");
     assertHeaderExists(record, EventHeaders.EVENT_TYPE, "RevertCreated");
     assertHeaderExists(record, EventHeaders.COMMIT_ID, "revert-commit");
     assertHeaderExists(record, EventHeaders.CONTENT_TYPE, "text/rdf-patch; charset=utf-8");
+
+    // Verify aggregate headers
+    assertHeaderExists(record, "aggregateType", "Branch");
+    assertHeaderExists(record, "aggregateId", "test-dataset:main");
   }
 
   private void assertHeaderExists(

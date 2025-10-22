@@ -36,4 +36,9 @@ public record BranchCreatedEvent(
       throw new IllegalArgumentException("Branch name cannot be blank");
     }
   }
+
+  @Override
+  public AggregateIdentity getAggregateIdentity() {
+    return AggregateIdentity.branch(dataset, branchName);
+  }
 }

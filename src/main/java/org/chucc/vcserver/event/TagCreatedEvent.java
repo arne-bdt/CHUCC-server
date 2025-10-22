@@ -36,4 +36,9 @@ public record TagCreatedEvent(
       throw new IllegalArgumentException("Tag name cannot be blank");
     }
   }
+
+  @Override
+  public AggregateIdentity getAggregateIdentity() {
+    return AggregateIdentity.dataset(dataset);
+  }
 }

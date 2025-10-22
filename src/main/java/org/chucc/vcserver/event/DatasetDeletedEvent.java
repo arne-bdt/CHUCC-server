@@ -45,4 +45,9 @@ public record DatasetDeletedEvent(
     // Defensive copy
     deletedBranches = List.copyOf(deletedBranches);
   }
+
+  @Override
+  public AggregateIdentity getAggregateIdentity() {
+    return AggregateIdentity.dataset(dataset);
+  }
 }

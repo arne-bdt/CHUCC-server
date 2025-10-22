@@ -62,4 +62,9 @@ public record CommitsSquashedEvent(
     // Create defensive copy of the list
     squashedCommitIds = Collections.unmodifiableList(new ArrayList<>(squashedCommitIds));
   }
+
+  @Override
+  public AggregateIdentity getAggregateIdentity() {
+    return AggregateIdentity.branch(dataset, branch);
+  }
 }

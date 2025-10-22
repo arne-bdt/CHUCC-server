@@ -56,4 +56,14 @@ public record CommitCreatedEvent(
     // Create defensive copy of parents list to ensure immutability
     parents = List.copyOf(parents);
   }
+
+  @Override
+  public AggregateIdentity getAggregateIdentity() {
+    // If branch is specified, use branch aggregate
+    if (branch != null && !branch.isBlank()) {
+      return AggregateIdentity.branch(dataset, branch);
+    }
+    // Otherwise, use commit aggregate (detached commit)
+    return AggregateIdentity.commit(dataset, commitId);
+  }
 }

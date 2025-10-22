@@ -54,4 +54,17 @@ public sealed interface VersionControlEvent
    * @return the dataset name
    */
   String dataset();
+
+  /**
+   * Returns the aggregate identity for partitioning.
+   * All events for the same aggregate instance must return the same partition key
+   * to ensure ordered processing in Kafka.
+   *
+   * <p>This method implements the CQRS/Event Sourcing best practice:
+   * "Key = Aggregate-ID" - ensuring all events for an aggregate instance land
+   * in the same partition for guaranteed ordering.
+   *
+   * @return the aggregate identity
+   */
+  AggregateIdentity getAggregateIdentity();
 }

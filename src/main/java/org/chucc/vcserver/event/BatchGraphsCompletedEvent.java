@@ -46,4 +46,9 @@ public record BatchGraphsCompletedEvent(
   public List<CommitCreatedEvent> commits() {
     return new ArrayList<>(commits);
   }
+
+  @Override
+  public AggregateIdentity getAggregateIdentity() {
+    return AggregateIdentity.dataset(dataset);
+  }
 }

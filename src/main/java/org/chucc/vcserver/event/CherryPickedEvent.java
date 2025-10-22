@@ -47,4 +47,9 @@ public record CherryPickedEvent(
     EventValidation.requireNonBlank(message, "Message");
     EventValidation.requireNonBlank(author, "Author");
   }
+
+  @Override
+  public AggregateIdentity getAggregateIdentity() {
+    return AggregateIdentity.branch(dataset, branch);
+  }
 }

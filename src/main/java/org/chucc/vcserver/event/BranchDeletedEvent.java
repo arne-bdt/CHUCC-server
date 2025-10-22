@@ -43,4 +43,9 @@ public record BranchDeletedEvent(
       throw new IllegalArgumentException("Author cannot be blank");
     }
   }
+
+  @Override
+  public AggregateIdentity getAggregateIdentity() {
+    return AggregateIdentity.branch(dataset, branchName);
+  }
 }

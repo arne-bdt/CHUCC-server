@@ -55,4 +55,9 @@ public record BranchRebasedEvent(
     // Create defensive copy of the list
     newCommits = Collections.unmodifiableList(new ArrayList<>(newCommits));
   }
+
+  @Override
+  public AggregateIdentity getAggregateIdentity() {
+    return AggregateIdentity.branch(dataset, branch);
+  }
 }

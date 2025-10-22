@@ -104,7 +104,7 @@ class EventPublisherIT {
     // Then - Wait for message to be consumed
     Thread.sleep(1000);
     assertNotNull(receivedRecord, "Should receive the published event");
-    assertEquals("main", receivedRecord.key());
+    assertEquals("test-dataset:main", receivedRecord.key());
 
     // Verify headers
     assertHeaderExists(receivedRecord, EventHeaders.DATASET, "test-dataset");
@@ -139,7 +139,7 @@ class EventPublisherIT {
     // Then
     Thread.sleep(1000);
     assertNotNull(receivedRecord);
-    assertEquals("test-dataset", receivedRecord.key());
+    assertEquals("test-dataset:commit-123", receivedRecord.key());
 
     // Verify headers include content type for RDF Patch
     assertHeaderExists(receivedRecord, EventHeaders.CONTENT_TYPE,

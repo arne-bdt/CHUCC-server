@@ -85,8 +85,8 @@ class EventPublisherKafkaIT {
           });
 
       ConsumerRecord<String, String> record = recordRef.get();
-      assertEquals("feature-branch", record.key(),
-          "Event should be keyed by branch name");
+      assertEquals(datasetId + ":feature-branch", record.key(),
+          "Event should be keyed by aggregate ID (dataset:branch)");
 
       // Verify headers
       assertHeaderExists(record, EventHeaders.DATASET, datasetId);
@@ -138,8 +138,8 @@ class EventPublisherKafkaIT {
           });
 
       ConsumerRecord<String, String> record = recordRef.get();
-      assertEquals(datasetId, record.key(),
-          "Commit events should be keyed by dataset");
+      assertEquals(datasetId + ":" + commitId, record.key(),
+          "Detached commit events should be keyed by commit aggregate (dataset:commitId)");
 
       // Verify headers
       assertHeaderExists(record, EventHeaders.EVENT_TYPE, "CommitCreated");
@@ -250,8 +250,10 @@ class EventPublisherKafkaIT {
       Map<String, Integer> counts = countsRef.get();
 
       // With idempotence enabled, we should not have duplicates
-      assertEquals(1, counts.get("branch-1"), "Should have exactly one event for branch-1");
-      assertEquals(1, counts.get("branch-2"), "Should have exactly one event for branch-2");
+      String branch1Key = datasetId + ":branch-1";
+      String branch2Key = datasetId + ":branch-2";
+      assertEquals(1, counts.get(branch1Key), "Should have exactly one event for branch-1");
+      assertEquals(1, counts.get(branch2Key), "Should have exactly one event for branch-2");
     }
   }
 

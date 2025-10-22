@@ -117,27 +117,28 @@ public class EventPublisher {
   }
 
   /**
-   * Determines the partition key for an event.
-   * Events are partitioned by branch name to maintain ordering within branches.
+   * Determines the partition key for an event using aggregate identity.
+   * Events for the same aggregate instance use the same partition key
+   * to ensure ordered processing.
+   *
+   * <p>This method implements the CQRS/Event Sourcing best practice:
+   * "Key = Aggregate-ID" - ensuring all events for an aggregate instance land
+   * in the same partition for guaranteed ordering.
    *
    * @param event the event
    * @return the partition key
    */
   private String getPartitionKey(VersionControlEvent event) {
-    return switch (event) {
-      case BranchCreatedEvent e -> e.branchName();
-      case BranchResetEvent e -> e.branchName();
-      case BranchRebasedEvent e -> e.branch();
-      case BranchDeletedEvent e -> e.branchName();
-      case DatasetDeletedEvent e -> event.dataset();
-      case CommitCreatedEvent e -> event.dataset(); // Commits partition by dataset
-      case TagCreatedEvent e -> event.dataset(); // Tags partition by dataset
-      case RevertCreatedEvent e -> event.dataset(); // Reverts partition by dataset
-      case SnapshotCreatedEvent e -> e.branchName(); // Snapshots partition by branch
-      case CherryPickedEvent e -> e.branch(); // Cherry-picks partition by target branch
-      case CommitsSquashedEvent e -> e.branch(); // Squash partition by branch
-      case BatchGraphsCompletedEvent e -> event.dataset(); // Batch ops partition by dataset
-    };
+    AggregateIdentity aggregateId = event.getAggregateIdentity();
+    String partitionKey = aggregateId.getPartitionKey();
+
+    logger.debug("Event {} for aggregate {} (type={}) using partition key: {}",
+        event.getClass().getSimpleName(),
+        aggregateId.getAggregateType(),
+        aggregateId.getDataset(),
+        partitionKey);
+
+    return partitionKey;
   }
 
   /**
@@ -147,6 +148,8 @@ public class EventPublisher {
    * @param event the event
    */
   private void addHeaders(Headers headers, VersionControlEvent event) {
+    AggregateIdentity aggregateId = event.getAggregateIdentity();
+
     // Always add dataset and event type
     headers.add(new RecordHeader(EventHeaders.DATASET,
         event.dataset().getBytes(StandardCharsets.UTF_8)));
@@ -154,6 +157,12 @@ public class EventPublisher {
         event.getClass().getSimpleName()
             .replace("Event", "")
             .getBytes(StandardCharsets.UTF_8)));
+
+    // Add aggregate metadata for partition tracking
+    headers.add(new RecordHeader("aggregateType",
+        aggregateId.getAggregateType().getBytes(StandardCharsets.UTF_8)));
+    headers.add(new RecordHeader("aggregateId",
+        aggregateId.getPartitionKey().getBytes(StandardCharsets.UTF_8)));
 
     // Add event-specific headers
     switch (event) {

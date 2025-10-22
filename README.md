@@ -213,12 +213,12 @@ To temporarily increase test logging, override in your test:
 - ✅ Comprehensive test suite (~913 tests, including async event flow validation)
 - ✅ Performance optimizations (snapshots, LRU cache)
 - ✅ Deletion operations (branches, datasets)
+- ✅ Time-travel query validation tests (5 comprehensive integration tests)
+- ✅ Performance refactoring (Model API → Graph API migration complete)
 
 **Remaining Tasks:**
-- 📋 Time-travel query validation tests
 - 📋 Request context for multi-dataset support
 - 📋 Java API layer (programmatic access without HTTP)
-- 📋 Performance refactoring (Model API → Graph API migration)
 
 See [Task Roadmap](./.tasks/README.md) for detailed status and remaining work.
 

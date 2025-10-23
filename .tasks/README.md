@@ -10,6 +10,7 @@ This roadmap tracks the **remaining tasks** for CHUCC Server. Completed tasks ha
 
 **Remaining task areas:**
 1. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
+2. **Command-Side Exception Handling** - Fix fire-and-forget pattern (CRITICAL)
 
 ---
 
@@ -75,6 +76,14 @@ The following task areas have been **successfully completed** and their task fil
 - Idempotent non-transactional publishing optimized for single-event pattern
 - Production-ready CQRS/Event Sourcing implementation
 
+### ✅ Projector Exception Handling (Completed - Projector Side)
+- Manual commit configuration (AckMode.RECORD) prevents message loss
+- Exception rethrowing verified and tested (3 unit tests)
+- ADR-0003 created documenting fail-fast strategy
+- Comprehensive documentation added to ReadModelProjector and CQRS guide
+- Codebase audit completed (identified command-side issue for future work)
+- **Note:** Command-side fire-and-forget issue remains (see `.tasks/projector-exception-handling/04-fix-command-handler-exceptions.md`)
+
 For details on completed work, see git history:
 ```bash
 git log --oneline --grep="cache\|snapshot\|deletion\|named graph\|CQRS\|event flow\|time-travel\|migrate.*Graph\|dataset parameter\|partition key\|deduplication\|correlation" --since="2025-10-01"
@@ -98,6 +107,31 @@ git log --oneline --grep="cache\|snapshot\|deletion\|named graph\|CQRS\|event fl
 | 02. Create Java Graph Store API | `java-api/02-create-java-graph-store-api.md` | Medium | 3-4 hours | 📋 Not Started |
 
 **Dependencies:** Task 01 should be completed first to establish API patterns.
+
+---
+
+### 2. Command-Side Exception Handling
+
+**Goal:** Fix fire-and-forget pattern in command handlers to prevent silent data loss.
+
+**Current State:** Command handlers return HTTP 200 OK before Kafka confirms event publishing.
+
+**Target State:** Command handlers wait for Kafka confirmation before returning success to clients.
+
+| Task | File | Priority | Est. Time | Status |
+|------|------|----------|-----------|--------|
+| 04. Fix Command Handler Fire-and-Forget | `projector-exception-handling/04-fix-command-handler-exceptions.md` | **CRITICAL** | 3-4 hours | 📋 Not Started |
+
+**Impact:** **CRITICAL** - Silent data loss possible if Kafka is down or publishing fails.
+
+**Files Affected:**
+- `GraphCommandUtil.java` (affects all GSP operations)
+- `CreateCommitCommandHandler.java`
+- All command handlers using fire-and-forget pattern
+
+**See:** [projector-exception-handling/README.md](./projector-exception-handling/README.md) for context and completed work.
+
+---
 
 **API Style:**
 ```java
@@ -169,6 +203,18 @@ Current idempotent non-transactional publishing is sufficient. Each command publ
 ---
 
 ## Recommended Implementation Order
+
+### Command-Side Exception Handling (**CRITICAL** Priority)
+
+**Goal:** Prevent silent data loss
+
+1. 🔴 `projector-exception-handling/04-fix-command-handler-exceptions.md` (3-4 hours)
+
+**Rationale:** **CRITICAL BUG** - Command handlers can return success while event publishing fails silently.
+
+**Estimated Time:** 3-4 hours
+
+---
 
 ### Java APIs (Medium Priority)
 
@@ -313,10 +359,11 @@ When adding new tasks:
 - ✅ **Completed** - Task is done, merged, and task file deleted
 - 🚧 **In Progress** - Task is being worked on
 - 📋 **Not Started** - Task is ready to start
+- 🔴 **Critical** - High priority bug or data loss risk
 - ⏸️ **Deferred** - Task is lower priority
 - ❌ **Cancelled** - Task no longer needed
 
-**Current overall status:** 1 task area remaining
+**Current overall status:** 2 task areas remaining (1 critical, 1 medium priority)
 
 ---
 
@@ -331,18 +378,17 @@ When adding new tasks:
 - ✅ Time-travel SPARQL queries (1 task)
 - ✅ Model API to Graph API migration (3 tasks)
 - ✅ Dataset parameter implementation (1 task)
-- ✅ Kafka best practices: Partition key strategy (1 task)
-- ✅ Kafka best practices: Event deduplication (1 task)
-- ✅ Kafka best practices: Correlation ID for distributed tracing (1 task)
-- ✅ Kafka best practices: Event serialization tests (1 task)
-- ✅ Kafka best practices (all 4 tasks completed)
-- **Total completed:** 17 tasks
+- ✅ Kafka best practices (4 tasks)
+- ✅ Projector exception handling - read side (4 tasks)
+- **Total completed:** 21 tasks
 
 **Remaining:**
-- 📋 Java APIs (2 tasks)
-- **Total remaining:** 2 tasks
+- 🔴 Command-side exception handling (1 task - CRITICAL)
+- 📋 Java APIs (2 tasks - Medium priority)
+- **Total remaining:** 3 tasks
 
-**Progress:** ~85% complete (17 of 20 tasks)
+**Progress:** ~88% complete (21 of 24 tasks)
 
 **Next Steps (Priority Order):**
-1. 🟢 Low: Create Java APIs (java-api/01-02) - 6-8 hours
+1. 🔴 **CRITICAL:** Fix command handler fire-and-forget (projector-exception-handling/04) - 3-4 hours
+2. 🟢 Low: Create Java APIs (java-api/01-02) - 6-8 hours

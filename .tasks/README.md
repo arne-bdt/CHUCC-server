@@ -135,25 +135,25 @@ Optional<Model> model = api.getGraph(
 - ✅ Partition key uses aggregate-ID pattern (ensures ordering guarantees)
 - ✅ Event deduplication implemented (UUIDv7-based exactly-once processing)
 - ✅ Correlation ID for distributed tracing (timestamp header included)
-- ❌ No Schema Registry (JSON without versioning)
+- ⚠️ JSON serialization with manual type mappings (no comprehensive tests)
 - ⚠️ Snapshots not in separate compacted topic
 - ⚠️ Consumer isolation level not set to read_committed
 
-**Target State:** Full compliance with Kafka CQRS/ES best practices (German checklist).
+**Target State:** Production-ready Kafka CQRS/ES implementation with practical safeguards.
 
 | Task | File | Priority | Est. Time | Status |
 |------|------|----------|-----------|--------|
 | 01. Fix Partition Key Strategy | `kafka-best-practices/01-fix-partition-key-strategy.md` | 🔴 **CRITICAL** | 3-4 hours | ✅ Completed |
 | 02. Implement Event Deduplication | `kafka-best-practices/02-implement-event-deduplication.md` | 🔴 **CRITICAL** | 3-4 hours | ✅ Completed |
 | 03. Add Correlation ID for Distributed Tracing | `kafka-best-practices/03-add-event-metadata-headers.md` | 🟡 Medium | 1-1.5 hours | ✅ Completed |
-| 04. Integrate Schema Registry | `kafka-best-practices/04-integrate-schema-registry.md` | 🔴 High | 4-5 hours | 📋 Not Started |
+| 04. Add Event Serialization Tests | `kafka-best-practices/04-add-event-serialization-tests.md` | 🟡 Medium | 30-45 min | 📋 Not Started |
 | 05. Snapshot Compaction Strategy | `kafka-best-practices/05-snapshot-compaction-strategy.md` | 🟡 Low-Medium | 2-3 hours | 📋 Not Started |
 | 06. Transaction Support for Consumers | `kafka-best-practices/06-add-transaction-support-for-consumers.md` | 🟡 Medium | 2 hours | 📋 Not Started |
 
 **Dependencies:**
 - ✅ Task 02 completed (Task 01 prerequisite)
 - ✅ Task 03 completed (Task 02 prerequisite)
-- Task 04 depends on Task 03 (for event metadata)
+- None for remaining tasks (can be done in any order)
 
 **Impact:**
 
@@ -162,19 +162,20 @@ Optional<Model> model = api.getGraph(
 2. ✅ **Event Deduplication** - Exactly-once processing with UUIDv7 cache
 3. ✅ **Correlation ID** - Full distributed tracing across HTTP → Kafka → Projector
 
-**High Priority (Production-Ready):**
-4. **Schema Registry** - Cannot safely evolve event schemas
+**Medium Priority (Production-Ready):**
+4. **Serialization Tests** - Catch type mapping and schema breaks (quick win: 30-45 min)
+5. **Transaction Support** - Data integrity for consumers (2 hours)
+6. **Snapshot Compaction** - Storage efficiency (2-3 hours)
 
-**Medium Priority (Optimizations):**
-5. **Snapshot Compaction** - Storage efficiency
-6. **Transaction Support** - Data integrity for consumers
-
-**Estimated Remaining Time:** 8-10 hours (spread across 3 tasks)
+**Estimated Remaining Time:** 5-6 hours (spread across 3 tasks)
 
 **Recommended Order:**
-1. 🔴 Schema Registry (Task 04) - 4-5 hours
+1. 🟡 Serialization Tests (Task 04) - 30-45 min ← **Quick win, start here**
 2. 🟡 Transaction Support (Task 06) - 2 hours
 3. 🟡 Snapshot Compaction (Task 05) - 2-3 hours
+
+**Deferred:**
+- **Schema Registry** - Over-engineered for current single-app architecture. Revisit when external consumers emerge (polyglot microservices, data analytics, third-party integrations)
 
 ---
 
@@ -348,13 +349,13 @@ When adding new tasks:
 
 **Remaining:**
 - 📋 Java APIs (2 tasks)
-- 🔴 Kafka Best Practices (3 tasks remaining)
+- 🟡 Kafka Best Practices (3 tasks remaining)
 - **Total remaining:** 5 tasks
 
 **Progress:** ~76% complete (16 of 21 tasks)
 
 **Next Steps (Priority Order):**
-1. 🔴 High: Integrate Schema Registry (kafka-best-practices/04) ← **START HERE**
-2. 🟡 Medium: Transaction support for consumers (kafka-best-practices/06)
-3. 🟡 Low: Snapshot compaction strategy (kafka-best-practices/05)
-4. 🟢 Low: Create Java APIs (java-api/01-02)
+1. 🟡 Quick Win: Add event serialization tests (kafka-best-practices/04) - 30-45 min ← **START HERE**
+2. 🟡 Medium: Transaction support for consumers (kafka-best-practices/06) - 2 hours
+3. 🟡 Medium: Snapshot compaction strategy (kafka-best-practices/05) - 2-3 hours
+4. 🟢 Low: Create Java APIs (java-api/01-02) - 6-8 hours

@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 /**
  * Service for publishing version control events to Kafka.
  * Handles topic routing, header creation, and error handling.
- * Supports transactional publishing for exactly-once semantics.
  */
 @Service
 @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
@@ -81,42 +80,6 @@ public class EventPublisher {
                 result.getRecordMetadata().offset());
           }
         });
-  }
-
-  /**
-   * Publishes a version control event within a Kafka transaction.
-   * This ensures exactly-once semantics and atomic publishing.
-   *
-   * @param event the event to publish
-   * @return a CompletableFuture with the send result
-   */
-  public CompletableFuture<SendResult<String, VersionControlEvent>> publishTransactional(
-      VersionControlEvent event) {
-    return kafkaTemplate.executeInTransaction(ops -> {
-      String topic = kafkaProperties.getTopicName(event.dataset());
-      String key = getPartitionKey(event);
-
-      ProducerRecord<String, VersionControlEvent> record =
-          new ProducerRecord<>(topic, null, key, event);
-
-      addHeaders(record.headers(), event);
-
-      logger.info("Publishing transactional event {} to topic {} with key {}",
-          event.getClass().getSimpleName(), topic, key);
-
-      return ops.send(record)
-          .whenComplete((result, ex) -> {
-            if (ex != null) {
-              logger.error("Failed to publish transactional event to topic {}: {}",
-                  topic, ex.getMessage(), ex);
-            } else {
-              logger.debug("Transactional event published successfully to topic {} "
-                      + "partition {} offset {}",
-                  topic, result.getRecordMetadata().partition(),
-                  result.getRecordMetadata().offset());
-            }
-          });
-    });
   }
 
   /**

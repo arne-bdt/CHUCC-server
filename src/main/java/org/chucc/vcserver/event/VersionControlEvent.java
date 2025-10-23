@@ -42,6 +42,19 @@ public sealed interface VersionControlEvent
         DatasetDeletedEvent {
 
   /**
+   * Returns the globally unique event ID.
+   * Used for deduplication in projectors to achieve exactly-once processing
+   * semantics with at-least-once delivery.
+   *
+   * <p>Event IDs are UUIDv7 (time-ordered) generated at event creation time.
+   * The projector uses this ID to detect and skip duplicate events that may
+   * be re-delivered by Kafka due to consumer rebalancing or retries.
+   *
+   * @return the event ID (UUIDv7 format)
+   */
+  String eventId();
+
+  /**
    * Gets the timestamp when this event occurred.
    *
    * @return the event timestamp

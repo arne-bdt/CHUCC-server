@@ -52,6 +52,7 @@ This server implements:
 - ✅ **Cache Metrics** - Monitor cache hit rates, evictions, and memory usage
 - ✅ **On-demand Snapshot Loading** - Snapshots loaded from Kafka when needed (not stored in memory)
 - ✅ **Metadata Caching** - Fast snapshot lookups with minimal memory footprint
+- ✅ **Event Deduplication** - Exactly-once processing semantics with UUIDv7-based deduplication cache
 
 ### Operations
 - ✅ **Branch Deletion** - Delete branches with protection for main branch
@@ -219,7 +220,7 @@ To temporarily increase test logging, override in your test:
 
 **Remaining Tasks:**
 - 📋 Java API layer (programmatic access without HTTP)
-- 📋 Kafka CQRS/ES best practices (partition keys, deduplication, schema registry)
+- 📋 Kafka CQRS/ES best practices (partition keys, schema registry)
 
 See [Task Roadmap](./.tasks/README.md) for detailed status and remaining work.
 

@@ -6,6 +6,12 @@ package org.chucc.vcserver.event;
  */
 public final class EventHeaders {
   /**
+   * Header key for the globally unique event ID.
+   * Used for deduplication in projectors (at-least-once delivery with exactly-once processing).
+   */
+  public static final String EVENT_ID = "eventId";
+
+  /**
    * Header key for the commit ID.
    */
   public static final String COMMIT_ID = "commitId";

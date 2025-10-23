@@ -1,6 +1,7 @@
 package org.chucc.vcserver.event;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.f4b6a3.uuid.UuidCreator;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -13,6 +14,7 @@ import java.util.Objects;
  * serialized as an N-Quads dump.
  */
 public record SnapshotCreatedEvent(
+    @JsonProperty("eventId") String eventId,
     @JsonProperty("dataset") String dataset,
     @JsonProperty("commitId") String commitId,
     @JsonProperty("branchName") String branchName,
@@ -22,7 +24,9 @@ public record SnapshotCreatedEvent(
 
   /**
    * Creates a new SnapshotCreatedEvent with validation.
+   * If eventId is null, a UUIDv7 will be auto-generated.
    *
+   * @param eventId the globally unique event ID (null to auto-generate)
    * @param dataset the dataset name (must be non-null and non-blank)
    * @param commitId the commit ID at which the snapshot was taken (must be non-null)
    * @param branchName the branch name (must be non-null and non-blank)
@@ -31,6 +35,9 @@ public record SnapshotCreatedEvent(
    * @throws IllegalArgumentException if any validation fails
    */
   public SnapshotCreatedEvent {
+    // Auto-generate eventId if null
+    eventId = (eventId == null) ? UuidCreator.getTimeOrderedEpoch().toString() : eventId;
+
     Objects.requireNonNull(dataset, "Dataset cannot be null");
     Objects.requireNonNull(commitId, "Commit ID cannot be null");
     Objects.requireNonNull(branchName, "Branch name cannot be null");
@@ -43,6 +50,24 @@ public record SnapshotCreatedEvent(
     if (branchName.isBlank()) {
       throw new IllegalArgumentException("Branch name cannot be blank");
     }
+  }
+
+  /**
+   * Convenience constructor that auto-generates eventId.
+   *
+   * @param dataset the dataset name
+   * @param commitId the commit ID at which the snapshot was taken
+   * @param branchName the branch name
+   * @param timestamp the snapshot creation timestamp
+   * @param nquads the N-Quads serialization of the dataset
+   */
+  public SnapshotCreatedEvent(
+      String dataset,
+      String commitId,
+      String branchName,
+      Instant timestamp,
+      String nquads) {
+    this(null, dataset, commitId, branchName, timestamp, nquads);
   }
 
   @Override

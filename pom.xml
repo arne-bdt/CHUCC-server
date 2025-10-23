@@ -112,6 +112,13 @@
             <version>5.1.1</version>
         </dependency>
 
+        <!-- UUIDv7 for time-ordered event IDs -->
+        <dependency>
+            <groupId>com.github.f4b6a3</groupId>
+            <artifactId>uuid-creator</artifactId>
+            <version>6.1.1</version>
+        </dependency>
+
         <!-- SpotBugs Annotations -->
         <dependency>
             <groupId>com.github.spotbugs</groupId>

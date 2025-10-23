@@ -87,3 +87,11 @@ kafka:
   replication-factor: 1
   retention-ms: -1  # -1 for infinite retention
   compaction: false  # false for append-only (no log compaction)
+
+# Read Model Projector configuration
+projector:
+  kafka-listener:
+    enabled: true  # Set to false in integration tests to disable async projection
+  deduplication:
+    enabled: true  # Enable event deduplication (at-least-once → exactly-once)
+    cache-size: 100000  # Max event IDs to cache (~5-10 MB RAM)

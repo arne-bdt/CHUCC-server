@@ -93,12 +93,15 @@ CommitCreatedEvent event = new CommitCreatedEvent(
 );
 ```
 
-**Event Types** (10 total):
+**Event Types** (12 total):
 - `CommitCreatedEvent` - New commit with RDF changes
-- `BranchCreatedEvent`, `BranchResetEvent`, `BranchRebasedEvent`
+- `BranchCreatedEvent`, `BranchResetEvent`, `BranchDeletedEvent`, `BranchRebasedEvent`
 - `TagCreatedEvent`
 - `CherryPickedEvent`, `CommitsSquashedEvent`, `RevertCreatedEvent`
-- `MergedEvent`, `SnapshotCreatedEvent`
+- `SnapshotCreatedEvent`, `BatchGraphsCompletedEvent`, `DatasetDeletedEvent`
+
+**Event Deduplication**:
+All events include a globally unique `eventId` (UUIDv7) for deduplication. The `ReadModelProjector` maintains an LRU cache of processed event IDs to achieve exactly-once processing semantics on top of Kafka's at-least-once delivery guarantee.
 
 ### 2. Commits (Immutable)
 

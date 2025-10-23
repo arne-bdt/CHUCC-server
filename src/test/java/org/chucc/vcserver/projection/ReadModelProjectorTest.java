@@ -1,6 +1,7 @@
 package org.chucc.vcserver.projection;
 
 import org.apache.jena.rdfpatch.RDFPatch;
+import org.chucc.vcserver.config.ProjectorProperties;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
@@ -46,12 +47,20 @@ class ReadModelProjectorTest {
   @Mock
   private SnapshotService snapshotService;
 
+  @Mock
+  private ProjectorProperties projectorProperties;
+
   private ReadModelProjector projector;
 
   @BeforeEach
   void setUp() {
+    // Configure deduplication properties
+    ProjectorProperties.Deduplication dedup = new ProjectorProperties.Deduplication();
+    dedup.setEnabled(false); // Disable deduplication for unit tests
+    when(projectorProperties.getDeduplication()).thenReturn(dedup);
+
     projector = new ReadModelProjector(branchRepository, commitRepository, datasetService,
-        snapshotService);
+        snapshotService, projectorProperties);
   }
 
   @Test
@@ -164,5 +173,146 @@ class ReadModelProjectorTest {
 
     // Then
     assertThat(result).isEmpty();
+  }
+
+  @Test
+  void handleEvent_shouldSkipDuplicateEvents_whenDeduplicationEnabled() {
+    // Given
+    ProjectorProperties.Deduplication dedup = new ProjectorProperties.Deduplication();
+    dedup.setEnabled(true);
+    dedup.setCacheSize(100);
+    when(projectorProperties.getDeduplication()).thenReturn(dedup);
+
+    // Recreate projector with deduplication enabled
+    projector = new ReadModelProjector(branchRepository, commitRepository, datasetService,
+        snapshotService, projectorProperties);
+
+    String dataset = "test-dataset";
+    String commitIdStr = "550e8400-e29b-41d4-a716-446655440000";
+    String rdfPatchStr = "TX .";
+    Instant now = Instant.now();
+
+    // Create two events with the SAME eventId
+    CommitCreatedEvent event1 = new CommitCreatedEvent(
+        "duplicate-event-id",  // Same event ID
+        dataset,
+        commitIdStr,
+        List.of(),
+        "main",
+        "Test commit",
+        "Test Author",
+        now,
+        rdfPatchStr
+    );
+
+    CommitCreatedEvent event2 = new CommitCreatedEvent(
+        "duplicate-event-id",  // Same event ID
+        dataset,
+        "different-commit-id",  // Different commit ID
+        List.of(),
+        "main",
+        "Different commit",
+        "Test Author",
+        now,
+        rdfPatchStr
+    );
+
+    // When
+    projector.handleEvent(event1);  // First event should be processed
+    projector.handleEvent(event2);  // Second event should be skipped (duplicate)
+
+    // Then - commit should only be saved once
+    verify(commitRepository).save(eq(dataset), any(Commit.class), any(RDFPatch.class));
+  }
+
+  @Test
+  void handleEvent_shouldProcessAllEvents_whenDeduplicationDisabled() {
+    // Given - deduplication already disabled in setUp()
+    String dataset = "test-dataset";
+    String commitId1 = "550e8400-e29b-41d4-a716-446655440000";
+    String commitId2 = "660e8400-e29b-41d4-a716-446655440000";
+    String rdfPatchStr = "TX .";
+    Instant now = Instant.now();
+
+    // Create two events with the SAME eventId
+    CommitCreatedEvent event1 = new CommitCreatedEvent(
+        "duplicate-event-id",  // Same event ID
+        dataset,
+        commitId1,
+        List.of(),
+        "main",
+        "Test commit 1",
+        "Test Author",
+        now,
+        rdfPatchStr
+    );
+
+    CommitCreatedEvent event2 = new CommitCreatedEvent(
+        "duplicate-event-id",  // Same event ID
+        dataset,
+        commitId2,
+        List.of(),
+        "main",
+        "Test commit 2",
+        "Test Author",
+        now,
+        rdfPatchStr
+    );
+
+    // When
+    projector.handleEvent(event1);
+    projector.handleEvent(event2);
+
+    // Then - both commits should be saved (no deduplication)
+    verify(commitRepository, org.mockito.Mockito.times(2)).save(eq(dataset), any(Commit.class), any(RDFPatch.class));
+  }
+
+  @Test
+  void handleEvent_shouldProcessDifferentEvents_whenDeduplicationEnabled() {
+    // Given
+    ProjectorProperties.Deduplication dedup = new ProjectorProperties.Deduplication();
+    dedup.setEnabled(true);
+    dedup.setCacheSize(100);
+    when(projectorProperties.getDeduplication()).thenReturn(dedup);
+
+    // Recreate projector with deduplication enabled
+    projector = new ReadModelProjector(branchRepository, commitRepository, datasetService,
+        snapshotService, projectorProperties);
+
+    String dataset = "test-dataset";
+    String rdfPatchStr = "TX .";
+    Instant now = Instant.now();
+
+    // Create two events with DIFFERENT eventIds
+    CommitCreatedEvent event1 = new CommitCreatedEvent(
+        "event-id-1",  // Different event ID
+        dataset,
+        "550e8400-e29b-41d4-a716-446655440001",  // Valid UUID
+        List.of(),
+        "main",
+        "Test commit 1",
+        "Test Author",
+        now,
+        rdfPatchStr
+    );
+
+    CommitCreatedEvent event2 = new CommitCreatedEvent(
+        "event-id-2",  // Different event ID
+        dataset,
+        "550e8400-e29b-41d4-a716-446655440002",  // Valid UUID
+        List.of(),
+        "main",
+        "Test commit 2",
+        "Test Author",
+        now,
+        rdfPatchStr
+    );
+
+    // When
+    projector.handleEvent(event1);
+    projector.handleEvent(event2);
+
+    // Then - both commits should be saved (different event IDs)
+    verify(commitRepository, org.mockito.Mockito.times(2)).save(eq(dataset), any(Commit.class), any(RDFPatch.class));
   }
 }

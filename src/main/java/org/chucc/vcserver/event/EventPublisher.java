@@ -150,6 +150,10 @@ public class EventPublisher {
   private void addHeaders(Headers headers, VersionControlEvent event) {
     AggregateIdentity aggregateId = event.getAggregateIdentity();
 
+    // Add eventId for deduplication (at-least-once → exactly-once)
+    headers.add(new RecordHeader(EventHeaders.EVENT_ID,
+        event.eventId().getBytes(StandardCharsets.UTF_8)));
+
     // Always add dataset and event type
     headers.add(new RecordHeader(EventHeaders.DATASET,
         event.dataset().getBytes(StandardCharsets.UTF_8)));

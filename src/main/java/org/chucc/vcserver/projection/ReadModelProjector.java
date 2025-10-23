@@ -1,8 +1,8 @@
 package org.chucc.vcserver.projection;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import io.micrometer.core.annotation.Counted;
-import io.micrometer.core.annotation.Timed;
 import java.io.ByteArrayInputStream;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +15,7 @@ import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
+import org.chucc.vcserver.config.ProjectorProperties;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
@@ -57,9 +58,13 @@ public class ReadModelProjector {
   private final CommitRepository commitRepository;
   private final DatasetService datasetService;
   private final SnapshotService snapshotService;
+  private final ProjectorProperties projectorProperties;
 
   // Track snapshot checkpoints per (dataset, branch) to skip earlier events during recovery
   private final Map<String, Map<String, CommitId>> snapshotCheckpoints = new ConcurrentHashMap<>();
+
+  // Deduplication: LRU cache of processed event IDs
+  private final Cache<String, Boolean> processedEventIds;
 
   /**
    * Constructs a ReadModelProjector.
@@ -68,6 +73,7 @@ public class ReadModelProjector {
    * @param commitRepository the commit repository
    * @param datasetService the dataset service
    * @param snapshotService the snapshot service
+   * @param projectorProperties the projector configuration properties
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
@@ -76,11 +82,18 @@ public class ReadModelProjector {
       BranchRepository branchRepository,
       CommitRepository commitRepository,
       DatasetService datasetService,
-      SnapshotService snapshotService) {
+      SnapshotService snapshotService,
+      ProjectorProperties projectorProperties) {
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
     this.datasetService = datasetService;
     this.snapshotService = snapshotService;
+    this.projectorProperties = projectorProperties;
+
+    // Initialize deduplication cache
+    this.processedEventIds = Caffeine.newBuilder()
+        .maximumSize(projectorProperties.getDeduplication().getCacheSize())
+        .build();
   }
 
   /**
@@ -95,17 +108,25 @@ public class ReadModelProjector {
       containerFactory = "kafkaListenerContainerFactory",
       autoStartup = "${projector.kafka-listener.enabled:true}"
   )
-  @Timed(
-      value = "event.projector.processing",
-      description = "Event processing time"
-  )
-  @Counted(
-      value = "event.projector.processed",
-      description = "Events processed count"
-  )
+  @SuppressFBWarnings(
+      value = "REC_CATCH_EXCEPTION",
+      justification = "Catch-all exception handler needed for projector resilience -"
+          + " delegates to caller's retry/DLQ logic")
   public void handleEvent(VersionControlEvent event) {
-    logger.debug("Received event: {} for dataset: {}",
-        event.getClass().getSimpleName(), event.dataset());
+    logger.debug("Received event: {} (id={}) for dataset: {}",
+        event.getClass().getSimpleName(), event.eventId(), event.dataset());
+
+    // Deduplication: Check if we've already processed this event
+    if (projectorProperties.getDeduplication().isEnabled()) {
+      if (processedEventIds.getIfPresent(event.eventId()) != null) {
+        logger.warn("Skipping duplicate event: {} (id={}) for dataset: {}",
+            event.getClass().getSimpleName(), event.eventId(), event.dataset());
+        return; // Skip duplicate
+      }
+
+      // Mark event as processed (cache entry = true means "seen")
+      processedEventIds.put(event.eventId(), Boolean.TRUE);
+    }
 
     try {
       switch (event) {
@@ -123,11 +144,11 @@ public class ReadModelProjector {
         case BatchGraphsCompletedEvent e -> handleBatchGraphsCompleted(e);
       }
 
-      logger.info("Successfully projected event: {} for dataset: {}",
-          event.getClass().getSimpleName(), event.dataset());
+      logger.info("Successfully projected event: {} (id={}) for dataset: {}",
+          event.getClass().getSimpleName(), event.eventId(), event.dataset());
     } catch (Exception ex) {
-      logger.error("Failed to project event: {} for dataset: {}",
-          event.getClass().getSimpleName(), event.dataset(), ex);
+      logger.error("Failed to project event: {} (id={}) for dataset: {}",
+          event.getClass().getSimpleName(), event.eventId(), event.dataset(), ex);
       // Re-throw to trigger retry/DLQ handling if configured
       throw new ProjectionException("Failed to project event", ex);
     }

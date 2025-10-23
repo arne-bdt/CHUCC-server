@@ -1,6 +1,7 @@
 package org.chucc.vcserver.event;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.f4b6a3.uuid.UuidCreator;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,6 +13,7 @@ import java.util.Objects;
  * A rebase reapplies commits from one branch onto another, creating new commits.
  */
 public record BranchRebasedEvent(
+    @JsonProperty("eventId") String eventId,
     @JsonProperty("dataset") String dataset,
     @JsonProperty("branch") String branch,
     @JsonProperty("newHead") String newHead,
@@ -23,7 +25,9 @@ public record BranchRebasedEvent(
 
   /**
    * Creates a new BranchRebasedEvent with validation.
+   * If eventId is null, a UUIDv7 will be auto-generated.
    *
+   * @param eventId the globally unique event ID (null to auto-generate)
    * @param dataset the dataset name (must be non-null and non-blank)
    * @param branch the branch that was rebased (must be non-null and non-blank)
    * @param newHead the final commit ID after rebase (must be non-null)
@@ -34,6 +38,9 @@ public record BranchRebasedEvent(
    * @throws IllegalArgumentException if any validation fails
    */
   public BranchRebasedEvent {
+    // Auto-generate eventId if null
+    eventId = (eventId == null) ? UuidCreator.getTimeOrderedEpoch().toString() : eventId;
+
     Objects.requireNonNull(dataset, "Dataset cannot be null");
     Objects.requireNonNull(branch, "Branch cannot be null");
     Objects.requireNonNull(newHead, "New head cannot be null");
@@ -54,6 +61,28 @@ public record BranchRebasedEvent(
 
     // Create defensive copy of the list
     newCommits = Collections.unmodifiableList(new ArrayList<>(newCommits));
+  }
+
+  /**
+   * Convenience constructor that auto-generates eventId.
+   *
+   * @param dataset the dataset name
+   * @param branch the branch that was rebased
+   * @param newHead the final commit ID after rebase
+   * @param previousHead the commit ID before rebase
+   * @param newCommits the list of new commit IDs created
+   * @param author the author of the rebase operation
+   * @param timestamp the rebase timestamp
+   */
+  public BranchRebasedEvent(
+      String dataset,
+      String branch,
+      String newHead,
+      String previousHead,
+      List<String> newCommits,
+      String author,
+      Instant timestamp) {
+    this(null, dataset, branch, newHead, previousHead, newCommits, author, timestamp);
   }
 
   @Override

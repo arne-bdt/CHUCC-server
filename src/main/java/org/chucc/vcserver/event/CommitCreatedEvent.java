@@ -1,6 +1,7 @@
 package org.chucc.vcserver.event;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.f4b6a3.uuid.UuidCreator;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -10,6 +11,7 @@ import java.util.Objects;
  * Contains the commit metadata and the RDF Patch representing the changes.
  */
 public record CommitCreatedEvent(
+    @JsonProperty("eventId") String eventId,
     @JsonProperty("dataset") String dataset,
     @JsonProperty("commitId") String commitId,
     @JsonProperty("parents") List<String> parents,
@@ -22,7 +24,9 @@ public record CommitCreatedEvent(
 
   /**
    * Creates a new CommitCreatedEvent with validation.
+   * If eventId is null, a UUIDv7 will be auto-generated.
    *
+   * @param eventId the globally unique event ID (null to auto-generate)
    * @param dataset the dataset name (must be non-null and non-blank)
    * @param commitId the commit ID (must be non-null)
    * @param parents the list of parent commit IDs (must be non-null, can be empty)
@@ -34,6 +38,9 @@ public record CommitCreatedEvent(
    * @throws IllegalArgumentException if any validation fails
    */
   public CommitCreatedEvent {
+    // Auto-generate eventId if null
+    eventId = (eventId == null) ? UuidCreator.getTimeOrderedEpoch().toString() : eventId;
+
     Objects.requireNonNull(dataset, "Dataset cannot be null");
     Objects.requireNonNull(commitId, "Commit ID cannot be null");
     Objects.requireNonNull(parents, "Parents cannot be null");
@@ -55,6 +62,30 @@ public record CommitCreatedEvent(
 
     // Create defensive copy of parents list to ensure immutability
     parents = List.copyOf(parents);
+  }
+
+  /**
+   * Convenience constructor that auto-generates eventId.
+   *
+   * @param dataset the dataset name
+   * @param commitId the commit ID
+   * @param parents the list of parent commit IDs
+   * @param branch the branch name
+   * @param message the commit message
+   * @param author the commit author
+   * @param timestamp the commit timestamp
+   * @param rdfPatch the RDF Patch representing the changes
+   */
+  public CommitCreatedEvent(
+      String dataset,
+      String commitId,
+      List<String> parents,
+      String branch,
+      String message,
+      String author,
+      Instant timestamp,
+      String rdfPatch) {
+    this(null, dataset, commitId, parents, branch, message, author, timestamp, rdfPatch);
   }
 
   @Override

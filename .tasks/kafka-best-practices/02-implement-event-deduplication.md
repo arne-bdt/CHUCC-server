@@ -1,8 +1,9 @@
 # Task: Implement Event Deduplication (At-Least-Once with Idempotency)
 
-**Status:** Not Started
+**Status:** ✅ **COMPLETED**
 **Priority:** 🔴 **CRITICAL**
-**Estimated Time:** 3-4 hours
+**Completed:** 2025-10-23
+**Actual Time:** ~4 hours
 **Dependencies:** 01-fix-partition-key-strategy.md (recommended, but not blocking)
 
 ---

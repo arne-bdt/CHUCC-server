@@ -70,10 +70,11 @@ class BranchCreatedEventTest {
   @Test
   void testRecordEquality() {
     Instant now = Instant.now();
+    // Use canonical constructor with same eventId for equality testing
     BranchCreatedEvent event1 = new BranchCreatedEvent(
-        "dataset", "main", "commit-id", now);
+        "test-event-id", "dataset", "main", "commit-id", now);
     BranchCreatedEvent event2 = new BranchCreatedEvent(
-        "dataset", "main", "commit-id", now);
+        "test-event-id", "dataset", "main", "commit-id", now);
 
     assertEquals(event1, event2);
     assertEquals(event1.hashCode(), event2.hashCode());

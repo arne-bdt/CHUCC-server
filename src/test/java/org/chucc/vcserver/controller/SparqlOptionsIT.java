@@ -30,7 +30,7 @@ class SparqlOptionsIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     HttpHeaders headers = response.getHeaders();
 

@@ -56,7 +56,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then - API response verification (synchronous)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getFirst("Location")).isNotNull();
     assertThat(response.getHeaders().getFirst("Location")).matches("/version/commits/.*");
     assertThat(response.getHeaders().getFirst("ETag")).isNotNull();
@@ -95,7 +95,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then - API response verification (synchronous)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getFirst("Location")).isNotNull();
     assertThat(response.getHeaders().getFirst("ETag")).isNotNull();
 
@@ -131,7 +131,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 
   @Test
@@ -152,7 +152,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 
   @Test
@@ -173,7 +173,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 
   @Test
@@ -194,7 +194,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 
   @Test
@@ -372,7 +372,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then - Wait for async event processing
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String etag = response.getHeaders().getFirst("ETag");
     String commitId = etag.replaceAll("\"", "");
 
@@ -417,7 +417,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String body = response.getBody();
     assertThat(body).isNotNull();
     assertThat(body).contains("http://example.org/subject");
@@ -446,7 +446,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then - API response verification (synchronous)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getFirst("Location")).isNotNull();
     assertThat(response.getHeaders().getFirst("Location")).matches("/version/commits/.*");
     assertThat(response.getHeaders().getFirst("ETag")).isNotNull();
@@ -485,7 +485,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String body = response.getBody();
     assertThat(body).isNotNull();
     assertThat(body).contains("http://example.org/subject");

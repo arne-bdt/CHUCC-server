@@ -61,7 +61,7 @@ public class SparqlUpdateIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag()).isNotNull();
     assertThat(response.getHeaders().getLocation()).isNotNull();
     assertThat(response.getHeaders().getLocation().toString())
@@ -94,7 +94,7 @@ public class SparqlUpdateIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNull();
   }
 
@@ -232,7 +232,7 @@ public class SparqlUpdateIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag()).isNotNull();
     assertThat(response.getHeaders().getLocation()).isNotNull();
   }
@@ -265,7 +265,7 @@ public class SparqlUpdateIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag()).isNotNull();
     assertThat(response.getHeaders().getLocation()).isNotNull();
   }

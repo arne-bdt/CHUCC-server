@@ -145,7 +145,7 @@ class GraphStoreGetIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag()).isNotNull();
     assertThat(response.getHeaders().getFirst("SPARQL-Version-Control")).isEqualTo("true");
 
@@ -171,7 +171,7 @@ class GraphStoreGetIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag()).isNotNull();
     assertThat(response.getHeaders().getFirst("SPARQL-Version-Control")).isEqualTo("true");
 
@@ -197,7 +197,7 @@ class GraphStoreGetIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag()).isEqualTo("\"" + commit1Id.value() + "\"");
 
     String body = response.getBody();
@@ -261,7 +261,7 @@ class GraphStoreGetIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/n-triples");
 
@@ -288,7 +288,7 @@ class GraphStoreGetIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/ld+json");
 
@@ -353,7 +353,7 @@ class GraphStoreGetIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag()).isEqualTo("\"" + commit2Id.value() + "\"");
   }
 }

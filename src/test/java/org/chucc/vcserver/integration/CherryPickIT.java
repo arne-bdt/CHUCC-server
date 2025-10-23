@@ -173,7 +173,7 @@ class CherryPickIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/json");
 
@@ -220,7 +220,7 @@ class CherryPickIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 
   @Test

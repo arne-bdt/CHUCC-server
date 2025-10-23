@@ -141,7 +141,7 @@ class ResetOperationIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/json");
 
@@ -185,7 +185,7 @@ class ResetOperationIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/json");
 
@@ -221,7 +221,7 @@ class ResetOperationIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/json");
 
@@ -257,7 +257,7 @@ class ResetOperationIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Verify response shows same commit for both
     JsonNode json = objectMapper.readTree(response.getBody());
@@ -467,7 +467,7 @@ class ResetOperationIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     JsonNode json = objectMapper.readTree(response.getBody());
     assertThat(json.get("branch").asText()).isEqualTo("main");

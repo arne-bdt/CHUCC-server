@@ -69,7 +69,7 @@ class GraphStoreDeleteIT extends ITFixture {
     );
 
     // Then - API response verification (synchronous)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getFirst("Location")).isNotNull();
     assertThat(response.getHeaders().getFirst("Location")).matches("/version/commits/.*");
     assertThat(response.getHeaders().getFirst("ETag")).isNotNull();
@@ -154,7 +154,7 @@ class GraphStoreDeleteIT extends ITFixture {
     );
 
     // Then - Should return 204 No Content (no-op)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 
   @Test
@@ -301,7 +301,7 @@ class GraphStoreDeleteIT extends ITFixture {
     );
 
     // Then - Wait for async event processing
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String etag = response.getHeaders().getFirst("ETag");
     String commitId = etag.replaceAll("\"", "");
 
@@ -364,7 +364,7 @@ class GraphStoreDeleteIT extends ITFixture {
     );
 
     // Then - Should return empty graph (all triples deleted)
-    assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String body = getResponse.getBody();
     assertThat(body == null || body.trim().isEmpty()).isTrue();
   }

@@ -69,7 +69,7 @@ class BatchGraphsIT extends ITFixture {
     );
 
     // Then - API response verification (synchronous)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNotNull();
 
     JsonNode json = objectMapper.readTree(response.getBody());
@@ -124,7 +124,7 @@ class BatchGraphsIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNotNull();
 
     JsonNode json = objectMapper.readTree(response.getBody());
@@ -264,7 +264,7 @@ class BatchGraphsIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNotNull();
 
     JsonNode json = objectMapper.readTree(response.getBody());

@@ -167,8 +167,9 @@ public class AdvancedOpsController {
       );
 
       return ResponseEntity
-          .ok()
+          .accepted()
           .eTag("\"" + event.toCommitId() + "\"")
+          .header("SPARQL-VC-Status", "pending")
           .contentType(MediaType.APPLICATION_JSON)
           .body(response);
     } catch (IllegalArgumentException e) {
@@ -278,9 +279,10 @@ public class AdvancedOpsController {
           .toUriString();
 
       return ResponseEntity
-          .status(HttpStatus.CREATED)
+          .accepted()
           .header("Location", location)
           .eTag("\"" + event.newCommitId() + "\"")
+          .header("SPARQL-VC-Status", "pending")
           .contentType(MediaType.APPLICATION_JSON)
           .body(response);
     } catch (IllegalArgumentException e) {
@@ -390,9 +392,10 @@ public class AdvancedOpsController {
           .toUriString();
 
       return ResponseEntity
-          .status(HttpStatus.CREATED)
+          .accepted()
           .header("Location", location)
           .eTag("\"" + event.revertCommitId() + "\"")
+          .header("SPARQL-VC-Status", "pending")
           .contentType(MediaType.APPLICATION_JSON)
           .body(response);
     } catch (IllegalArgumentException e) {
@@ -581,8 +584,9 @@ public class AdvancedOpsController {
       );
 
       return ResponseEntity
-          .ok()
+          .accepted()
           .eTag("\"" + event.newCommitId() + "\"")
+          .header("SPARQL-VC-Status", "pending")
           .contentType(MediaType.APPLICATION_JSON)
           .body(response);
     } catch (IllegalArgumentException e) {

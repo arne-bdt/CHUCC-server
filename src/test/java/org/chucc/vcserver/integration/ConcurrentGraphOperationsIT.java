@@ -64,10 +64,10 @@ class ConcurrentGraphOperationsIT extends ITFixture {
         String.class
     );
 
-    if (response1.getStatusCode() != HttpStatus.OK) {
+    if (response1.getStatusCode() != HttpStatus.ACCEPTED) {
       System.out.println("Error response body: " + response1.getBody());
     }
-    assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String etag1 = response1.getHeaders().getFirst("ETag");
     assertThat(etag1).isNotNull();
 
@@ -97,7 +97,7 @@ class ConcurrentGraphOperationsIT extends ITFixture {
         String.class
     );
 
-    assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String etag2 = response2.getHeaders().getFirst("ETag");
 
     // Wait for async event processing to update branch HEAD
@@ -149,7 +149,7 @@ class ConcurrentGraphOperationsIT extends ITFixture {
         String.class
     );
 
-    assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String etag1 = response1.getHeaders().getFirst("ETag");
     assertThat(etag1).isNotNull();
 
@@ -179,7 +179,7 @@ class ConcurrentGraphOperationsIT extends ITFixture {
         String.class
     );
 
-    assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String etag2Post = response2.getHeaders().getFirst("ETag");
 
     // Wait for async event processing
@@ -231,7 +231,7 @@ class ConcurrentGraphOperationsIT extends ITFixture {
         String.class
     );
 
-    assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String etag1 = response1.getHeaders().getFirst("ETag");
     assertThat(etag1).isNotNull();
 
@@ -266,7 +266,7 @@ class ConcurrentGraphOperationsIT extends ITFixture {
         String.class
     );
 
-    assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String etag2Patch = response2.getHeaders().getFirst("ETag");
 
     // Wait for async event processing
@@ -323,7 +323,7 @@ class ConcurrentGraphOperationsIT extends ITFixture {
         String.class
     );
 
-    assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String etag1 = response1.getHeaders().getFirst("ETag");
     assertThat(etag1).isNotNull();
 
@@ -353,7 +353,7 @@ class ConcurrentGraphOperationsIT extends ITFixture {
         String.class
     );
 
-    assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     String etag2Delete = response2.getHeaders().getFirst("ETag");
 
     // Wait for async event processing

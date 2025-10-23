@@ -474,8 +474,9 @@ public class GraphStoreController {
       headers.set(HttpHeaders.LOCATION, "/version/commits/" + commitEvent.commitId());
       headers.setETag("\"" + commitEvent.commitId() + "\"");
       headers.set("SPARQL-Version-Control", "true");
+      headers.set("SPARQL-VC-Status", "pending");
 
-      return ResponseEntity.ok().headers(headers).build();
+      return ResponseEntity.accepted().headers(headers).build();
     }
 
     // Should not reach here
@@ -646,8 +647,9 @@ public class GraphStoreController {
       headers.set(HttpHeaders.LOCATION, "/version/commits/" + commitEvent.commitId());
       headers.setETag("\"" + commitEvent.commitId() + "\"");
       headers.set("SPARQL-Version-Control", "true");
+      headers.set("SPARQL-VC-Status", "pending");
 
-      return ResponseEntity.ok().headers(headers).build();
+      return ResponseEntity.accepted().headers(headers).build();
     }
 
     // Should not reach here
@@ -794,9 +796,9 @@ public class GraphStoreController {
       headers.set(HttpHeaders.LOCATION, "/version/commits/" + commitEvent.commitId());
       headers.setETag("\"" + commitEvent.commitId() + "\"");
       headers.set("SPARQL-Version-Control", "true");
+      headers.set("SPARQL-VC-Status", "pending");
 
-      // Per HTTP spec, DELETE returns 204 No Content on success
-      return ResponseEntity.status(HttpStatus.NO_CONTENT).headers(headers).build();
+      return ResponseEntity.accepted().headers(headers).build();
     }
 
     // Should not reach here
@@ -959,8 +961,9 @@ public class GraphStoreController {
       headers.set(HttpHeaders.LOCATION, "/version/commits/" + commitEvent.commitId());
       headers.setETag("\"" + commitEvent.commitId() + "\"");
       headers.set("SPARQL-Version-Control", "true");
+      headers.set("SPARQL-VC-Status", "pending");
 
-      return ResponseEntity.ok().headers(headers).build();
+      return ResponseEntity.accepted().headers(headers).build();
     }
 
     // Should not reach here

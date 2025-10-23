@@ -107,7 +107,7 @@ class ETagIT {
     );
 
     // Then - API response verification (synchronous)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     String etag = response.getHeaders().getFirst("ETag");
     assertThat(etag).isNotNull();
@@ -144,7 +144,7 @@ class ETagIT {
     );
 
     // Then - API response verification (synchronous)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 
   @Test
@@ -200,7 +200,7 @@ class ETagIT {
     );
 
     // Then - API response verification (synchronous)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 
 }

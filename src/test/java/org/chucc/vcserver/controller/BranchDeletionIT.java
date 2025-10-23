@@ -157,7 +157,7 @@ class BranchDeletionIT {
     );
 
     // Then - Verify HTTP response
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Wait for projection to delete the branch
     await().atMost(Duration.ofSeconds(10))
@@ -265,7 +265,7 @@ class BranchDeletionIT {
     );
 
     // Then - Verify branch deleted
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     await().atMost(Duration.ofSeconds(10))
         .until(() -> branchRepository.findByDatasetAndName(DEFAULT_DATASET, branchName)

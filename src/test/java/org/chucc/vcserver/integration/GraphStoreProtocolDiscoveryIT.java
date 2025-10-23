@@ -51,7 +51,7 @@ class GraphStoreProtocolDiscoveryIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     HttpHeaders headers = response.getHeaders();
 
@@ -87,7 +87,7 @@ class GraphStoreProtocolDiscoveryIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNullOrEmpty();
   }
 }

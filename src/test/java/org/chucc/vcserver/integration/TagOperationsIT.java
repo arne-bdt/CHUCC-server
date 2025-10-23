@@ -90,7 +90,7 @@ class TagOperationsIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     JsonNode json = objectMapper.readTree(response.getBody());
     assertThat(json.get("name").asText()).isEqualTo(TAG_NAME);
     assertThat(json.get("target").asText()).isEqualTo(commitId.value());
@@ -133,7 +133,7 @@ class TagOperationsIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Verify tag was deleted
     ResponseEntity<String> getResponse = restTemplate.getForEntity(
@@ -209,7 +209,7 @@ class TagOperationsIT {
         "/" + DATASET_NAME + "/version/tags/" + TAG_NAME,
         String.class
     );
-    assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     JsonNode json = objectMapper.readTree(getResponse.getBody());
     assertThat(json.get("name").asText()).isEqualTo(TAG_NAME);
     assertThat(json.get("target").asText()).isEqualTo(commitId.value());
@@ -221,7 +221,7 @@ class TagOperationsIT {
         null,
         String.class
     );
-    assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Verify tag no longer exists
     ResponseEntity<String> verifyResponse = restTemplate.getForEntity(

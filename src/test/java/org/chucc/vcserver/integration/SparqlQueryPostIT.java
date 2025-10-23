@@ -48,7 +48,7 @@ class SparqlQueryPostIT extends ITFixture {
     );
 
     // Then: Results returned with correct headers
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/sparql-results+json");
     assertThat(response.getHeaders().getETag()).isNotNull();
@@ -72,7 +72,7 @@ class SparqlQueryPostIT extends ITFixture {
     );
 
     // Then: Results from main branch
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag()).isNotNull();
     assertThat(response.getBody()).contains("\"bindings\"");
   }
@@ -94,7 +94,7 @@ class SparqlQueryPostIT extends ITFixture {
     );
 
     // Then: Results from specific commit with ETag
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag())
         .isEqualTo("\"" + initialCommitId.value() + "\"");
     assertThat(response.getBody()).contains("\"bindings\"");
@@ -118,7 +118,7 @@ class SparqlQueryPostIT extends ITFixture {
     );
 
     // Then: Results from latest commit before that timestamp
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag()).isNotNull();
     assertThat(response.getBody()).contains("\"bindings\"");
   }
@@ -147,7 +147,7 @@ class SparqlQueryPostIT extends ITFixture {
     );
 
     // Then: Query succeeds via POST (would fail via GET due to URL length)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(longQuery.length()).isGreaterThan(2048); // Verify it's actually long
     assertThat(response.getBody()).contains("\"bindings\"");
   }
@@ -170,7 +170,7 @@ class SparqlQueryPostIT extends ITFixture {
     );
 
     // Then: JSON results
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/sparql-results+json");
     assertThat(response.getBody()).contains("{", "\"head\"", "\"results\"");
@@ -194,7 +194,7 @@ class SparqlQueryPostIT extends ITFixture {
     );
 
     // Then: XML results
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/sparql-results+xml");
     assertThat(response.getBody()).contains("<?xml", "<sparql");
@@ -284,7 +284,7 @@ class SparqlQueryPostIT extends ITFixture {
     );
 
     // Then: Boolean result
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).contains("\"boolean\"");
   }
 
@@ -306,7 +306,7 @@ class SparqlQueryPostIT extends ITFixture {
     );
 
     // Then: Turtle result (empty for empty dataset)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("text/turtle");
   }

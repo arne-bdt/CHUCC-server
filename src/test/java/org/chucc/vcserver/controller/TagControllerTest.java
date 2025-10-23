@@ -81,7 +81,7 @@ class TagControllerTest {
   @Test
   void testDeleteTag_whenTagExists_returns204() throws Exception {
     mockMvc.perform(delete("/ds/version/tags/{name}", TAG_NAME))
-        .andExpect(status().isNoContent());
+        .andExpect(status().isAccepted());
 
     verify(tagService).deleteTag("ds", TAG_NAME);
   }

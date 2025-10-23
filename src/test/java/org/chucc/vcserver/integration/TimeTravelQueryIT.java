@@ -156,7 +156,7 @@ class TimeTravelQueryIT extends ITFixture {
     ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Query succeeds (parameters accepted)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 
   /**
@@ -177,7 +177,7 @@ class TimeTravelQueryIT extends ITFixture {
     ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Query succeeds (uses default branch with asOf)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 
   /**
@@ -258,7 +258,7 @@ class TimeTravelQueryIT extends ITFixture {
     ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Query succeeds using latest commit
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 
   // ========== Time-Travel Query Result Tests ==========
@@ -288,7 +288,7 @@ class TimeTravelQueryIT extends ITFixture {
     ResponseEntity<String> response = queryWithAsOf(query, t1);
 
     // Then - Should return HTTP 200
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // And - Results should contain "Alice" (T1 data)
     assertThat(response.getBody()).contains("Alice");
@@ -322,7 +322,7 @@ class TimeTravelQueryIT extends ITFixture {
     ResponseEntity<String> response = queryWithAsOf(query, t2);
 
     // Then - Should return HTTP 200
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // And - Results should contain "Bob" (T2 data)
     assertThat(response.getBody()).contains("Bob");
@@ -359,7 +359,7 @@ class TimeTravelQueryIT extends ITFixture {
     ResponseEntity<String> response = queryWithAsOf(query, t3);
 
     // Then - Should return HTTP 200
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // And - Results should be empty (graph was deleted)
     // Note: SPARQL JSON results format includes empty bindings array
@@ -409,7 +409,7 @@ class TimeTravelQueryIT extends ITFixture {
     ResponseEntity<String> response = queryWithAsOf(query, asOf);
 
     // Then - Should return HTTP 200
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // And - Results should contain T1 state (most recent before asOf)
     assertThat(response.getBody()).contains("Alice");
@@ -446,7 +446,7 @@ class TimeTravelQueryIT extends ITFixture {
     ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then - Should return HTTP 200
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // And - Results should contain current state (T2 data)
     assertThat(response.getBody()).contains("Bob");

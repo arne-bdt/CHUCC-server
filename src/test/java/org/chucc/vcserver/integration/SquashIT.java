@@ -150,7 +150,7 @@ class SquashIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/json");
 
@@ -219,7 +219,7 @@ class SquashIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     JsonNode json = objectMapper.readTree(response.getBody());
     String newCommitId = json.get("newCommit").asText();

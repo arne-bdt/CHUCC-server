@@ -84,9 +84,29 @@ All endpoints are relative to a dataset base URL.
 - Media types: `text/rdf-patch` (REQUIRED). Optional binary form `application/vnd.apache.jena.rdfpatch+thrift`.
 - A **no-op patch** (applies cleanly but yields no dataset change) **MUST NOT** create a new commit → `204 No Content`.
 
-## 8. Status Codes (common set)
-- `200 OK` (reads), `201 Created` (new commit), `202 Accepted` (async apply), `204 No Content` (no-op),
-- `400 Bad Request` (selector_conflict, schema errors), `406 Not Acceptable`, `409 Conflict` (overlap), `412 Precondition Failed` (ETag mismatch), `415 Unsupported Media Type`, `422 Unprocessable Entity` (patch applies syntactically but violates constraints), `500`.
+## 8. Status Codes
+
+### SPARQL Update Operations
+- **`202 Accepted`** - Update accepted, event published to Kafka for async processing
+  - Headers: `Location` (commit URI), `ETag` (commit ID), `SPARQL-VC-Status: pending`
+  - Body: `{"message":"Update accepted","commitId":"{id}"}`
+- **`204 No Content`** - No-op (no changes detected)
+- **`400 Bad Request`** - Malformed SPARQL Update
+- **`409 Conflict`** - Concurrent modification detected
+- **`412 Precondition Failed`** - If-Match mismatch
+
+### SPARQL Query Operations
+- **`200 OK`** - Query success
+- **`400 Bad Request`** - Malformed query
+- **`406 Not Acceptable`** - Format not available
+
+### Version Control Operations
+- **`202 Accepted`** - Branch/tag/merge operation accepted
+- **`204 No Content`** - Delete succeeded
+- **`409 Conflict`** - Merge conflict
+- **`422 Unprocessable Entity`** - Invalid operation (e.g., branch exists)
+
+**Eventual Consistency:** Write operations return 202 Accepted when event stored in Kafka. Read model updates asynchronously (typically 50-200ms). Use commit selector `?commit={id}` for immediate queries or branch selector `?branch={name}` after projection completes.
 
 ## 9. Error Format (problem+json)
 ```json

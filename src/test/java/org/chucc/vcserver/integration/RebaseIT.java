@@ -180,7 +180,7 @@ class RebaseIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/json");
 
@@ -265,7 +265,7 @@ class RebaseIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     JsonNode json = objectMapper.readTree(response.getBody());
     assertThat(json.get("rebasedCount").asInt()).isEqualTo(2);

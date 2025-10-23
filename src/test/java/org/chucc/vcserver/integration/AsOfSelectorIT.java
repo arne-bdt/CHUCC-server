@@ -155,7 +155,7 @@ class AsOfSelectorIT {
     );
 
     // Then: Should create commit successfully
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Verify response body structure
     JsonNode json = objectMapper.readTree(response.getBody());
@@ -193,7 +193,7 @@ class AsOfSelectorIT {
     );
 
     // Then: Should create commit successfully
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getFirst("Location")).isNotNull();
   }
 
@@ -220,7 +220,7 @@ class AsOfSelectorIT {
     );
 
     // Then: Should use commit3 (latest) as base
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 
   /**
@@ -349,6 +349,6 @@ class AsOfSelectorIT {
     );
 
     // Then: Should use commit1 as base
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
   }
 }

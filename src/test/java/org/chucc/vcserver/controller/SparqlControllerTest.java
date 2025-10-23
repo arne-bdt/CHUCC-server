@@ -167,7 +167,7 @@ class SparqlControllerTest {
             .header("SPARQL-VC-Message", "Test commit message")
             .header("SPARQL-VC-Author", "test@example.org")
             .content("INSERT DATA { <http://example.org/s> <http://example.org/p> \"o\" }"))
-        .andExpect(status().isOk())
+        .andExpect(status().isAccepted())
         .andExpect(header().exists("ETag"))
         .andExpect(header().exists("Location"));
   }
@@ -188,7 +188,7 @@ class SparqlControllerTest {
             .header("SPARQL-VC-Author", "alice@example.org")
             .header("SPARQL-VC-Message", "Test message")
             .content("INSERT DATA { <http://example.org/s> <http://example.org/p> \"o\" }"))
-        .andExpect(status().isOk())
+        .andExpect(status().isAccepted())
         .andExpect(header().exists("ETag"))
         .andExpect(header().exists("Location"));
   }

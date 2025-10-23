@@ -145,7 +145,7 @@ class RevertIT {
     );
 
     // Then - verify response
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/json");
 
@@ -195,7 +195,7 @@ class RevertIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Parse response
     JsonNode jsonResponse = objectMapper.readTree(response.getBody());
@@ -419,7 +419,7 @@ class RevertIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     JsonNode jsonResponse = objectMapper.readTree(response.getBody());
     assertThat(jsonResponse.get("branch").asText()).isEqualTo("main");
   }

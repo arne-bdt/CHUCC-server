@@ -41,7 +41,7 @@ class CorrelationIdFilterIT extends ITFixture {
         String.class);
 
     // Assert: Request succeeds (filter doesn't break HTTP flow)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Note: Correlation ID is in logs (verified manually during test runs)
     // and in Kafka event headers (verified by EventPublisherTest unit tests)
@@ -67,7 +67,7 @@ class CorrelationIdFilterIT extends ITFixture {
           String.class);
 
       // Assert: Each request succeeds (each gets unique correlation ID)
-      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     }
 
     // Note: Each request gets a unique correlation ID (verified in logs)

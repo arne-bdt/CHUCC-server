@@ -120,7 +120,7 @@ class GraphStoreHeadIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag()).isEqualTo("\"" + commit2Id.value() + "\"");
     assertThat(response.getHeaders().getFirst("SPARQL-Version-Control")).isEqualTo("true");
     assertThat(response.getHeaders().getContentType()).isNotNull();
@@ -138,7 +138,7 @@ class GraphStoreHeadIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag()).isEqualTo("\"" + commit1Id.value() + "\"");
     assertThat(response.getHeaders().getFirst("SPARQL-Version-Control")).isEqualTo("true");
     assertThat(response.getHeaders().getContentType()).isNotNull();
@@ -233,7 +233,7 @@ class GraphStoreHeadIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag()).isEqualTo("\"" + commit2Id.value() + "\"");
   }
 
@@ -248,7 +248,7 @@ class GraphStoreHeadIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNull();
   }
 }

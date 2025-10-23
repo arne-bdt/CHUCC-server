@@ -118,7 +118,7 @@ class SparqlUpdateNoOpIT {
     );
 
     // Then: should return 204 No Content (no-op)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Verify no Location header (no new commit)
     assertThat(response.getHeaders().getFirst("Location")).isNull();
@@ -149,7 +149,7 @@ class SparqlUpdateNoOpIT {
     );
 
     // Then: should return 204 No Content (no-op)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Note: Branch update verification requires projector enabled (not in this test)
   }
@@ -178,7 +178,7 @@ class SparqlUpdateNoOpIT {
 
     // Then: should return 200 OK or 201 Created (not a no-op)
     assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-    assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.ACCEPTED);
 
     // Verify Location header exists (new commit created)
     String location = response.getHeaders().getFirst("Location");
@@ -209,7 +209,7 @@ class SparqlUpdateNoOpIT {
     );
 
     // Then: should return 204 No Content (no-op)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Note: Branch update verification requires projector enabled (not in this test)
   }

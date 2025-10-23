@@ -168,7 +168,7 @@ class GraphStoreTimeTravelIT extends ITFixture {
     );
 
     // Then - Should return 200 with historical data from commit2
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getHeaders().getFirst("ETag")).isEqualTo("\"" + commit2Id.value() + "\"");
     assertThat(response.getHeaders().getFirst("SPARQL-Version-Control"))
@@ -193,7 +193,7 @@ class GraphStoreTimeTravelIT extends ITFixture {
     );
 
     // Then - Should return 200 (inclusive: commit at timestamp is selected)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getHeaders().getFirst("ETag")).isEqualTo("\"" + commit2Id.value() + "\"");
   }
@@ -216,7 +216,7 @@ class GraphStoreTimeTravelIT extends ITFixture {
     );
 
     // Then - Should accept both parameters
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getFirst("ETag")).isEqualTo("\"" + commit3Id.value() + "\"");
   }
 
@@ -238,7 +238,7 @@ class GraphStoreTimeTravelIT extends ITFixture {
     );
 
     // Then - Should accept asOf without branch (valid per spec)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getFirst("ETag")).isEqualTo("\"" + commit2Id.value() + "\"");
   }
 
@@ -283,7 +283,7 @@ class GraphStoreTimeTravelIT extends ITFixture {
     );
 
     // Then - Should return 200 with latest commit (commit3)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getHeaders().getFirst("ETag")).isEqualTo("\"" + commit3Id.value() + "\"");
   }
@@ -331,7 +331,7 @@ class GraphStoreTimeTravelIT extends ITFixture {
     );
 
     // Then - Should return 200 with headers only
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getFirst("ETag")).isEqualTo("\"" + commit2Id.value() + "\"");
     assertThat(response.getBody()).isNull();
   }

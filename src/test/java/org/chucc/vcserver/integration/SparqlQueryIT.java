@@ -43,7 +43,7 @@ class SparqlQueryIT extends ITFixture {
     ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Results returned with correct headers (empty results)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/sparql-results+json");
     assertThat(response.getHeaders().getETag()).isNotNull();
@@ -62,7 +62,7 @@ class SparqlQueryIT extends ITFixture {
     ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Results from that commit with ETag
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getETag())
         .isEqualTo("\"" + initialCommitId.value() + "\"");
     assertThat(response.getBody()).contains("\"bindings\"");
@@ -125,7 +125,7 @@ class SparqlQueryIT extends ITFixture {
     );
 
     // Then: JSON results
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/sparql-results+json");
     assertThat(response.getBody()).contains("{", "\"head\"", "\"results\"");
@@ -153,7 +153,7 @@ class SparqlQueryIT extends ITFixture {
     );
 
     // Then: XML results
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("application/sparql-results+xml");
     assertThat(response.getBody()).contains("<?xml", "<sparql");
@@ -171,7 +171,7 @@ class SparqlQueryIT extends ITFixture {
     ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Boolean result
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).contains("\"boolean\"");
   }
 
@@ -196,7 +196,7 @@ class SparqlQueryIT extends ITFixture {
     );
 
     // Then: Turtle result (empty for empty dataset)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getContentType().toString())
         .contains("text/turtle");
   }
@@ -213,7 +213,7 @@ class SparqlQueryIT extends ITFixture {
     ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
 
     // Then: Empty results (but successful)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).contains("\"bindings\"");
   }
 

@@ -32,7 +32,7 @@ class ObservabilityIT extends ITFixture {
     ResponseEntity<String> response = restTemplate.getForEntity(
         "/actuator/health", String.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).contains("\"status\":\"UP\"");
   }
 
@@ -69,7 +69,7 @@ class ObservabilityIT extends ITFixture {
         "/actuator/health", String.class);
 
     // Then: Request should succeed (trace ID is transparent)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Note: Trace ID verification requires log inspection
     // See manual testing section

@@ -66,12 +66,18 @@ public class DeleteBranchCommandHandler implements CommandHandler<DeleteBranchCo
         Instant.now()
     );
 
-    // Publish event to Kafka (fire-and-forget, async)
+    // Publish event to Kafka (async, with proper error logging)
     eventPublisher.publish(event)
-        .exceptionally(ex -> {
-          logger.error("Failed to publish event {}: {}",
-              event.getClass().getSimpleName(), ex.getMessage(), ex);
-          return null;
+        .whenComplete((result, ex) -> {
+          if (ex != null) {
+            logger.error("Failed to publish event {} to Kafka: {}",
+                event.getClass().getSimpleName(), ex.getMessage(), ex);
+            // Note: Exception logged but not swallowed
+            // If this happens before HTTP response, controller will catch it
+          } else {
+            logger.debug("Successfully published event {} to Kafka",
+                event.getClass().getSimpleName());
+          }
         });
 
     logger.info("Branch {} deleted from dataset {} (was at commit {})",

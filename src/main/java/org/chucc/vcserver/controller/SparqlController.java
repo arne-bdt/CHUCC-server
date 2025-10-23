@@ -456,16 +456,17 @@ public class SparqlController {
         return ResponseEntity.noContent().build();
       }
 
-      // Success: Return 200 with ETag and Location headers
+      // Success: Return 202 Accepted with ETag and Location headers
       CommitCreatedEvent commitEvent = (CommitCreatedEvent) event;
       String commitId = commitEvent.commitId();
 
-      return ResponseEntity.ok()
+      return ResponseEntity.accepted()
           .eTag("\"" + commitId + "\"")
           .location(java.net.URI.create("/version/datasets/" + dataset
               + "/commits/" + commitId))
+          .header("SPARQL-VC-Status", "pending")
           .contentType(MediaType.APPLICATION_JSON)
-          .body("{\"message\":\"Update successful\",\"commitId\":\""
+          .body("{\"message\":\"Update accepted\",\"commitId\":\""
               + commitId + "\"}");
 
     } catch (MalformedUpdateException e) {

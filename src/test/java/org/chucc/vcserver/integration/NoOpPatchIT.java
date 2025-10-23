@@ -114,7 +114,7 @@ class NoOpPatchIT {
     );
 
     // Then: should return 204 No Content
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNullOrEmpty();
 
     // Verify no Location header (no new commit created)
@@ -154,7 +154,7 @@ class NoOpPatchIT {
     );
 
     // Then: should return 204 No Content
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNullOrEmpty();
 
     // Verify branch HEAD is unchanged
@@ -187,7 +187,7 @@ class NoOpPatchIT {
     );
 
     // Then: should return 204 No Content
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNullOrEmpty();
 
     // Verify branch HEAD is unchanged
@@ -217,7 +217,7 @@ class NoOpPatchIT {
     );
 
     // Then: should return 204 No Content
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getBody()).isNullOrEmpty();
 
     // Verify branch HEAD is unchanged
@@ -249,7 +249,7 @@ class NoOpPatchIT {
     );
 
     // Then: should return 201 Created (not a no-op)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Verify Location header exists
     String location = response.getHeaders().getFirst("Location");
@@ -286,7 +286,7 @@ class NoOpPatchIT {
     );
 
     // Then: should return 201 Created (not a no-op)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Verify Location header exists
     String location = response.getHeaders().getFirst("Location");

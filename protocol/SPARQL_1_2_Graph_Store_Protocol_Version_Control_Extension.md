@@ -46,8 +46,34 @@ Selectors apply as URL params per §D.
 - No-op application → **`204 No Content`**, MUST NOT create a commit.
 - For PUT/POST with standard RDF formats, server computes changeset internally by diffing against current state. When the computed diff is empty (i.e., the new content is identical to the current graph state), the server MUST return **`204 No Content`** and MUST NOT create a commit.
 
-## H. Status Codes (common set)
-Same as Protocol: `200,201,202,204,400,406,409,412,415,422,500`.
+## H. Status Codes
+
+### Write Operations (PUT, POST, DELETE, PATCH)
+- **`202 Accepted`** - Operation accepted, event published to Kafka for async processing
+  - Response headers:
+    - `Location`: URI of created commit (`/version/commits/{commitId}`)
+    - `ETag`: Commit ID of new state
+    - `SPARQL-VC-Status: pending` - Read model projection in progress (typically 50-200ms)
+- **`204 No Content`** - No-op (no changes detected, no commit created)
+- **`400 Bad Request`** - Invalid RDF content, malformed patch, or invalid parameters
+- **`409 Conflict`** - Concurrent modification detected (semantic overlap in quads)
+- **`412 Precondition Failed`** - `If-Match` header doesn't match current state
+- **`415 Unsupported Media Type`** - Content-Type not supported
+- **`422 Unprocessable Entity`** - Syntactically valid but semantically invalid request
+
+### Read Operations (GET, HEAD, OPTIONS)
+- **`200 OK`** - Success
+- **`404 Not Found`** - Graph does not exist
+- **`406 Not Acceptable`** - Requested format not available
+
+### Eventual Consistency
+Write operations use **eventual consistency** via event sourcing:
+1. HTTP 202 returned when event published to Kafka (durable storage)
+2. Read model updates asynchronously via event projection (typically 50-200ms)
+3. Clients can:
+   - Query immediately using commit selector: `?commit={commitId}` (bypasses read model, uses event store directly)
+   - Query via branch selector after projection completes: `?branch={branch}` (uses read model)
+   - Use `If-Match` header with ETag to detect if read model hasn't caught up yet (returns 412 if not ready)
 
 ## I. Error Format (problem+json)
 Same base as Protocol §9, but **`graph` is REQUIRED** in each conflict item for GSP operations.

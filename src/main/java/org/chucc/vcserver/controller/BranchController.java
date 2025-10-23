@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.chucc.vcserver.command.DeleteBranchCommand;
 import org.chucc.vcserver.command.DeleteBranchCommandHandler;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -176,7 +177,11 @@ public class BranchController {
     // Handle command (publishes event asynchronously)
     deleteBranchCommandHandler.handle(command);
 
-    // Return 204 No Content (response sent before repository update)
-    return ResponseEntity.noContent().build();
+    // Build response headers
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("SPARQL-VC-Status", "pending");
+
+    // Return 202 Accepted (response sent before repository update)
+    return ResponseEntity.accepted().headers(headers).build();
   }
 }

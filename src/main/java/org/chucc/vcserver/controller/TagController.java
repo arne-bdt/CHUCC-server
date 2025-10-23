@@ -165,6 +165,11 @@ public class TagController {
       @PathVariable String name
   ) {
     tagService.deleteTag(dataset, name);
-    return ResponseEntity.noContent().build();
+
+    // Build response headers
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("SPARQL-VC-Status", "pending");
+
+    return ResponseEntity.accepted().headers(headers).build();
   }
 }

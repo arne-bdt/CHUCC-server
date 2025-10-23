@@ -1,6 +1,7 @@
 package org.chucc.vcserver.projection;
 
 import org.apache.jena.rdfpatch.RDFPatch;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.chucc.vcserver.config.ProjectorProperties;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
@@ -8,6 +9,7 @@ import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.BranchCreatedEvent;
 import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.chucc.vcserver.service.DatasetService;
@@ -61,6 +63,19 @@ class ReadModelProjectorTest {
 
     projector = new ReadModelProjector(branchRepository, commitRepository, datasetService,
         snapshotService, projectorProperties);
+  }
+
+  /**
+   * Helper method to wrap an event in a ConsumerRecord for testing.
+   */
+  private ConsumerRecord<String, VersionControlEvent> toConsumerRecord(VersionControlEvent event) {
+    return new ConsumerRecord<String, VersionControlEvent>(
+        "test-topic",
+        0,
+        0L,
+        event.getAggregateIdentity().getPartitionKey(),
+        event
+    );
   }
 
   @Test
@@ -218,8 +233,8 @@ class ReadModelProjectorTest {
     );
 
     // When
-    projector.handleEvent(event1);  // First event should be processed
-    projector.handleEvent(event2);  // Second event should be skipped (duplicate)
+    projector.handleEvent(toConsumerRecord(event1));  // First event should be processed
+    projector.handleEvent(toConsumerRecord(event2));  // Second event should be skipped (duplicate)
 
     // Then - commit should only be saved once
     verify(commitRepository).save(eq(dataset), any(Commit.class), any(RDFPatch.class));
@@ -260,8 +275,8 @@ class ReadModelProjectorTest {
     );
 
     // When
-    projector.handleEvent(event1);
-    projector.handleEvent(event2);
+    projector.handleEvent(toConsumerRecord(event1));
+    projector.handleEvent(toConsumerRecord(event2));
 
     // Then - both commits should be saved (no deduplication)
     verify(commitRepository, org.mockito.Mockito.times(2)).save(eq(dataset), any(Commit.class), any(RDFPatch.class));
@@ -309,8 +324,8 @@ class ReadModelProjectorTest {
     );
 
     // When
-    projector.handleEvent(event1);
-    projector.handleEvent(event2);
+    projector.handleEvent(toConsumerRecord(event1));
+    projector.handleEvent(toConsumerRecord(event2));
 
     // Then - both commits should be saved (different event IDs)
     verify(commitRepository, org.mockito.Mockito.times(2)).save(eq(dataset), any(Commit.class), any(RDFPatch.class));

@@ -131,10 +131,10 @@ Optional<Model> model = api.getGraph(
 
 **Goal:** Implement Kafka CQRS/Event Sourcing best practices based on industry standards.
 
-**Current State:** CHUCC Server uses Kafka for event sourcing but violates several critical best practices:
+**Current State:** CHUCC Server uses Kafka for event sourcing with improved best practices:
 - ✅ Partition key uses aggregate-ID pattern (ensures ordering guarantees)
-- ❌ No event deduplication (at-least-once without idempotency)
-- ❌ Missing event metadata headers (correlationId, causationId, schemaVersion)
+- ✅ Event deduplication implemented (UUIDv7-based exactly-once processing)
+- ✅ Correlation ID for distributed tracing (timestamp header included)
 - ❌ No Schema Registry (JSON without versioning)
 - ⚠️ Snapshots not in separate compacted topic
 - ⚠️ Consumer isolation level not set to read_committed
@@ -144,40 +144,37 @@ Optional<Model> model = api.getGraph(
 | Task | File | Priority | Est. Time | Status |
 |------|------|----------|-----------|--------|
 | 01. Fix Partition Key Strategy | `kafka-best-practices/01-fix-partition-key-strategy.md` | 🔴 **CRITICAL** | 3-4 hours | ✅ Completed |
-| 02. Implement Event Deduplication | `kafka-best-practices/02-implement-event-deduplication.md` | 🔴 **CRITICAL** | 3-4 hours | 📋 Not Started |
-| 03. Add Event Metadata Headers | `kafka-best-practices/03-add-event-metadata-headers.md` | 🟡 Medium | 2-3 hours | 📋 Not Started |
+| 02. Implement Event Deduplication | `kafka-best-practices/02-implement-event-deduplication.md` | 🔴 **CRITICAL** | 3-4 hours | ✅ Completed |
+| 03. Add Correlation ID for Distributed Tracing | `kafka-best-practices/03-add-event-metadata-headers.md` | 🟡 Medium | 1-1.5 hours | ✅ Completed |
 | 04. Integrate Schema Registry | `kafka-best-practices/04-integrate-schema-registry.md` | 🔴 High | 4-5 hours | 📋 Not Started |
 | 05. Snapshot Compaction Strategy | `kafka-best-practices/05-snapshot-compaction-strategy.md` | 🟡 Low-Medium | 2-3 hours | 📋 Not Started |
 | 06. Transaction Support for Consumers | `kafka-best-practices/06-add-transaction-support-for-consumers.md` | 🟡 Medium | 2 hours | 📋 Not Started |
 
 **Dependencies:**
-- Task 02 depends on Task 01 (recommended, not blocking)
-- Task 03 depends on Task 02 (for eventId)
-- Task 04 depends on Task 03 (for schemaVersion)
+- ✅ Task 02 completed (Task 01 prerequisite)
+- ✅ Task 03 completed (Task 02 prerequisite)
+- Task 04 depends on Task 03 (for event metadata)
 
 **Impact:**
 
-**Critical Issues (Must Fix):**
-1. **Partition Key Strategy** - Events for same branch may process out of order ⚠️
-2. **Event Deduplication** - Duplicate processing on consumer rebalance ⚠️
+**Completed:**
+1. ✅ **Partition Key Strategy** - Aggregate-ID based partitioning ensures ordering
+2. ✅ **Event Deduplication** - Exactly-once processing with UUIDv7 cache
+3. ✅ **Correlation ID** - Full distributed tracing across HTTP → Kafka → Projector
 
 **High Priority (Production-Ready):**
-3. **Schema Registry** - Cannot safely evolve event schemas
-4. **Event Metadata Headers** - No distributed tracing capability
+4. **Schema Registry** - Cannot safely evolve event schemas
 
 **Medium Priority (Optimizations):**
 5. **Snapshot Compaction** - Storage efficiency
 6. **Transaction Support** - Data integrity for consumers
 
-**Estimated Total Time:** 17-21 hours (spread across 6 tasks)
+**Estimated Remaining Time:** 8-10 hours (spread across 3 tasks)
 
 **Recommended Order:**
-1. 🔴 Fix Partition Key (Task 01) - 3-4 hours
-2. 🔴 Event Deduplication (Task 02) - 3-4 hours
-3. 🟡 Event Metadata (Task 03) - 2-3 hours
-4. 🔴 Schema Registry (Task 04) - 4-5 hours
-5. 🟡 Transaction Support (Task 06) - 2 hours
-6. 🟡 Snapshot Compaction (Task 05) - 2-3 hours
+1. 🔴 Schema Registry (Task 04) - 4-5 hours
+2. 🟡 Transaction Support (Task 06) - 2 hours
+3. 🟡 Snapshot Compaction (Task 05) - 2-3 hours
 
 ---
 
@@ -344,20 +341,20 @@ When adding new tasks:
 - ✅ Time-travel SPARQL queries (1 task)
 - ✅ Model API to Graph API migration (3 tasks)
 - ✅ Dataset parameter implementation (1 task)
-- **Total completed:** 13 tasks
+- ✅ Kafka best practices: Partition key strategy (1 task)
+- ✅ Kafka best practices: Event deduplication (1 task)
+- ✅ Kafka best practices: Correlation ID for distributed tracing (1 task)
+- **Total completed:** 16 tasks
 
 **Remaining:**
 - 📋 Java APIs (2 tasks)
-- 🔴 Kafka Best Practices (6 tasks) - **CRITICAL**
-- **Total remaining:** 8 tasks
+- 🔴 Kafka Best Practices (3 tasks remaining)
+- **Total remaining:** 5 tasks
 
-**Progress:** ~62% complete (13 of 21 tasks)
+**Progress:** ~76% complete (16 of 21 tasks)
 
 **Next Steps (Priority Order):**
-1. 🔴 **CRITICAL:** Fix partition key strategy (kafka-best-practices/01) ← **START HERE**
-2. 🔴 **CRITICAL:** Implement event deduplication (kafka-best-practices/02)
-3. 🔴 High: Integrate Schema Registry (kafka-best-practices/04)
-4. 🟡 Medium: Add event metadata headers (kafka-best-practices/03)
-5. 🟡 Medium: Transaction support for consumers (kafka-best-practices/06)
-6. 🟢 Low: Snapshot compaction strategy (kafka-best-practices/05)
-7. 🟢 Low: Create Java APIs (java-api/01-02)
+1. 🔴 High: Integrate Schema Registry (kafka-best-practices/04) ← **START HERE**
+2. 🟡 Medium: Transaction support for consumers (kafka-best-practices/06)
+3. 🟡 Low: Snapshot compaction strategy (kafka-best-practices/05)
+4. 🟢 Low: Create Java APIs (java-api/01-02)

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- Console appender for test output -->
+    <!-- Console appender for test output with correlation ID support -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%X{correlationId}] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 

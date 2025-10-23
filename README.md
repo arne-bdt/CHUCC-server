@@ -53,6 +53,7 @@ This server implements:
 - ✅ **On-demand Snapshot Loading** - Snapshots loaded from Kafka when needed (not stored in memory)
 - ✅ **Metadata Caching** - Fast snapshot lookups with minimal memory footprint
 - ✅ **Event Deduplication** - Exactly-once processing semantics with UUIDv7-based deduplication cache
+- ✅ **Distributed Tracing** - Correlation IDs track requests across HTTP → Kafka → Projector
 
 ### Operations
 - ✅ **Branch Deletion** - Delete branches with protection for main branch
@@ -217,10 +218,13 @@ To temporarily increase test logging, override in your test:
 - ✅ Time-travel query validation tests (5 comprehensive integration tests)
 - ✅ Performance refactoring (Model API → Graph API migration complete)
 - ✅ Consistent dataset parameter support (removed all hardcoded "default" values)
+- ✅ Kafka best practices: Aggregate-ID partition key strategy
+- ✅ Kafka best practices: UUIDv7-based event deduplication
+- ✅ Kafka best practices: Correlation ID for distributed tracing
 
 **Remaining Tasks:**
 - 📋 Java API layer (programmatic access without HTTP)
-- 📋 Kafka CQRS/ES best practices (partition keys, schema registry)
+- 📋 Kafka CQRS/ES best practices (Schema Registry, transaction support, snapshot compaction)
 
 See [Task Roadmap](./.tasks/README.md) for detailed status and remaining work.
 

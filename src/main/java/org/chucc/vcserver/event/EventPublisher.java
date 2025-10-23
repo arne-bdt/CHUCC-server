@@ -3,13 +3,16 @@ package org.chucc.vcserver.event;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.micrometer.core.annotation.Counted;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.chucc.vcserver.config.KafkaProperties;
+import org.chucc.vcserver.filter.CorrelationIdFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -148,8 +151,6 @@ public class EventPublisher {
    * @param event the event
    */
   private void addHeaders(Headers headers, VersionControlEvent event) {
-    AggregateIdentity aggregateId = event.getAggregateIdentity();
-
     // Add eventId for deduplication (at-least-once → exactly-once)
     headers.add(new RecordHeader(EventHeaders.EVENT_ID,
         event.eventId().getBytes(StandardCharsets.UTF_8)));
@@ -162,7 +163,19 @@ public class EventPublisher {
             .replace("Event", "")
             .getBytes(StandardCharsets.UTF_8)));
 
+    // Add timestamp (UTC epoch milliseconds)
+    headers.add(new RecordHeader(EventHeaders.TIMESTAMP,
+        String.valueOf(Instant.now().toEpochMilli()).getBytes(StandardCharsets.UTF_8)));
+
+    // Add correlation ID (from MDC, if available)
+    String correlationId = MDC.get(CorrelationIdFilter.CORRELATION_ID_KEY);
+    if (correlationId != null) {
+      headers.add(new RecordHeader(EventHeaders.CORRELATION_ID,
+          correlationId.getBytes(StandardCharsets.UTF_8)));
+    }
+
     // Add aggregate metadata for partition tracking
+    AggregateIdentity aggregateId = event.getAggregateIdentity();
     headers.add(new RecordHeader("aggregateType",
         aggregateId.getAggregateType().getBytes(StandardCharsets.UTF_8)));
     headers.add(new RecordHeader("aggregateId",

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- Console appender with trace ID support -->
+    <!-- Console appender with correlation ID support for distributed tracing -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%X{traceId}] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%X{correlationId}] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 

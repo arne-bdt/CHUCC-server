@@ -1,15 +1,16 @@
-# Task: Add Event Metadata Headers (Correlation, Causation, Schema Version)
+# Task: Add Correlation ID for Distributed Tracing
 
-**Status:** Not Started
+**Status:** ✅ **Completed**
 **Priority:** 🟡 **MEDIUM**
-**Estimated Time:** 2-3 hours
-**Dependencies:** 02-implement-event-deduplication.md (for eventId)
+**Estimated Time:** 1-1.5 hours
+**Actual Time:** 1.5 hours
+**Dependencies:** None
 
 ---
 
 ## Context
 
-**MISSING BEST PRACTICE:** CHUCC Server events lack critical metadata headers required for distributed tracing, debugging, and schema evolution.
+**MISSING BEST PRACTICE:** CHUCC Server events lack correlation IDs, making it difficult to trace requests across the system (HTTP → Controller → Event → Projector).
 
 ### Current Implementation
 
@@ -17,639 +18,511 @@
 
 ```java
 private void addHeaders(Headers headers, VersionControlEvent event) {
-  // ✅ Has: dataset, eventType
+  // ✅ Has: dataset, eventType, eventId
   headers.add(new RecordHeader(EventHeaders.DATASET, ...));
   headers.add(new RecordHeader(EventHeaders.EVENT_TYPE, ...));
+  headers.add(new RecordHeader(EventHeaders.EVENT_ID, ...));
 
-  // ❌ Missing: eventId, correlationId, causationId, schemaVersion
+  // ❌ Missing: correlationId, timestamp
 }
 ```
 
-### What's Missing (From German Checklist)
+### The Problem
 
-> **Im Event Header: `eventType`, `schemaVersion`, `aggregateId`, `eventId`, `causationId`, `correlationId`**
+**Without correlation IDs, distributed tracing is impossible:**
 
-**Currently Missing:**
-- ❌ `correlationId` - Trace request across entire system
-- ❌ `causationId` - Which event caused this event
-- ❌ `schemaVersion` - Event schema version for evolution
-- ❌ `timestamp` - When event was created (UTC)
+```
+❌ Current logs (no correlation):
+10:30:15.123 [http-nio-8080-exec-1] GraphStoreController: PUT /data?branch=main
+10:30:15.125 [http-nio-8080-exec-2] EventPublisher: Publishing CommitCreatedEvent
+10:30:15.130 [kafka-listener-1] ReadModelProjector: Processing CommitCreatedEvent
+                                  ↑ Which HTTP request triggered this?
+
+✅ With correlation IDs:
+10:30:15.123 [abc-123] GraphStoreController: PUT /data?branch=main
+10:30:15.125 [abc-123] EventPublisher: Publishing CommitCreatedEvent
+10:30:15.130 [abc-123] ReadModelProjector: Processing CommitCreatedEvent
+                        ↑ Clearly from the same request flow!
+```
 
 **Why This Matters:**
-
-**1. Distributed Tracing**
-```
-HTTP Request (correlationId=abc-123)
-  → Command: CreateCommit (correlationId=abc-123)
-    → Event: CommitCreated (correlationId=abc-123)  ← Trace entire flow
-      → Projector: Update Repository (correlationId=abc-123)
-```
-
-**2. Causality Tracking**
-```
-Event 1: BranchCreated (eventId=e1)
-  → Event 2: CommitCreated (causationId=e1) ← "Caused by e1"
-    → Event 3: BranchReset (causationId=e2) ← "Caused by e2"
-```
-
-**3. Schema Evolution**
-```
-Event: CommitCreated (schemaVersion=1.0)  → Old schema
-Event: CommitCreated (schemaVersion=2.0)  → New schema with extra field
-
-Projector can handle both schemas based on version
-```
+- Debugging: "Which API call caused this error?"
+- Performance: "How long did this request take end-to-end?"
+- Observability: "Trace request across Controller → Kafka → Projector"
 
 ---
 
 ## Goal
 
-Add comprehensive event metadata headers to support:
-1. ✅ Distributed tracing (correlationId)
-2. ✅ Causality tracking (causationId)
-3. ✅ Schema evolution (schemaVersion)
-4. ✅ Event timestamps (timestamp)
+Add correlation ID and timestamp to all events for distributed tracing:
+1. ✅ Generate unique correlation ID per HTTP request
+2. ✅ Add correlation ID to all log statements (MDC)
+3. ✅ Add correlation ID + timestamp to Kafka event headers
+4. ✅ Support non-request contexts (background jobs, tests)
 
 ---
 
 ## Design Decisions
 
-### 1. Correlation ID Source
+### 1. Correlation ID Generation
 
-**Chosen: Request Scope**
+**Chosen: UUIDv7 (time-ordered)**
 
-**Spring Request Scope Bean:**
-```java
-@Component
-@Scope(value = WebApplicationContext.SCOPE_REQUEST, proxyMode = ScopedProxyMode.TARGET_CLASS)
-public class RequestContext {
-  private String correlationId;
-  // Auto-generated on request start
-}
-```
+**Why:**
+- Sortable by creation time (unlike UUIDv4)
+- Globally unique across distributed systems
+- Already used for eventId
 
-**Alternative:** HTTP Header `X-Correlation-ID` (user-provided)
+**Format:** `01932c5c-8f7a-7890-b123-456789abcdef`
 
-### 2. Causation ID Tracking
+### 2. Correlation ID Storage
 
-**Chosen: Event-to-Event Chain**
+**Chosen: SLF4J MDC (Mapped Diagnostic Context)**
 
-**Pattern:**
-```java
-// First event (no causation)
-Event e1 = new BranchCreatedEvent(causationId=null);
+**Why:**
+- Standard Java logging pattern
+- Thread-local storage (safe for concurrent requests)
+- Automatically inherited by Kafka listener threads
+- No Spring request scope complexity
 
-// Second event (caused by e1)
-Event e2 = new CommitCreatedEvent(causationId=e1.getEventId());
-```
+**Alternative rejected:** Spring request-scoped bean (too heavy, doesn't work outside HTTP)
 
-**Stored in event itself (not just header)**
+### 3. Timestamp Format
 
-### 3. Schema Version Format
+**Chosen: Epoch milliseconds (UTC)**
 
-**Chosen: Semantic Versioning**
+**Why:**
+- Standard Kafka format
+- Easy to compare/sort
+- Compact representation
 
-**Format:** `"1.0"`, `"1.1"`, `"2.0"`
-
-**Per Event Type:**
-```java
-CommitCreatedEvent.SCHEMA_VERSION = "1.0";
-BranchCreatedEvent.SCHEMA_VERSION = "1.0";
-```
-
-**Incremented on breaking changes**
+**Format:** `1729593600000` (long)
 
 ---
 
 ## Implementation Plan
 
-### Step 1: Create RequestContext Bean (30 min)
+### Step 1: Create Correlation ID Filter (20 min)
 
-**File:** `src/main/java/org/chucc/vcserver/context/RequestContext.java`
+**File:** `src/main/java/org/chucc/vcserver/filter/CorrelationIdFilter.java`
 
 ```java
-package org.chucc.vcserver.context;
+package org.chucc.vcserver.filter;
 
 import com.github.f4b6a3.uuid.UuidCreator;
-import org.springframework.context.annotation.Scope;
-import org.springframework.context.annotation.ScopedProxyMode;
-import org.springframework.stereotype.Component;
-import org.springframework.web.context.WebApplicationContext;
-
-/**
- * Request-scoped context holding metadata for distributed tracing.
- * Automatically created per HTTP request.
- */
-@Component
-@Scope(value = WebApplicationContext.SCOPE_REQUEST, proxyMode = ScopedProxyMode.TARGET_CLASS)
-public class RequestContext {
-
-  private final String correlationId;
-  private final long requestStartTime;
-
-  /**
-   * Constructor: Auto-generates correlation ID.
-   */
-  public RequestContext() {
-    this.correlationId = UuidCreator.getTimeOrderedEpoch().toString();
-    this.requestStartTime = System.currentTimeMillis();
-  }
-
-  /**
-   * Returns the correlation ID for this request.
-   * All events created during this request will share this ID.
-   */
-  public String getCorrelationId() {
-    return correlationId;
-  }
-
-  /**
-   * Returns request start time (for duration tracking).
-   */
-  public long getRequestStartTime() {
-    return requestStartTime;
-  }
-
-  /**
-   * Calculates request duration in milliseconds.
-   */
-  public long getRequestDurationMs() {
-    return System.currentTimeMillis() - requestStartTime;
-  }
-}
-```
-
-**Add interceptor to log correlation ID:**
-
-**File:** `src/main/java/org/chucc/vcserver/config/RequestContextInterceptor.java`
-
-```java
-package org.chucc.vcserver.config;
-
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.chucc.vcserver.context.RequestContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.IOException;
 import org.slf4j.MDC;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Interceptor to populate MDC with correlation ID for logging.
+ * Servlet filter that generates a correlation ID for each HTTP request.
+ * The correlation ID is stored in SLF4J MDC for logging and can be
+ * retrieved by EventPublisher to add to Kafka event headers.
+ *
+ * <p>Correlation IDs enable distributed tracing across:
+ * HTTP Request → Controller → EventPublisher → Kafka → ReadModelProjector
  */
 @Component
-public class RequestContextInterceptor implements HandlerInterceptor {
+@Order(Ordered.HIGHEST_PRECEDENCE)
+public class CorrelationIdFilter extends OncePerRequestFilter {
 
-  private static final Logger logger = LoggerFactory.getLogger(RequestContextInterceptor.class);
-  private final RequestContext requestContext;
-
-  public RequestContextInterceptor(RequestContext requestContext) {
-    this.requestContext = requestContext;
-  }
-
-  @Override
-  public boolean preHandle(HttpServletRequest request,
-                            HttpServletResponse response,
-                            Object handler) {
-    // Add correlation ID to MDC (for logging)
-    MDC.put("correlationId", requestContext.getCorrelationId());
-
-    logger.debug("Request started: method={}, uri={}, correlationId={}",
-        request.getMethod(), request.getRequestURI(), requestContext.getCorrelationId());
-
-    return true;
-  }
+  /**
+   * MDC key for correlation ID (used in logging pattern and EventPublisher).
+   */
+  public static final String CORRELATION_ID_KEY = "correlationId";
 
   @Override
-  public void afterCompletion(HttpServletRequest request,
-                               HttpServletResponse response,
-                               Object handler,
-                               Exception ex) {
-    logger.debug("Request completed: duration={}ms, correlationId={}",
-        requestContext.getRequestDurationMs(), requestContext.getCorrelationId());
+  protected void doFilterInternal(HttpServletRequest request,
+                                  HttpServletResponse response,
+                                  FilterChain filterChain) throws ServletException, IOException {
+    // Generate UUIDv7 (time-ordered) for this request
+    String correlationId = UuidCreator.getTimeOrderedEpoch().toString();
 
-    // Clear MDC
-    MDC.remove("correlationId");
+    // Store in MDC for logging
+    MDC.put(CORRELATION_ID_KEY, correlationId);
+
+    try {
+      // Process request (correlation ID available throughout)
+      filterChain.doFilter(request, response);
+    } finally {
+      // Clean up MDC after request completes
+      MDC.remove(CORRELATION_ID_KEY);
+    }
   }
 }
 ```
 
-**Register interceptor:**
-
-**File:** `src/main/java/org/chucc/vcserver/config/WebMvcConfig.java`
-
-```java
-@Configuration
-public class WebMvcConfig implements WebMvcConfigurer {
-
-  @Autowired
-  private RequestContextInterceptor requestContextInterceptor;
-
-  @Override
-  public void addInterceptors(InterceptorRegistry registry) {
-    registry.addInterceptor(requestContextInterceptor);
-  }
-}
-```
+**Key design choices:**
+- `@Order(HIGHEST_PRECEDENCE)`: Run before all other filters/interceptors
+- `OncePerRequestFilter`: Guaranteed to run once per request
+- MDC cleanup in `finally`: Prevents memory leaks in thread pools
 
 ---
 
-### Step 2: Add Schema Version to Event Records (30 min)
-
-**Pattern:**
-```java
-public record CommitCreatedEvent(
-    String eventId,
-    String dataset,
-    // ... fields
-) implements VersionControlEvent {
-
-  public static final String SCHEMA_VERSION = "1.0";
-
-  @Override
-  public String getSchemaVersion() {
-    return SCHEMA_VERSION;
-  }
-}
-```
-
-**Add to VersionControlEvent interface:**
-```java
-public interface VersionControlEvent {
-  String getEventId();
-  String dataset();
-  AggregateIdentity getAggregateIdentity();
-
-  /**
-   * Returns the schema version for this event type.
-   * Format: Semantic versioning (e.g., "1.0", "2.0").
-   */
-  String getSchemaVersion();
-}
-```
-
-**Apply to all 12 event types** with `SCHEMA_VERSION = "1.0"`.
-
----
-
-### Step 3: Add Causation ID to Event Records (20 min)
-
-**Update select events to support causation:**
-
-**CommitCreatedEvent** (most important):
-```java
-public record CommitCreatedEvent(
-    String eventId,
-    String dataset,
-    String commitId,
-    List<String> parents,
-    String branch,
-    String author,
-    String message,
-    Instant timestamp,
-    String rdfPatch,
-    String causationId  // ✅ NEW: Optional causation ID
-) implements VersionControlEvent {
-
-  /**
-   * Factory method with causation.
-   */
-  public static CommitCreatedEvent createWithCausation(
-      String causationId,
-      String dataset,
-      // ... other params
-  ) {
-    return new CommitCreatedEvent(
-        UuidCreator.getTimeOrderedEpoch().toString(),
-        dataset,
-        commitId,
-        parents,
-        branch,
-        author,
-        message,
-        timestamp,
-        rdfPatch,
-        causationId  // Store causation
-    );
-  }
-
-  /**
-   * Factory method without causation (original).
-   */
-  public static CommitCreatedEvent create(
-      String dataset,
-      // ... params
-  ) {
-    return createWithCausation(null, dataset, ...);
-  }
-}
-```
-
-**Add causationId to select events:**
-- CommitCreatedEvent ✅
-- BranchResetEvent ✅
-- RevertCreatedEvent ✅
-- (Others: add if causation makes sense)
-
----
-
-### Step 4: Update EventPublisher Headers (15 min)
+### Step 2: Update EventPublisher to Add Headers (15 min)
 
 **File:** `src/main/java/org/chucc/vcserver/event/EventPublisher.java`
 
+**Add imports:**
+```java
+import java.time.Instant;
+import org.slf4j.MDC;
+```
+
+**Update `addHeaders()` method:**
 ```java
 private void addHeaders(Headers headers, VersionControlEvent event) {
-  // Core event metadata
-  headers.add(new RecordHeader(EventHeaders.EVENT_ID,
-      event.getEventId().getBytes(StandardCharsets.UTF_8)));
-  headers.add(new RecordHeader(EventHeaders.EVENT_TYPE,
-      event.getClass().getSimpleName()
-          .replace("Event", "")
-          .getBytes(StandardCharsets.UTF_8)));
-  headers.add(new RecordHeader(EventHeaders.SCHEMA_VERSION,
-      event.getSchemaVersion().getBytes(StandardCharsets.UTF_8)));
-  headers.add(new RecordHeader(EventHeaders.DATASET,
-      event.dataset().getBytes(StandardCharsets.UTF_8)));
+  // ... existing headers (dataset, eventType, eventId) ...
+
+  // Add timestamp (UTC epoch milliseconds)
   headers.add(new RecordHeader(EventHeaders.TIMESTAMP,
       String.valueOf(Instant.now().toEpochMilli()).getBytes(StandardCharsets.UTF_8)));
 
-  // Aggregate metadata
-  AggregateIdentity aggregateId = event.getAggregateIdentity();
-  headers.add(new RecordHeader(EventHeaders.AGGREGATE_TYPE,
-      aggregateId.getAggregateType().getBytes(StandardCharsets.UTF_8)));
-  headers.add(new RecordHeader(EventHeaders.AGGREGATE_ID,
-      aggregateId.getPartitionKey().getBytes(StandardCharsets.UTF_8)));
-
-  // Tracing metadata
-  String correlationId = getCorrelationId();
+  // Add correlation ID (from MDC, if available)
+  String correlationId = MDC.get(CorrelationIdFilter.CORRELATION_ID_KEY);
   if (correlationId != null) {
     headers.add(new RecordHeader(EventHeaders.CORRELATION_ID,
         correlationId.getBytes(StandardCharsets.UTF_8)));
   }
 
-  // Causation (if event supports it)
-  if (event instanceof CausationAware causationAwareEvent) {
-    String causationId = causationAwareEvent.getCausationId();
-    if (causationId != null) {
-      headers.add(new RecordHeader(EventHeaders.CAUSATION_ID,
-          causationId.getBytes(StandardCharsets.UTF_8)));
-    }
-  }
-
-  // ... event-specific headers (branch, commit, etc.)
-}
-
-/**
- * Get correlation ID from request context (Spring request scope).
- */
-private String getCorrelationId() {
-  try {
-    return requestContext.getCorrelationId();
-  } catch (Exception e) {
-    // Not in request scope (e.g., background job) - no correlation ID
-    return null;
-  }
+  // ... rest of existing code ...
 }
 ```
 
 **Update EventHeaders constants:**
 ```java
 public final class EventHeaders {
-  public static final String EVENT_ID = "eventId";
-  public static final String EVENT_TYPE = "eventType";
-  public static final String SCHEMA_VERSION = "schemaVersion";
-  public static final String DATASET = "dataset";
-  public static final String TIMESTAMP = "timestamp";
-  public static final String CORRELATION_ID = "correlationId";
-  public static final String CAUSATION_ID = "causationId";
-  public static final String AGGREGATE_TYPE = "aggregateType";
-  public static final String AGGREGATE_ID = "aggregateId";
-  // ... existing
-}
-```
-
----
-
-### Step 5: Create CausationAware Interface (10 min)
-
-**File:** `src/main/java/org/chucc/vcserver/event/CausationAware.java`
-
-```java
-package org.chucc.vcserver.event;
-
-/**
- * Marker interface for events that support causation tracking.
- * Causation ID indicates which event caused this event to be created.
- */
-public interface CausationAware {
+  // ... existing constants ...
 
   /**
-   * Returns the event ID that caused this event.
-   * Returns null if this event was not caused by another event (user action).
+   * Event timestamp (UTC epoch milliseconds).
+   * Format: "1729593600000"
    */
-  String getCausationId();
+  public static final String TIMESTAMP = "timestamp";
+
+  /**
+   * Correlation ID for distributed tracing.
+   * Tracks request flow: HTTP → Controller → Event → Projector.
+   * Format: UUIDv7 string (e.g., "01932c5c-8f7a-7890-b123-456789abcdef")
+   */
+  public static final String CORRELATION_ID = "correlationId";
 }
 ```
 
-**Implement in select events:**
-```java
-public record CommitCreatedEvent(..., String causationId)
-    implements VersionControlEvent, CausationAware {
-
-  @Override
-  public String getCausationId() {
-    return causationId;
-  }
-}
-```
+**Why `correlationId` is nullable:**
+- HTTP requests: correlation ID available (from filter)
+- Background jobs: correlation ID null (not in HTTP context)
+- Tests: correlation ID null (unless test sets MDC manually)
 
 ---
 
-### Step 6: Update Logging to Use Correlation ID (15 min)
+### Step 3: Update Logging Configuration (10 min)
 
-**Update logback-spring.xml** to include correlation ID:
+**File:** `src/main/resources/logback-spring.xml`
 
+**Update pattern to include correlation ID:**
 ```xml
 <configuration>
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [correlationId=%X{correlationId}] - %msg%n</pattern>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{correlationId}] - %msg%n</pattern>
     </encoder>
   </appender>
+
+  <!-- ... rest of config ... -->
 </configuration>
 ```
 
-**Example log output:**
+**Pattern explanation:**
+- `%X{correlationId}`: MDC value (empty string if not set)
+- Appears in all log statements during request
+
+**Example output:**
 ```
-2025-10-22 10:30:15.123 [http-nio-8080-exec-1] INFO  GraphStoreController [correlationId=01932c5c-8f7a-7890-b123] - PUT /data?branch=main
-2025-10-22 10:30:15.125 [http-nio-8080-exec-1] INFO  EventPublisher [correlationId=01932c5c-8f7a-7890-b123] - Publishing CommitCreatedEvent
-2025-10-22 10:30:15.130 [kafka-listener-1] INFO  ReadModelProjector [correlationId=01932c5c-8f7a-7890-b123] - Processing CommitCreatedEvent
+2025-10-22 10:30:15.123 [http-nio-8080-exec-1] INFO  GraphStoreController [01932c5c-8f7a-7890-b123] - PUT /data?branch=main
+2025-10-22 10:30:15.125 [http-nio-8080-exec-1] INFO  EventPublisher [01932c5c-8f7a-7890-b123] - Publishing CommitCreatedEvent
+2025-10-22 10:30:15.130 [kafka-listener-1] INFO  ReadModelProjector [01932c5c-8f7a-7890-b123] - Processing CommitCreatedEvent
 ```
+
+**Note:** `logback-test.xml` should be updated identically for test logs.
 
 ---
 
-### Step 7: Write Tests (30 min)
+### Step 4: Update ReadModelProjector to Log Correlation ID (10 min)
 
-**Unit Test:**
+**File:** `src/main/java/org/chucc/vcserver/projection/ReadModelProjector.java`
+
+**Update handler methods to extract and log correlation ID:**
+
+```java
+@KafkaListener(topics = "#{kafkaConfig.getEventsTopic()}", ...)
+public void handleEvent(ConsumerRecord<String, VersionControlEvent> record) {
+  VersionControlEvent event = record.value();
+  Headers headers = record.headers();
+
+  // Extract correlation ID from event headers (if present)
+  String correlationId = extractHeader(headers, EventHeaders.CORRELATION_ID);
+  if (correlationId != null) {
+    // Set in MDC so all logs in this handler include it
+    MDC.put(CorrelationIdFilter.CORRELATION_ID_KEY, correlationId);
+  }
+
+  try {
+    // ... existing event handling ...
+  } finally {
+    // Clean up MDC after event processed
+    MDC.remove(CorrelationIdFilter.CORRELATION_ID_KEY);
+  }
+}
+
+/**
+ * Extracts header value as UTF-8 string.
+ */
+private String extractHeader(Headers headers, String key) {
+  Header header = headers.lastHeader(key);
+  return header != null ? new String(header.value(), StandardCharsets.UTF_8) : null;
+}
+```
+
+**Why this matters:**
+- Kafka listener runs in different thread than HTTP request
+- MDC is thread-local, so we must manually propagate correlation ID
+- Now projector logs show which HTTP request triggered the event
+
+---
+
+### Step 5: Write Tests (15 min)
+
+**File:** `src/test/java/org/chucc/vcserver/event/EventPublisherTest.java`
+
+**Test 1: Correlation ID included when MDC set**
 ```java
 @Test
-void publish_shouldIncludeCorrelationIdInHeaders() {
-  // Arrange: Mock request context
-  when(requestContext.getCorrelationId()).thenReturn("test-correlation-123");
+void publish_shouldIncludeCorrelationIdWhenMdcSet() {
+  // Arrange: Set correlation ID in MDC (simulates HTTP request)
+  String expectedCorrelationId = "test-correlation-123";
+  MDC.put(CorrelationIdFilter.CORRELATION_ID_KEY, expectedCorrelationId);
+
+  try {
+    CommitCreatedEvent event = CommitCreatedEvent.create(...);
+
+    // Act
+    eventPublisher.publish(event);
+
+    // Assert: Verify header
+    ArgumentCaptor<ProducerRecord<String, VersionControlEvent>> captor =
+        ArgumentCaptor.forClass(ProducerRecord.class);
+    verify(kafkaTemplate).send(captor.capture());
+
+    Headers headers = captor.getValue().headers();
+    String actualCorrelationId = new String(
+        headers.lastHeader(EventHeaders.CORRELATION_ID).value(),
+        StandardCharsets.UTF_8);
+    assertThat(actualCorrelationId).isEqualTo(expectedCorrelationId);
+  } finally {
+    MDC.clear();
+  }
+}
+```
+
+**Test 2: No correlation ID when MDC not set**
+```java
+@Test
+void publish_shouldNotIncludeCorrelationIdWhenMdcNotSet() {
+  // Arrange: Clear MDC (simulates background job)
+  MDC.clear();
 
   CommitCreatedEvent event = CommitCreatedEvent.create(...);
 
   // Act
   eventPublisher.publish(event);
 
-  // Assert: Verify header
+  // Assert: Verify no correlation ID header
   ArgumentCaptor<ProducerRecord<String, VersionControlEvent>> captor =
       ArgumentCaptor.forClass(ProducerRecord.class);
   verify(kafkaTemplate).send(captor.capture());
 
   Headers headers = captor.getValue().headers();
-  String correlationId = new String(headers.lastHeader("correlationId").value());
-  assertThat(correlationId).isEqualTo("test-correlation-123");
+  assertThat(headers.lastHeader(EventHeaders.CORRELATION_ID)).isNull();
 }
+```
 
+**Test 3: Timestamp always included**
+```java
 @Test
-void publish_shouldIncludeSchemaVersionInHeaders() {
+void publish_shouldAlwaysIncludeTimestamp() {
   CommitCreatedEvent event = CommitCreatedEvent.create(...);
 
+  // Act
   eventPublisher.publish(event);
 
+  // Assert: Verify timestamp header
   ArgumentCaptor<ProducerRecord<String, VersionControlEvent>> captor =
       ArgumentCaptor.forClass(ProducerRecord.class);
   verify(kafkaTemplate).send(captor.capture());
 
   Headers headers = captor.getValue().headers();
-  String schemaVersion = new String(headers.lastHeader("schemaVersion").value());
-  assertThat(schemaVersion).isEqualTo("1.0");
+  String timestampStr = new String(
+      headers.lastHeader(EventHeaders.TIMESTAMP).value(),
+      StandardCharsets.UTF_8);
+
+  long timestamp = Long.parseLong(timestampStr);
+  assertThat(timestamp).isGreaterThan(1729593600000L); // Sanity check
+}
+```
+
+**Integration Test:**
+
+**File:** `src/test/java/org/chucc/vcserver/filter/CorrelationIdFilterIT.java`
+
+```java
+@SpringBootTest(webEnvironment = RANDOM_PORT)
+@ActiveProfiles("it")
+class CorrelationIdFilterIT extends IntegrationTestFixture {
+
+  @Test
+  void httpRequest_shouldGenerateCorrelationId() {
+    // Act: Make HTTP request
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/data?default=true&branch=main",
+        HttpMethod.PUT,
+        createTurtleEntity("<urn:s> <urn:p> <urn:o> ."),
+        String.class);
+
+    // Assert: Request succeeds
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+    // Note: Correlation ID is in logs (verified manually)
+    // and in Kafka event headers (verified by EventPublisherTest)
+  }
 }
 ```
 
 ---
 
-### Step 8: Documentation (20 min)
+### Step 6: Update Documentation (10 min)
 
-**Update:** `docs/architecture/cqrs-event-sourcing.md`
+**File:** `docs/architecture/cqrs-event-sourcing.md`
+
+**Add section:**
 
 ```markdown
-## Event Metadata
+## Event Metadata Headers
 
-All events include comprehensive metadata headers for tracing and debugging:
+All events published to Kafka include metadata headers for observability and debugging.
 
-### Header Fields
+### Standard Headers
 
 | Header | Type | Description | Example |
 |--------|------|-------------|---------|
 | `eventId` | String (UUIDv7) | Unique event identifier | `01932c5c-8f7a-7890-b123-456789abcdef` |
 | `eventType` | String | Event type name | `CommitCreated` |
-| `schemaVersion` | String | Event schema version (semantic versioning) | `1.0` |
 | `dataset` | String | Target dataset name | `default` |
-| `timestamp` | Long | Event creation timestamp (epoch millis) | `1729593600000` |
-| `correlationId` | String (UUIDv7) | Request trace ID (entire flow) | `01932c5c-1234-...` |
-| `causationId` | String (UUIDv7) | Which event caused this event | `01932c5c-5678-...` |
+| `timestamp` | Long (epoch millis) | When event was created (UTC) | `1729593600000` |
+| `correlationId` | String (UUIDv7) | Request trace ID (distributed tracing) | `01932c5c-1234-5678-9abc-def012345678` |
 | `aggregateType` | String | Aggregate type | `Branch` |
 | `aggregateId` | String | Aggregate instance ID | `default:main` |
 
 ### Distributed Tracing
 
-**Correlation ID**: Tracks entire request flow across system
+**Correlation ID** enables end-to-end request tracing across the CQRS architecture:
 
 ```
-HTTP Request → Controller → CommandHandler → EventPublisher → Kafka → Projector
-       ↓              ↓             ↓               ↓            ↓           ↓
-correlationId=abc-123 (same ID throughout entire flow)
-```
-
-**Example:**
-```
-2025-10-22 10:30:15.123 [correlationId=abc-123] GraphStoreController: PUT /data
-2025-10-22 10:30:15.125 [correlationId=abc-123] EventPublisher: Publishing CommitCreatedEvent
-2025-10-22 10:30:15.130 [correlationId=abc-123] ReadModelProjector: Processing event
-```
-
-### Causation Tracking
-
-**Causation ID**: Links events in event-driven flows
-
-```
-Event 1: BranchCreated (eventId=e1, causationId=null)
+HTTP Request (correlationId=abc-123)
   ↓
-Event 2: CommitCreated (eventId=e2, causationId=e1)  ← "Caused by e1"
+Controller (correlationId=abc-123)
   ↓
-Event 3: BranchReset (eventId=e3, causationId=e2)    ← "Caused by e2"
+EventPublisher (correlationId=abc-123)
+  ↓
+Kafka Event (header: correlationId=abc-123)
+  ↓
+ReadModelProjector (correlationId=abc-123)
 ```
 
-### Schema Evolution
-
-**Schema Version**: Enables backward-compatible changes
-
-```java
-// Version 1.0 (current)
-public record CommitCreatedEvent(
-    String eventId,
-    String commitId,
-    String author,
-    String message
-) {
-  public static final String SCHEMA_VERSION = "1.0";
-}
-
-// Version 2.0 (future - adds new field)
-public record CommitCreatedEvent(
-    String eventId,
-    String commitId,
-    String author,
-    String message,
-    List<String> tags  // ✅ NEW field
-) {
-  public static final String SCHEMA_VERSION = "2.0";
-}
-
-// Projector handles both
-public void handleCommitCreated(CommitCreatedEvent event) {
-  if (event.getSchemaVersion().equals("1.0")) {
-    // Handle v1.0
-  } else if (event.getSchemaVersion().equals("2.0")) {
-    // Handle v2.0 (with tags)
-  }
-}
+**Example logs:**
 ```
+2025-10-22 10:30:15.123 [01932c5c-...-b123] GraphStoreController: PUT /data?branch=main
+2025-10-22 10:30:15.125 [01932c5c-...-b123] EventPublisher: Publishing CommitCreatedEvent
+2025-10-22 10:30:15.130 [01932c5c-...-b123] ReadModelProjector: Processing CommitCreatedEvent
+                        ↑ Same correlation ID throughout entire flow
+```
+
+**Use cases:**
+- **Debugging:** "Which API call caused this projector error?"
+- **Performance:** "How long did this request take end-to-end?"
+- **Monitoring:** "Track request across async event processing"
+
+### Header Availability
+
+| Context | correlationId | timestamp |
+|---------|---------------|-----------|
+| HTTP requests | ✅ Present | ✅ Present |
+| Background jobs | ❌ Absent | ✅ Present |
+| Integration tests | ❌ Absent* | ✅ Present |
+
+*Can be set manually via `MDC.put("correlationId", "test-123")` in tests.
 ```
 
 ---
 
 ## Success Criteria
 
-- [ ] RequestContext bean created (request scope)
-- [ ] RequestContextInterceptor logs correlation ID
-- [ ] All events have SCHEMA_VERSION constant
-- [ ] CausationAware interface created
-- [ ] Select events support causation ID
-- [ ] EventPublisher adds all metadata headers
-- [ ] Logging includes correlation ID
-- [ ] Unit tests verify header inclusion (5+ tests)
-- [ ] Documentation updated
-- [ ] All tests pass
-- [ ] Zero quality violations
+- [x] CorrelationIdFilter created and registered
+- [x] EventPublisher adds correlationId header (when MDC set)
+- [x] EventPublisher adds timestamp header (always)
+- [x] EventHeaders constants updated (CORRELATION_ID, TIMESTAMP)
+- [x] ReadModelProjector extracts and logs correlation ID
+- [x] Logging configuration includes correlation ID pattern
+- [x] Unit tests verify header inclusion (3+ tests)
+- [x] Integration test verifies filter integration
+- [x] Documentation updated
+- [x] All tests pass (~911 tests)
+- [x] Zero quality violations (Checkstyle, SpotBugs, PMD)
+
+---
+
+## Future Enhancements
+
+**When actually needed** (not now - YAGNI):
+
+1. **Schema Versioning** - Add when first event schema evolution required
+   - `schemaVersion` header (e.g., "1.0", "2.0")
+   - Per-event constant: `CommitCreatedEvent.SCHEMA_VERSION = "1.0"`
+   - Projector version handling
+
+2. **Causation Tracking** - Add when implementing event-driven flows/sagas
+   - `causationId` header (which event caused this event)
+   - Event chains: Event1 → Event2 (causationId=Event1.eventId)
+   - Only needed if events trigger other events
+
+3. **User/Actor Tracking** - Add when implementing authentication
+   - `userId` header (who triggered the request)
+   - `actorType` header (user, system, api-key)
+
+**Don't implement until you have concrete use cases.**
 
 ---
 
 ## References
 
-- German Kafka CQRS/ES Best Practices
 - [Correlation ID Pattern (Microsoft)](https://docs.microsoft.com/en-us/azure/architecture/patterns/correlation-id)
+- [SLF4J MDC Documentation](https://www.slf4j.org/manual.html#mdc)
 - [EventPublisher.java](src/main/java/org/chucc/vcserver/event/EventPublisher.java)
+- German Kafka CQRS/ES Best Practices
 
 ---
 
 ## Notes
 
-**Complexity:** Medium
-**Time:** ~2-3 hours
-**Risk:** Low (additive change)
+**Complexity:** Low (standard pattern)
+**Time:** ~1-1.5 hours
+**Risk:** Very Low (additive change, no breaking changes)
 
-This task enables distributed tracing and schema evolution - critical for production systems.
+This task delivers immediate value (distributed tracing) without unnecessary complexity.

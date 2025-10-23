@@ -41,6 +41,19 @@ public final class EventHeaders {
    */
   public static final String EVENT_TYPE = "eventType";
 
+  /**
+   * Header key for the event timestamp (UTC epoch milliseconds).
+   * Format: "1729593600000"
+   */
+  public static final String TIMESTAMP = "timestamp";
+
+  /**
+   * Header key for the correlation ID used for distributed tracing.
+   * Tracks request flow: HTTP → Controller → Event → Projector.
+   * Format: UUIDv7 string (e.g., "01932c5c-8f7a-7890-b123-456789abcdef")
+   */
+  public static final String CORRELATION_ID = "correlationId";
+
   private EventHeaders() {
     throw new UnsupportedOperationException("Utility class");
   }

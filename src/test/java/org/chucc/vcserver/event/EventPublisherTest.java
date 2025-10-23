@@ -3,6 +3,8 @@ package org.chucc.vcserver.event;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Header;
 import org.chucc.vcserver.config.KafkaProperties;
+import org.chucc.vcserver.filter.CorrelationIdFilter;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
@@ -18,7 +21,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -226,6 +232,121 @@ class EventPublisherTest {
     // Verify aggregate headers
     assertHeaderExists(record, "aggregateType", "Branch");
     assertHeaderExists(record, "aggregateId", "test-dataset:main");
+  }
+
+  @AfterEach
+  void tearDown() {
+    // Always clean up MDC after tests
+    MDC.clear();
+  }
+
+  @Test
+  void publish_shouldIncludeCorrelationIdWhenMdcSet() {
+    // Arrange: Set correlation ID in MDC (simulates HTTP request)
+    String expectedCorrelationId = "test-correlation-123";
+    MDC.put(CorrelationIdFilter.CORRELATION_ID_KEY, expectedCorrelationId);
+
+    BranchCreatedEvent event = new BranchCreatedEvent(
+        "test-dataset",
+        "main",
+        "commit-123",
+        Instant.now()
+    );
+
+    // Act
+    eventPublisher.publish(event);
+
+    // Assert: Verify correlation ID header
+    verify(kafkaTemplate).send(recordCaptor.capture());
+    ProducerRecord<String, VersionControlEvent> record = recordCaptor.getValue();
+
+    Header correlationIdHeader = record.headers().lastHeader(EventHeaders.CORRELATION_ID);
+    assertNotNull(correlationIdHeader, "Correlation ID header should be present");
+    String actualCorrelationId = new String(correlationIdHeader.value(), StandardCharsets.UTF_8);
+    assertThat(actualCorrelationId).isEqualTo(expectedCorrelationId);
+  }
+
+  @Test
+  void publish_shouldNotIncludeCorrelationIdWhenMdcNotSet() {
+    // Arrange: Clear MDC (simulates background job or test environment)
+    MDC.clear();
+
+    BranchCreatedEvent event = new BranchCreatedEvent(
+        "test-dataset",
+        "main",
+        "commit-123",
+        Instant.now()
+    );
+
+    // Act
+    eventPublisher.publish(event);
+
+    // Assert: Verify no correlation ID header
+    verify(kafkaTemplate).send(recordCaptor.capture());
+    ProducerRecord<String, VersionControlEvent> record = recordCaptor.getValue();
+
+    Header correlationIdHeader = record.headers().lastHeader(EventHeaders.CORRELATION_ID);
+    assertNull(correlationIdHeader, "Correlation ID header should not be present when MDC not set");
+  }
+
+  @Test
+  void publish_shouldAlwaysIncludeTimestamp() {
+    // Arrange
+    long beforePublish = Instant.now().toEpochMilli();
+
+    BranchCreatedEvent event = new BranchCreatedEvent(
+        "test-dataset",
+        "main",
+        "commit-123",
+        Instant.now()
+    );
+
+    // Act
+    eventPublisher.publish(event);
+
+    long afterPublish = Instant.now().toEpochMilli();
+
+    // Assert: Verify timestamp header
+    verify(kafkaTemplate).send(recordCaptor.capture());
+    ProducerRecord<String, VersionControlEvent> record = recordCaptor.getValue();
+
+    Header timestampHeader = record.headers().lastHeader(EventHeaders.TIMESTAMP);
+    assertNotNull(timestampHeader, "Timestamp header should always be present");
+
+    String timestampStr = new String(timestampHeader.value(), StandardCharsets.UTF_8);
+    long timestamp = Long.parseLong(timestampStr);
+
+    // Timestamp should be between before and after publish
+    assertThat(timestamp).isGreaterThanOrEqualTo(beforePublish);
+    assertThat(timestamp).isLessThanOrEqualTo(afterPublish);
+  }
+
+  @Test
+  void publish_shouldIncludeEventIdHeader() {
+    // Arrange
+    CommitCreatedEvent event = new CommitCreatedEvent(
+        "test-dataset",
+        "commit-123",
+        List.of("parent-1"),
+        "main",
+        "Test commit",
+        "Alice <alice@example.com>",
+        Instant.now(),
+        "H 1 .\n"
+    );
+
+    // Act
+    eventPublisher.publish(event);
+
+    // Assert: Verify eventId header
+    verify(kafkaTemplate).send(recordCaptor.capture());
+    ProducerRecord<String, VersionControlEvent> record = recordCaptor.getValue();
+
+    Header eventIdHeader = record.headers().lastHeader(EventHeaders.EVENT_ID);
+    assertNotNull(eventIdHeader, "Event ID header should always be present");
+
+    String eventIdFromHeader = new String(eventIdHeader.value(), StandardCharsets.UTF_8);
+    assertThat(eventIdFromHeader).isEqualTo(event.eventId());
   }
 
   private void assertHeaderExists(

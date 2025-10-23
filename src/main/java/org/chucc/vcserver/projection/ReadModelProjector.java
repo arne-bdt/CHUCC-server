@@ -15,6 +15,9 @@ import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.Headers;
 import org.chucc.vcserver.config.ProjectorProperties;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
@@ -28,16 +31,19 @@ import org.chucc.vcserver.event.CherryPickedEvent;
 import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.event.CommitsSquashedEvent;
 import org.chucc.vcserver.event.DatasetDeletedEvent;
+import org.chucc.vcserver.event.EventHeaders;
 import org.chucc.vcserver.event.RevertCreatedEvent;
 import org.chucc.vcserver.event.SnapshotCreatedEvent;
 import org.chucc.vcserver.event.TagCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
+import org.chucc.vcserver.filter.CorrelationIdFilter;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SnapshotService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
@@ -99,8 +105,9 @@ public class ReadModelProjector {
   /**
    * Kafka listener for version control events.
    * Consumes events from all dataset topics matching the pattern.
+   * Extracts correlation ID from event headers for distributed tracing.
    *
-   * @param event the version control event
+   * @param record the Kafka consumer record containing event and headers
    */
   @KafkaListener(
       topicPattern = "vc\\..*\\.events",
@@ -112,23 +119,33 @@ public class ReadModelProjector {
       value = "REC_CATCH_EXCEPTION",
       justification = "Catch-all exception handler needed for projector resilience -"
           + " delegates to caller's retry/DLQ logic")
-  public void handleEvent(VersionControlEvent event) {
-    logger.debug("Received event: {} (id={}) for dataset: {}",
-        event.getClass().getSimpleName(), event.eventId(), event.dataset());
+  public void handleEvent(ConsumerRecord<String, VersionControlEvent> record) {
+    VersionControlEvent event = record.value();
+    Headers headers = record.headers();
 
-    // Deduplication: Check if we've already processed this event
-    if (projectorProperties.getDeduplication().isEnabled()) {
-      if (processedEventIds.getIfPresent(event.eventId()) != null) {
-        logger.warn("Skipping duplicate event: {} (id={}) for dataset: {}",
-            event.getClass().getSimpleName(), event.eventId(), event.dataset());
-        return; // Skip duplicate
-      }
-
-      // Mark event as processed (cache entry = true means "seen")
-      processedEventIds.put(event.eventId(), Boolean.TRUE);
+    // Extract correlation ID from event headers (if present) for distributed tracing
+    String correlationId = extractHeader(headers, EventHeaders.CORRELATION_ID);
+    if (correlationId != null) {
+      // Set in MDC so all logs in this handler include it
+      MDC.put(CorrelationIdFilter.CORRELATION_ID_KEY, correlationId);
     }
 
     try {
+      logger.debug("Received event: {} (id={}) for dataset: {}",
+          event.getClass().getSimpleName(), event.eventId(), event.dataset());
+
+      // Deduplication: Check if we've already processed this event
+      if (projectorProperties.getDeduplication().isEnabled()) {
+        if (processedEventIds.getIfPresent(event.eventId()) != null) {
+          logger.warn("Skipping duplicate event: {} (id={}) for dataset: {}",
+              event.getClass().getSimpleName(), event.eventId(), event.dataset());
+          return; // Skip duplicate
+        }
+
+        // Mark event as processed (cache entry = true means "seen")
+        processedEventIds.put(event.eventId(), Boolean.TRUE);
+      }
+
       switch (event) {
         case CommitCreatedEvent e -> handleCommitCreated(e);
         case BranchCreatedEvent e -> handleBranchCreated(e);
@@ -151,7 +168,22 @@ public class ReadModelProjector {
           event.getClass().getSimpleName(), event.eventId(), event.dataset(), ex);
       // Re-throw to trigger retry/DLQ handling if configured
       throw new ProjectionException("Failed to project event", ex);
+    } finally {
+      // Clean up MDC after event processed
+      MDC.remove(CorrelationIdFilter.CORRELATION_ID_KEY);
     }
+  }
+
+  /**
+   * Extracts header value as UTF-8 string from Kafka headers.
+   *
+   * @param headers the Kafka headers
+   * @param key the header key
+   * @return the header value as string, or null if not present
+   */
+  private String extractHeader(Headers headers, String key) {
+    Header header = headers.lastHeader(key);
+    return header != null ? new String(header.value(), StandardCharsets.UTF_8) : null;
   }
 
   /**

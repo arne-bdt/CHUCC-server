@@ -105,14 +105,7 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
-        <!-- UUID Generator -->
-        <dependency>
-            <groupId>com.fasterxml.uuid</groupId>
-            <artifactId>java-uuid-generator</artifactId>
-            <version>5.1.1</version>
-        </dependency>
-
-        <!-- UUIDv7 for time-ordered event IDs -->
+        <!-- UUIDv7 for time-ordered UUIDs (commits and events) -->
         <dependency>
             <groupId>com.github.f4b6a3</groupId>
             <artifactId>uuid-creator</artifactId>

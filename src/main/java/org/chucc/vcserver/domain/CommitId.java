@@ -1,6 +1,6 @@
 package org.chucc.vcserver.domain;
 
-import com.fasterxml.uuid.Generators;
+import com.github.f4b6a3.uuid.UuidCreator;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -34,7 +34,7 @@ public record CommitId(String value) {
    * @return a new CommitId with a UUIDv7 identifier
    */
   public static CommitId generate() {
-    UUID uuid = Generators.timeBasedEpochGenerator().generate();
+    UUID uuid = UuidCreator.getTimeOrderedEpoch();
     return new CommitId(uuid.toString());
   }
 

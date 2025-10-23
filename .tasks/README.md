@@ -135,8 +135,8 @@ Optional<Model> model = api.getGraph(
 - ✅ Partition key uses aggregate-ID pattern (ensures ordering guarantees)
 - ✅ Event deduplication implemented (UUIDv7-based exactly-once processing)
 - ✅ Correlation ID for distributed tracing (timestamp header included)
-- ⚠️ JSON serialization with manual type mappings (no comprehensive tests)
-- ⚠️ Snapshots not in separate compacted topic
+- ✅ Event serialization tests (comprehensive JSON round-trip validation)
+- ✅ Snapshot metadata caching (on-demand loading from Kafka)
 - ⚠️ Consumer isolation level not set to read_committed
 
 **Target State:** Production-ready Kafka CQRS/ES implementation with practical safeguards.
@@ -147,13 +147,12 @@ Optional<Model> model = api.getGraph(
 | 02. Implement Event Deduplication | `kafka-best-practices/02-implement-event-deduplication.md` | 🔴 **CRITICAL** | 3-4 hours | ✅ Completed |
 | 03. Add Correlation ID for Distributed Tracing | `kafka-best-practices/03-add-event-metadata-headers.md` | 🟡 Medium | 1-1.5 hours | ✅ Completed |
 | 04. Add Event Serialization Tests | `kafka-best-practices/04-add-event-serialization-tests.md` | 🟡 Medium | 30-45 min | ✅ Completed |
-| 05. Snapshot Compaction Strategy | `kafka-best-practices/05-snapshot-compaction-strategy.md` | 🟡 Low-Medium | 2-3 hours | 📋 Not Started |
-| 06. Transaction Support for Consumers | `kafka-best-practices/06-add-transaction-support-for-consumers.md` | 🟡 Medium | 2 hours | 📋 Not Started |
+| 05. Transaction Support for Consumers | `kafka-best-practices/06-add-transaction-support-for-consumers.md` | 🟡 Medium | 2 hours | 📋 Not Started |
 
 **Dependencies:**
 - ✅ Task 02 completed (Task 01 prerequisite)
 - ✅ Task 03 completed (Task 02 prerequisite)
-- None for remaining tasks (can be done in any order)
+- None for remaining task
 
 **Impact:**
 
@@ -163,17 +162,13 @@ Optional<Model> model = api.getGraph(
 3. ✅ **Correlation ID** - Full distributed tracing across HTTP → Kafka → Projector
 4. ✅ **Serialization Tests** - Comprehensive JSON round-trip validation for all 12 event types
 
-**Medium Priority (Production-Ready):**
-5. **Transaction Support** - Data integrity for consumers (2 hours)
-6. **Snapshot Compaction** - Storage efficiency (2-3 hours)
+**Remaining (Production-Ready):**
+5. **Transaction Support** - Data integrity for consumers (2 hours) ← **Next task**
 
-**Estimated Remaining Time:** 4-5 hours (spread across 2 tasks)
+**Estimated Remaining Time:** 2 hours
 
-**Recommended Order:**
-1. 🟡 Transaction Support (Task 06) - 2 hours ← **Start here**
-2. 🟡 Snapshot Compaction (Task 05) - 2-3 hours
-
-**Deferred:**
+**Deferred (Premature Optimization):**
+- **Snapshot Compaction Strategy** - Current metadata caching (Caffeine) is sufficient for current scale (~100 snapshots, ~100MB storage). Proposed Kafka log compaction would use `dataset:branch` key which would delete historical snapshots needed for time-travel queries. Revisit when: (1) snapshot storage exceeds 10GB, OR (2) query latency exceeds 500ms, OR (3) alternative key design solves historical retention requirement.
 - **Schema Registry** - Over-engineered for current single-app architecture. Revisit when external consumers emerge (polyglot microservices, data analytics, third-party integrations)
 
 ---
@@ -349,12 +344,11 @@ When adding new tasks:
 
 **Remaining:**
 - 📋 Java APIs (2 tasks)
-- 🟡 Kafka Best Practices (2 tasks remaining)
-- **Total remaining:** 4 tasks
+- 🟡 Kafka Best Practices (1 task remaining)
+- **Total remaining:** 3 tasks
 
-**Progress:** ~81% complete (17 of 21 tasks)
+**Progress:** ~85% complete (17 of 20 tasks)
 
 **Next Steps (Priority Order):**
-1. 🟡 Medium: Transaction support for consumers (kafka-best-practices/06) - 2 hours ← **START HERE**
-2. 🟡 Medium: Snapshot compaction strategy (kafka-best-practices/05) - 2-3 hours
-3. 🟢 Low: Create Java APIs (java-api/01-02) - 6-8 hours
+1. 🟡 Medium: Transaction support for consumers (kafka-best-practices/05) - 2 hours ← **START HERE**
+2. 🟢 Low: Create Java APIs (java-api/01-02) - 6-8 hours

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.chucc.vcserver.dto.ConflictItem;
+import org.springframework.http.HttpStatus;
 
 /**
  * Thrown when a merge operation cannot proceed due to conflicts.
@@ -26,7 +27,7 @@ public class MergeConflictException extends VcException {
    * @param conflicts the list of conflict items
    */
   public MergeConflictException(String message, List<ConflictItem> conflicts) {
-    super(message, "merge_conflict", 409);
+    super(message, "merge_conflict", HttpStatus.CONFLICT);
     this.conflicts = conflicts != null ? new ArrayList<>(conflicts) : new ArrayList<>();
   }
 
@@ -39,7 +40,7 @@ public class MergeConflictException extends VcException {
    */
   public MergeConflictException(String message, List<ConflictItem> conflicts,
                                 Throwable cause) {
-    super(message, "merge_conflict", 409, cause);
+    super(message, "merge_conflict", HttpStatus.CONFLICT, cause);
     this.conflicts = conflicts != null ? new ArrayList<>(conflicts) : new ArrayList<>();
   }
 

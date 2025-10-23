@@ -1,5 +1,7 @@
 package org.chucc.vcserver.exception;
 
+import org.springframework.http.HttpStatus;
+
 /**
  * Thrown when multiple mutually exclusive selectors are provided.
  * Error code: selector_conflict
@@ -13,7 +15,7 @@ public class SelectorConflictException extends VcException {
    * @param message the detail message
    */
   public SelectorConflictException(String message) {
-    super(message, "selector_conflict", 400);
+    super(message, "selector_conflict", HttpStatus.BAD_REQUEST);
   }
 
   /**
@@ -23,6 +25,6 @@ public class SelectorConflictException extends VcException {
    * @param cause the cause of this exception
    */
   public SelectorConflictException(String message, Throwable cause) {
-    super(message, "selector_conflict", 400, cause);
+    super(message, "selector_conflict", HttpStatus.BAD_REQUEST, cause);
   }
 }

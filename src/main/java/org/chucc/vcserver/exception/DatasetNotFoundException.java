@@ -16,6 +16,6 @@ public class DatasetNotFoundException extends VcException {
    * @param message the error message
    */
   public DatasetNotFoundException(String message) {
-    super(message, ERROR_CODE, HttpStatus.NOT_FOUND.value());
+    super(message, ERROR_CODE, HttpStatus.NOT_FOUND);
   }
 }

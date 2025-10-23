@@ -16,6 +16,6 @@ public class UnconfirmedDeletionException extends VcException {
    * @param message the error message
    */
   public UnconfirmedDeletionException(String message) {
-    super(message, ERROR_CODE, HttpStatus.BAD_REQUEST.value());
+    super(message, ERROR_CODE, HttpStatus.BAD_REQUEST);
   }
 }

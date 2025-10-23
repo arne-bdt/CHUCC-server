@@ -45,6 +45,21 @@ public class KafkaProperties {
    */
   private String transactionalIdPrefix = "vc-tx-";
 
+  /**
+   * Producer configuration.
+   */
+  private Producer producer = new Producer();
+
+  /**
+   * Consumer configuration.
+   */
+  private Consumer consumer = new Consumer();
+
+  /**
+   * Snapshot store configuration.
+   */
+  private SnapshotStore snapshotStore = new SnapshotStore();
+
   public String getBootstrapServers() {
     return bootstrapServers;
   }
@@ -101,6 +116,48 @@ public class KafkaProperties {
     this.transactionalIdPrefix = transactionalIdPrefix;
   }
 
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "EI_EXPOSE_REP",
+      justification = "Producer is a Spring configuration bean")
+  public Producer getProducer() {
+    return producer;
+  }
+
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "EI_EXPOSE_REP2",
+      justification = "Producer is a Spring configuration bean")
+  public void setProducer(Producer producer) {
+    this.producer = producer;
+  }
+
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "EI_EXPOSE_REP",
+      justification = "Consumer is a Spring configuration bean")
+  public Consumer getConsumer() {
+    return consumer;
+  }
+
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "EI_EXPOSE_REP2",
+      justification = "Consumer is a Spring configuration bean")
+  public void setConsumer(Consumer consumer) {
+    this.consumer = consumer;
+  }
+
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "EI_EXPOSE_REP",
+      justification = "SnapshotStore is a Spring configuration bean")
+  public SnapshotStore getSnapshotStore() {
+    return snapshotStore;
+  }
+
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "EI_EXPOSE_REP2",
+      justification = "SnapshotStore is a Spring configuration bean")
+  public void setSnapshotStore(SnapshotStore snapshotStore) {
+    this.snapshotStore = snapshotStore;
+  }
+
   /**
    * Gets the topic name for a specific dataset.
    *
@@ -109,5 +166,59 @@ public class KafkaProperties {
    */
   public String getTopicName(String dataset) {
     return topicTemplate.replace("{dataset}", dataset);
+  }
+
+  /**
+   * Producer configuration properties.
+   */
+  public static class Producer {
+    private int retries = 3;
+
+    public int getRetries() {
+      return retries;
+    }
+
+    public void setRetries(int retries) {
+      this.retries = retries;
+    }
+  }
+
+  /**
+   * Consumer configuration properties.
+   */
+  public static class Consumer {
+    private int autoCommitIntervalMs = 1000;
+
+    public int getAutoCommitIntervalMs() {
+      return autoCommitIntervalMs;
+    }
+
+    public void setAutoCommitIntervalMs(int autoCommitIntervalMs) {
+      this.autoCommitIntervalMs = autoCommitIntervalMs;
+    }
+  }
+
+  /**
+   * Snapshot store configuration properties.
+   */
+  public static class SnapshotStore {
+    private int metadataCacheMaxSize = 100;
+    private int pollTimeoutSeconds = 5;
+
+    public int getMetadataCacheMaxSize() {
+      return metadataCacheMaxSize;
+    }
+
+    public void setMetadataCacheMaxSize(int metadataCacheMaxSize) {
+      this.metadataCacheMaxSize = metadataCacheMaxSize;
+    }
+
+    public int getPollTimeoutSeconds() {
+      return pollTimeoutSeconds;
+    }
+
+    public void setPollTimeoutSeconds(int pollTimeoutSeconds) {
+      this.pollTimeoutSeconds = pollTimeoutSeconds;
+    }
   }
 }

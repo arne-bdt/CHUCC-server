@@ -209,7 +209,8 @@ public class SparqlController {
       return ResponseEntity
           .status(HttpStatus.BAD_REQUEST)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(e.getMessage(), 400, "SELECTOR_CONFLICT"));
+          .body(new ProblemDetail(e.getMessage(), HttpStatus.BAD_REQUEST.value(),
+              "SELECTOR_CONFLICT"));
     }
 
     // Use dataset parameter passed from caller
@@ -243,18 +244,19 @@ public class SparqlController {
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(
               "SPARQL query is malformed: " + e.getMessage(),
-              400,
+              HttpStatus.BAD_REQUEST.value(),
               "MALFORMED_QUERY"));
     } catch (BranchNotFoundException | CommitNotFoundException e) {
       return ResponseEntity
           .status(HttpStatus.NOT_FOUND)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(e.getMessage(), 404, "NOT_FOUND"));
+          .body(new ProblemDetail(e.getMessage(), HttpStatus.NOT_FOUND.value(), "NOT_FOUND"));
     } catch (IllegalArgumentException e) {
       return ResponseEntity
           .status(HttpStatus.BAD_REQUEST)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(e.getMessage(), 400, "INVALID_REQUEST"));
+          .body(new ProblemDetail(e.getMessage(), HttpStatus.BAD_REQUEST.value(),
+              "INVALID_REQUEST"));
     }
   }
 
@@ -400,7 +402,7 @@ public class SparqlController {
     if (message == null || message.isBlank()) {
       ProblemDetail problem = new ProblemDetail(
           "SPARQL-VC-Message header is required for UPDATE operations",
-          400,
+          HttpStatus.BAD_REQUEST.value(),
           "MISSING_HEADER");
       return ResponseEntity.status(HttpStatus.BAD_REQUEST)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
@@ -410,7 +412,7 @@ public class SparqlController {
     if (author == null || author.isBlank()) {
       ProblemDetail problem = new ProblemDetail(
           "SPARQL-VC-Author header is required for UPDATE operations",
-          400,
+          HttpStatus.BAD_REQUEST.value(),
           "MISSING_HEADER");
       return ResponseEntity.status(HttpStatus.BAD_REQUEST)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
@@ -427,7 +429,7 @@ public class SparqlController {
       } catch (IllegalArgumentException e) {
         ProblemDetail problem = new ProblemDetail(
             "Invalid If-Match header: " + e.getMessage(),
-            400,
+            HttpStatus.BAD_REQUEST.value(),
             "INVALID_ETAG");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .contentType(MediaType.APPLICATION_PROBLEM_JSON)
@@ -469,7 +471,7 @@ public class SparqlController {
     } catch (MalformedUpdateException e) {
       ProblemDetail problem = new ProblemDetail(
           e.getMessage(),
-          400,
+          HttpStatus.BAD_REQUEST.value(),
           "MALFORMED_UPDATE");
       return ResponseEntity.status(HttpStatus.BAD_REQUEST)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
@@ -477,7 +479,7 @@ public class SparqlController {
     } catch (PreconditionFailedException e) {
       ProblemDetail problem = new ProblemDetail(
           e.getMessage(),
-          412,
+          HttpStatus.PRECONDITION_FAILED.value(),
           "PRECONDITION_FAILED");
       return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
@@ -485,7 +487,7 @@ public class SparqlController {
     } catch (UpdateExecutionException e) {
       ProblemDetail problem = new ProblemDetail(
           e.getMessage(),
-          500,
+          HttpStatus.INTERNAL_SERVER_ERROR.value(),
           "UPDATE_EXECUTION_ERROR");
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
@@ -493,7 +495,7 @@ public class SparqlController {
     } catch (IllegalArgumentException e) {
       ProblemDetail problem = new ProblemDetail(
           e.getMessage(),
-          400,
+          HttpStatus.BAD_REQUEST.value(),
           "INVALID_REQUEST");
       return ResponseEntity.status(HttpStatus.BAD_REQUEST)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)

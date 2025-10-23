@@ -87,6 +87,13 @@ kafka:
   replication-factor: 1
   retention-ms: -1  # -1 for infinite retention
   compaction: false  # false for append-only (no log compaction)
+  producer:
+    retries: 3  # Number of retries for failed sends
+  consumer:
+    auto-commit-interval-ms: 1000  # Auto-commit interval (1 second)
+  snapshot-store:
+    metadata-cache-max-size: 100  # Max number of cached snapshot metadata entries
+    poll-timeout-seconds: 5  # Kafka consumer poll timeout
 
 # Read Model Projector configuration
 projector:
@@ -95,3 +102,11 @@ projector:
   deduplication:
     enabled: true  # Enable event deduplication (at-least-once → exactly-once)
     cache-size: 100000  # Max event IDs to cache (~5-10 MB RAM)
+
+# Async Executor configuration
+async:
+  snapshot-executor:
+    core-pool-size: 2
+    max-pool-size: 4
+    queue-capacity: 100
+    await-termination-seconds: 60

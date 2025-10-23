@@ -1,5 +1,7 @@
 package org.chucc.vcserver.exception;
 
+import org.springframework.http.HttpStatus;
+
 /**
  * Thrown when a specified graph does not exist.
  * Error code: graph_not_found
@@ -13,7 +15,7 @@ public class GraphNotFoundException extends VcException {
    * @param message the detail message
    */
   public GraphNotFoundException(String message) {
-    super(message, "graph_not_found", 404);
+    super(message, "graph_not_found", HttpStatus.NOT_FOUND);
   }
 
   /**
@@ -23,6 +25,6 @@ public class GraphNotFoundException extends VcException {
    * @param cause the cause of this exception
    */
   public GraphNotFoundException(String message, Throwable cause) {
-    super(message, "graph_not_found", 404, cause);
+    super(message, "graph_not_found", HttpStatus.NOT_FOUND, cause);
   }
 }

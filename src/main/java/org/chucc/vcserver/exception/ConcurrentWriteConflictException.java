@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.chucc.vcserver.dto.ConflictItem;
+import org.springframework.http.HttpStatus;
 
 /**
  * Thrown when a concurrent write is detected and the operation is rejected.
@@ -25,7 +26,7 @@ public class ConcurrentWriteConflictException extends VcException {
    * @param message the detail message
    */
   public ConcurrentWriteConflictException(String message) {
-    super(message, "concurrent_write_conflict", 409);
+    super(message, "concurrent_write_conflict", HttpStatus.CONFLICT);
     this.conflicts = new ArrayList<>();
   }
 
@@ -36,7 +37,7 @@ public class ConcurrentWriteConflictException extends VcException {
    * @param cause the cause of this exception
    */
   public ConcurrentWriteConflictException(String message, Throwable cause) {
-    super(message, "concurrent_write_conflict", 409, cause);
+    super(message, "concurrent_write_conflict", HttpStatus.CONFLICT, cause);
     this.conflicts = new ArrayList<>();
   }
 
@@ -47,7 +48,7 @@ public class ConcurrentWriteConflictException extends VcException {
    * @param conflicts the list of conflicting items
    */
   public ConcurrentWriteConflictException(String message, List<ConflictItem> conflicts) {
-    super(message, "concurrent_write_conflict", 409);
+    super(message, "concurrent_write_conflict", HttpStatus.CONFLICT);
     this.conflicts = conflicts != null ? new ArrayList<>(conflicts) : new ArrayList<>();
   }
 
@@ -60,7 +61,7 @@ public class ConcurrentWriteConflictException extends VcException {
    */
   public ConcurrentWriteConflictException(String message, List<ConflictItem> conflicts,
       Throwable cause) {
-    super(message, "concurrent_write_conflict", 409, cause);
+    super(message, "concurrent_write_conflict", HttpStatus.CONFLICT, cause);
     this.conflicts = conflicts != null ? new ArrayList<>(conflicts) : new ArrayList<>();
   }
 

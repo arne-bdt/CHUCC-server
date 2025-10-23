@@ -16,6 +16,6 @@ public class BranchNotFoundException extends VcException {
    * @param branchName the name of the branch that was not found
    */
   public BranchNotFoundException(String branchName) {
-    super("Branch not found: " + branchName, ERROR_CODE, HttpStatus.NOT_FOUND.value());
+    super("Branch not found: " + branchName, ERROR_CODE, HttpStatus.NOT_FOUND);
   }
 }

@@ -207,6 +207,7 @@ public class BatchGraphsController {
     if (colon < 0) {
       return -1;
     }
+    // CHECKSTYLE.SUPPRESS: MagicNumber - Length of "[Operation " string literal
     String numStr = message.substring(start + 11, colon).trim();
     try {
       return Integer.parseInt(numStr) - 1; // Convert to 0-based index

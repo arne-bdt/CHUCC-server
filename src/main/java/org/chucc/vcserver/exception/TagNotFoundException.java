@@ -16,6 +16,6 @@ public class TagNotFoundException extends VcException {
    * @param tagName the name of the tag that was not found
    */
   public TagNotFoundException(String tagName) {
-    super("Tag not found: " + tagName, ERROR_CODE, HttpStatus.NOT_FOUND.value());
+    super("Tag not found: " + tagName, ERROR_CODE, HttpStatus.NOT_FOUND);
   }
 }

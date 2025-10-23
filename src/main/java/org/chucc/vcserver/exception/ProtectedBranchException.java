@@ -16,6 +16,6 @@ public class ProtectedBranchException extends VcException {
    * @param message the error message
    */
   public ProtectedBranchException(String message) {
-    super(message, ERROR_CODE, HttpStatus.FORBIDDEN.value());
+    super(message, ERROR_CODE, HttpStatus.FORBIDDEN);
   }
 }

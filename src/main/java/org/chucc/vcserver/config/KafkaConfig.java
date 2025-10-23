@@ -79,7 +79,7 @@ public class KafkaConfig {
         JsonSerializer.class);
     configProps.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
     configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-    configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
+    configProps.put(ProducerConfig.RETRIES_CONFIG, kafkaProperties.getProducer().getRetries());
     configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
 
     // Transactional producer configuration (optional)
@@ -182,7 +182,8 @@ public class KafkaConfig {
 
     // Enable auto-commit for simplicity (at-least-once delivery)
     configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
-    configProps.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 1000);
+    configProps.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
+        kafkaProperties.getConsumer().getAutoCommitIntervalMs());
 
     // Poll for topic metadata more frequently to discover new topics quickly
     // Default is 5 minutes (300000ms), reduce to 1 second for faster discovery

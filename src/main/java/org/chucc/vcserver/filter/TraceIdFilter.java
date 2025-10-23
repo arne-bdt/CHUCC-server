@@ -31,6 +31,7 @@ public class TraceIdFilter implements Filter {
   @Override
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
       throws IOException, ServletException {
+    // CHECKSTYLE.SUPPRESS: MagicNumber - Truncate UUID to first 8 characters for compact logging
     String traceId = UUID.randomUUID().toString().substring(0, 8);
     MDC.put(TRACE_ID_KEY, traceId);
     try {

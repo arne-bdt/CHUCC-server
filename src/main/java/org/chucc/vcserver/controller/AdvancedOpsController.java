@@ -698,7 +698,7 @@ public class AdvancedOpsController {
   private ResponseEntity<?> createBadRequestResponse(String message, String errorCode) {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
         .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-        .body(new ProblemDetail(message, 400, errorCode));
+        .body(new ProblemDetail(message, HttpStatus.BAD_REQUEST.value(), errorCode));
   }
 
   /**
@@ -710,6 +710,6 @@ public class AdvancedOpsController {
   private ResponseEntity<?> createNotFoundResponse(String message) {
     return ResponseEntity.status(HttpStatus.NOT_FOUND)
         .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-        .body(new ProblemDetail(message, 404, "NOT_FOUND"));
+        .body(new ProblemDetail(message, HttpStatus.NOT_FOUND.value(), "NOT_FOUND"));
   }
 }

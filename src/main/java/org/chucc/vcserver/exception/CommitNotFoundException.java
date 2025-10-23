@@ -16,7 +16,7 @@ public class CommitNotFoundException extends VcException {
    * @param commitId the ID of the commit that was not found
    */
   public CommitNotFoundException(String commitId) {
-    super("Commit not found: " + commitId, ERROR_CODE, HttpStatus.NOT_FOUND.value());
+    super("Commit not found: " + commitId, ERROR_CODE, HttpStatus.NOT_FOUND);
   }
 
   /**
@@ -28,6 +28,6 @@ public class CommitNotFoundException extends VcException {
    */
   @SuppressWarnings("PMD.UnusedFormalParameter")
   public CommitNotFoundException(String message, boolean useCustomMessage) {
-    super(message, ERROR_CODE, HttpStatus.NOT_FOUND.value());
+    super(message, ERROR_CODE, HttpStatus.NOT_FOUND);
   }
 }

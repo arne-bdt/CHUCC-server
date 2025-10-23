@@ -1,5 +1,7 @@
 package org.chucc.vcserver.exception;
 
+import org.springframework.http.HttpStatus;
+
 /**
  * Exception thrown when an If-Match precondition fails due to concurrent modification.
  *
@@ -22,7 +24,7 @@ public class PreconditionFailedException extends VcException {
     super(
         "If-Match precondition failed: expected " + expected + ", actual " + actual,
         "concurrent_modification_conflict",
-        409
+        HttpStatus.CONFLICT
     );
     this.expected = expected;
     this.actual = actual;

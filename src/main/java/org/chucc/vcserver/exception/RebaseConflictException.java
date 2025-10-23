@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.chucc.vcserver.dto.ConflictItem;
+import org.springframework.http.HttpStatus;
 
 /**
  * Thrown when a rebase operation encounters conflicts.
@@ -26,7 +27,7 @@ public class RebaseConflictException extends VcException {
    * @param conflicts the list of conflict items
    */
   public RebaseConflictException(String message, List<ConflictItem> conflicts) {
-    super(message, "rebase_conflict", 409);
+    super(message, "rebase_conflict", HttpStatus.CONFLICT);
     this.conflicts = conflicts != null ? new ArrayList<>(conflicts) : new ArrayList<>();
   }
 
@@ -39,7 +40,7 @@ public class RebaseConflictException extends VcException {
    */
   public RebaseConflictException(String message, List<ConflictItem> conflicts,
                                  Throwable cause) {
-    super(message, "rebase_conflict", 409, cause);
+    super(message, "rebase_conflict", HttpStatus.CONFLICT, cause);
     this.conflicts = conflicts != null ? new ArrayList<>(conflicts) : new ArrayList<>();
   }
 

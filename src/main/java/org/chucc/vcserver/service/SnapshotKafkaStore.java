@@ -65,14 +65,15 @@ public class SnapshotKafkaStore {
     // Only caches lightweight metadata (CommitId, timestamp, Kafka position)
     // NOT the full graph data
     this.metadataCache = Caffeine.newBuilder()
-        .maximumSize(100)  // 100 datasets (small memory footprint)
+        .maximumSize(kafkaProperties.getSnapshotStore().getMetadataCacheMaxSize())
         .expireAfterWrite(vcProperties.getSnapshotMetadataCacheTtl(), TimeUnit.SECONDS)
         .recordStats()
         .build();
 
     logger.info("SnapshotKafkaStore initialized with metadata cache "
-        + "(TTL: {} seconds, max size: 100 datasets)",
-        vcProperties.getSnapshotMetadataCacheTtl());
+        + "(TTL: {} seconds, max size: {} datasets)",
+        vcProperties.getSnapshotMetadataCacheTtl(),
+        kafkaProperties.getSnapshotStore().getMetadataCacheMaxSize());
   }
 
   /**
@@ -241,7 +242,8 @@ public class SnapshotKafkaStore {
       consumer.seek(partition, info.offset());
 
       // Fetch the record
-      ConsumerRecords<String, Object> records = consumer.poll(Duration.ofSeconds(5));
+      ConsumerRecords<String, Object> records = consumer.poll(
+          Duration.ofSeconds(kafkaProperties.getSnapshotStore().getPollTimeoutSeconds()));
 
       for (ConsumerRecord<String, Object> record : records) {
         if (record.offset() == info.offset()) {

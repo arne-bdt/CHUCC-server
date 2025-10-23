@@ -15,6 +15,6 @@ public class TagDeletionForbiddenException extends VcException {
    */
   public TagDeletionForbiddenException() {
     super("Tag deletion is disabled by server policy",
-        ERROR_CODE, HttpStatus.FORBIDDEN.value());
+        ERROR_CODE, HttpStatus.FORBIDDEN);
   }
 }

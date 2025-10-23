@@ -137,7 +137,7 @@ public class CommitController {
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(
               "Invalid selector",
-              400,
+              HttpStatus.BAD_REQUEST.value(),
               "SELECTOR_REQUIRED"));
     }
 
@@ -146,7 +146,7 @@ public class CommitController {
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(
               "Cannot provide both 'branch' and 'commit' selectors",
-              400,
+              HttpStatus.BAD_REQUEST.value(),
               "SELECTOR_CONFLICT"));
     }
 
@@ -155,7 +155,7 @@ public class CommitController {
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(
               "'asOf' selector can only be used with 'branch', not 'commit'",
-              400,
+              HttpStatus.BAD_REQUEST.value(),
               "INVALID_SELECTOR_COMBINATION"));
     }
 
@@ -165,7 +165,7 @@ public class CommitController {
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(
               "'asOf' selector requires 'branch' parameter",
-              400,
+              HttpStatus.BAD_REQUEST.value(),
               "INVALID_SELECTOR_COMBINATION"));
     }
 

@@ -130,7 +130,7 @@ public class HistoryController {
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(
               "Diff endpoint is disabled",
-              404,
+              HttpStatus.NOT_FOUND.value(),
               "NOT_FOUND"
           ).toString());
     }
@@ -177,7 +177,7 @@ public class HistoryController {
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(
               "Blame endpoint is disabled",
-              404,
+              HttpStatus.NOT_FOUND.value(),
               "NOT_FOUND"
           ).toString());
     }

@@ -67,9 +67,17 @@ The following task areas have been **successfully completed** and their task fil
 - Backward compatible with default value = "default"
 - Full API consistency across all endpoints
 
+### ✅ Kafka Best Practices (Completed)
+- Aggregate-ID based partition key strategy ensures event ordering
+- UUIDv7-based event deduplication for exactly-once processing
+- Correlation ID support for distributed tracing (HTTP → Kafka → Projector)
+- Comprehensive event serialization tests (JSON round-trip validation)
+- Idempotent non-transactional publishing optimized for single-event pattern
+- Production-ready CQRS/Event Sourcing implementation
+
 For details on completed work, see git history:
 ```bash
-git log --oneline --grep="cache\|snapshot\|deletion\|named graph\|CQRS\|event flow\|time-travel\|migrate.*Graph\|dataset parameter" --since="2025-10-01"
+git log --oneline --grep="cache\|snapshot\|deletion\|named graph\|CQRS\|event flow\|time-travel\|migrate.*Graph\|dataset parameter\|partition key\|deduplication\|correlation" --since="2025-10-01"
 ```
 
 ---
@@ -126,57 +134,48 @@ Optional<Model> model = api.getGraph(
 
 ---
 
-### 2. Kafka Best Practices
+## Deferred Features
 
-**Goal:** Implement Kafka CQRS/Event Sourcing best practices based on industry standards.
+The following features were evaluated but deferred as premature optimizations. They may be revisited when specific conditions are met:
 
-**Current State:** CHUCC Server uses Kafka for event sourcing with production-ready best practices:
-- ✅ Partition key uses aggregate-ID pattern (ensures ordering guarantees)
-- ✅ Event deduplication implemented (UUIDv7-based exactly-once processing)
-- ✅ Correlation ID for distributed tracing (timestamp header included)
-- ✅ Event serialization tests (comprehensive JSON round-trip validation)
-- ✅ Snapshot metadata caching (on-demand loading from Kafka)
-- ✅ Idempotent non-transactional publishing (optimal for single-event pattern)
+### Snapshot Compaction Strategy
+**Status:** Deferred
 
-**Target State:** ✅ **ACHIEVED** - Production-ready Kafka CQRS/ES implementation with practical safeguards.
+Current metadata caching (Caffeine) is sufficient for current scale (~100 snapshots, ~100MB storage). Proposed Kafka log compaction would use `dataset:branch` key which would delete historical snapshots needed for time-travel queries.
 
-| Task | File | Priority | Est. Time | Status |
-|------|------|----------|-----------|--------|
-| 01. Fix Partition Key Strategy | `kafka-best-practices/01-fix-partition-key-strategy.md` | 🔴 **CRITICAL** | 3-4 hours | ✅ Completed |
-| 02. Implement Event Deduplication | `kafka-best-practices/02-implement-event-deduplication.md` | 🔴 **CRITICAL** | 3-4 hours | ✅ Completed |
-| 03. Add Correlation ID for Distributed Tracing | `kafka-best-practices/03-add-event-metadata-headers.md` | 🟡 Medium | 1-1.5 hours | ✅ Completed |
-| 04. Add Event Serialization Tests | `kafka-best-practices/04-add-event-serialization-tests.md` | 🟡 Medium | 30-45 min | ✅ Completed |
+**Revisit when:**
+1. Snapshot storage exceeds 10GB, OR
+2. Query latency exceeds 500ms, OR
+3. Alternative key design solves historical retention requirement
 
-**Dependencies:**
-- ✅ Task 02 completed (Task 01 prerequisite)
-- ✅ Task 03 completed (Task 02 prerequisite)
-- ✅ Task 04 completed (Task 03 prerequisite)
+### Schema Registry
+**Status:** Deferred
 
-**Impact:**
+Over-engineered for current single-app architecture. All event consumers are in the same Java application using shared event classes.
 
-**Completed:**
-1. ✅ **Partition Key Strategy** - Aggregate-ID based partitioning ensures ordering
-2. ✅ **Event Deduplication** - Exactly-once processing with UUIDv7 cache
-3. ✅ **Correlation ID** - Full distributed tracing across HTTP → Kafka → Projector
-4. ✅ **Serialization Tests** - Comprehensive JSON round-trip validation for all 12 event types
+**Revisit when:**
+- External consumers emerge (polyglot microservices, data analytics, third-party integrations)
 
-**All Kafka best practices tasks completed!**
+### Kafka Transaction Support & read_committed
+**Status:** Deferred
 
-**Deferred (Premature Optimization):**
-- **Snapshot Compaction Strategy** - Current metadata caching (Caffeine) is sufficient for current scale (~100 snapshots, ~100MB storage). Proposed Kafka log compaction would use `dataset:branch` key which would delete historical snapshots needed for time-travel queries. Revisit when: (1) snapshot storage exceeds 10GB, OR (2) query latency exceeds 500ms, OR (3) alternative key design solves historical retention requirement.
-- **Schema Registry** - Over-engineered for current single-app architecture. Revisit when external consumers emerge (polyglot microservices, data analytics, third-party integrations).
-- **Transaction Support & read_committed** - Current idempotent non-transactional publishing is sufficient. Each command publishes ONE event (no multi-event atomicity needed). Transactions only beneficial for coordinating multiple event publishes atomically. Current approach (retry + idempotence) is simpler and performs better (~50% higher throughput). Revisit when: (1) coordinating writes across multiple Kafka topics, OR (2) batch operations require rollback capability, OR (3) multi-event atomic publishing is needed.
+Current idempotent non-transactional publishing is sufficient. Each command publishes ONE event (no multi-event atomicity needed). Current approach (retry + idempotence) is simpler and performs better (~50% higher throughput).
+
+**Revisit when:**
+1. Coordinating writes across multiple Kafka topics, OR
+2. Batch operations require rollback capability, OR
+3. Multi-event atomic publishing is needed
 
 ---
 
 ## Recommended Implementation Order
 
-### Phase 1: Java APIs (Medium Priority)
+### Java APIs (Medium Priority)
 
 **Goal:** Provide programmatic access for embedded use cases
 
-2. 📋 `java-api/01-create-java-sparql-api.md` (3-4 hours)
-3. 📋 `java-api/02-create-java-graph-store-api.md` (3-4 hours)
+1. 📋 `java-api/01-create-java-sparql-api.md` (3-4 hours)
+2. 📋 `java-api/02-create-java-graph-store-api.md` (3-4 hours)
 
 **Rationale:** Nice-to-have for embedded use. Can be deferred if time-constrained.
 

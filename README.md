@@ -221,10 +221,11 @@ To temporarily increase test logging, override in your test:
 - ✅ Kafka best practices: Aggregate-ID partition key strategy
 - ✅ Kafka best practices: UUIDv7-based event deduplication
 - ✅ Kafka best practices: Correlation ID for distributed tracing
+- ✅ Kafka best practices: Comprehensive event serialization tests
+- ✅ Production-ready CQRS/Event Sourcing implementation
 
 **Remaining Tasks:**
 - 📋 Java API layer (programmatic access without HTTP)
-- 📋 Kafka CQRS/ES best practices (Schema Registry, transaction support, snapshot compaction)
 
 See [Task Roadmap](./.tasks/README.md) for detailed status and remaining work.
 

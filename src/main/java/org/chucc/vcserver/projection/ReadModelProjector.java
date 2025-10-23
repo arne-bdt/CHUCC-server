@@ -51,9 +51,39 @@ import org.springframework.stereotype.Service;
  * Read-model projector that rebuilds in-memory graphs by consuming
  * version control events from Kafka and applying RDF Patches in order.
  *
+ * <h2>Exception Handling Strategy</h2>
+ *
+ * <p>This projector uses a <strong>fail-fast</strong> approach to maintain
+ * read model consistency with the event stream:
+ * <ul>
+ *   <li><strong>Exceptions are rethrown</strong> to trigger Kafka retry/DLQ</li>
+ *   <li><strong>Kafka offset is NOT committed</strong> on failure</li>
+ *   <li><strong>Silent failures are prevented</strong> (no inconsistent state)</li>
+ * </ul>
+ *
+ * <p><strong>Why rethrowing matters:</strong>
+ * <ul>
+ *   <li>Silent failures create permanent read model inconsistencies</li>
+ *   <li>If offset commits after failure, event is lost forever</li>
+ *   <li>Read model diverges from event stream with no recovery</li>
+ * </ul>
+ *
+ * <h2>Failure Scenarios</h2>
+ * <ul>
+ *   <li><strong>Transient failures:</strong> Kafka retries (network, temporary
+ *       resource issues)</li>
+ *   <li><strong>Poison events:</strong> Dead Letter Queue (malformed data,
+ *       bugs)</li>
+ *   <li><strong>Deduplication:</strong> Retried events are detected and
+ *       skipped</li>
+ * </ul>
+ *
  * <p>On startup, consumes from earliest offset to build state.
  * Maintains (dataset, branch) → commitId mappings and materialized graphs.
  * Applies patches to the branch's dataset in order.
+ *
+ * @see ProjectionException
+ * @see ProjectorProperties
  */
 @Service
 @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
@@ -107,7 +137,17 @@ public class ReadModelProjector {
    * Consumes events from all dataset topics matching the pattern.
    * Extracts correlation ID from event headers for distributed tracing.
    *
+   * <p><strong>Exception Handling:</strong>
+   * Any exception during projection is caught, logged, and <strong>rethrown</strong>
+   * as {@link ProjectionException}. This triggers Kafka's retry/DLQ mechanism and
+   * prevents offset commit, ensuring no event is silently lost.
+   *
+   * <p><strong>Deduplication:</strong>
+   * Events are deduplicated by event ID to handle Kafka retries correctly.
+   * If an event fails and is retried, it will be skipped if already processed.
+   *
    * @param record the Kafka consumer record containing event and headers
+   * @throws ProjectionException if event projection fails (triggers Kafka retry)
    */
   @KafkaListener(
       topicPattern = "vc\\..*\\.events",

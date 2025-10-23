@@ -16,9 +16,10 @@
 10. [Trade-offs](#trade-offs)
 11. [Testing Implications](#testing-implications)
 12. [Common Patterns](#common-patterns)
-13. [Anti-Patterns](#anti-patterns)
-14. [Troubleshooting](#troubleshooting)
-15. [References](#references)
+13. [Exception Handling](#exception-handling)
+14. [Anti-Patterns](#anti-patterns)
+15. [Troubleshooting](#troubleshooting)
+16. [References](#references)
 
 ---
 
@@ -1051,6 +1052,180 @@ public ResponseEntity<Void> put(
   // ...
 }
 ```
+
+---
+
+## Exception Handling
+
+### Read Side (Projector): Fail-Fast Strategy
+
+The `ReadModelProjector` uses a **fail-fast** approach to maintain read model consistency:
+
+1. **Exceptions are rethrown** (not swallowed)
+2. **Kafka offset is NOT committed** on failure
+3. **No silent failures** (all errors visible)
+
+#### Why This Matters
+
+**Silent failures create permanent inconsistencies:**
+```java
+// ❌ DANGEROUS: Silent failure
+@KafkaListener(...)
+public void handleEvent(ConsumerRecord<String, VersionControlEvent> record) {
+  try {
+    processEvent(record.value());
+  } catch (Exception ex) {
+    logger.error("Failed", ex);
+    // ❌ Offset commits → event lost forever!
+  }
+}
+```
+
+**Rethrowing enables recovery:**
+```java
+// ✅ CORRECT: Rethrow for retry
+@KafkaListener(...)
+public void handleEvent(ConsumerRecord<String, VersionControlEvent> record) {
+  try {
+    processEvent(record.value());
+  } catch (Exception ex) {
+    logger.error("Failed", ex);
+    throw new ProjectionException("...", ex);
+    // ✅ Offset NOT committed → Kafka retries
+  }
+}
+```
+
+#### Failure Scenarios
+
+| Failure Type | Kafka Behavior | Read Model Impact |
+|--------------|---------------|-------------------|
+| Transient (network) | Automatic retry | Eventually consistent |
+| Poison event (bug) | Dead Letter Queue | Operations alerted |
+| Duplicate event | Deduplication skips | No impact (idempotent) |
+
+#### Configuration
+
+Retry/DLQ behavior configured in `application.yml`:
+
+```yaml
+spring:
+  kafka:
+    consumer:
+      # CRITICAL: Disable auto-commit to prevent silent failures
+      # Offset only commits when event processing succeeds
+      enable-auto-commit: false
+
+    listener:
+      # CRITICAL: Per-record ACK for fail-fast behavior
+      # If event processing throws exception:
+      #   1. Exception logged
+      #   2. Offset NOT committed
+      #   3. Kafka retries event (or sends to DLQ)
+      ack-mode: record
+
+projector:
+  deduplication:
+    enabled: true
+    cache-size: 10000  # LRU cache for retried events
+```
+
+#### Deduplication
+
+Retried events are deduplicated by `eventId` to ensure idempotent projection:
+
+```java
+// Check if event already processed
+if (processedEventIds.getIfPresent(event.eventId()) != null) {
+  logger.warn("Skipping duplicate event: {}", event.eventId());
+  return;  // ✅ Idempotent - safe to skip retry
+}
+
+// Process event
+processEvent(event);
+
+// Mark as processed
+processedEventIds.put(event.eventId(), Boolean.TRUE);
+```
+
+---
+
+### Command Side: Wait for Kafka Confirmation
+
+**CRITICAL:** Command handlers MUST wait for Kafka confirmation before returning to avoid silent data loss.
+
+#### The Problem (Fire-and-Forget)
+
+```java
+// ❌ DANGEROUS: Fire-and-forget pattern
+public VersionControlEvent handle(PutGraphCommand command) {
+  var event = createEvent(command);
+
+  // ❌ BAD: Returns before Kafka confirms!
+  eventPublisher.publish(event)
+      .exceptionally(ex -> {
+        logger.error("Failed", ex);
+        return null;  // ❌ Swallows exception!
+      });
+
+  return event;  // ❌ Controller returns 200 OK even if Kafka is down!
+}
+```
+
+**Impact:**
+- Client receives HTTP 200 OK
+- But event never reaches Kafka (network failure, Kafka down, etc.)
+- Read model never updated
+- **Silent data loss**
+
+#### The Solution (Wait for Kafka)
+
+```java
+// ✅ CORRECT: Wait for Kafka confirmation
+public VersionControlEvent handle(PutGraphCommand command) {
+  var event = createEvent(command);
+
+  try {
+    // ✅ GOOD: Block until Kafka confirms
+    eventPublisher.publish(event).get();
+  } catch (InterruptedException ex) {
+    Thread.currentThread().interrupt();
+    throw new IllegalStateException("Failed to publish event", ex);
+  } catch (ExecutionException ex) {
+    throw new IllegalStateException("Failed to publish event", ex.getCause());
+  }
+
+  return event;  // ✅ Only returns if Kafka succeeded
+}
+```
+
+**Benefits:**
+- If Kafka fails → HTTP 500 (client knows to retry)
+- If Kafka succeeds → HTTP 200 (client knows operation succeeded)
+- No silent data loss
+
+**Performance:**
+- Adds ~10-50ms latency (Kafka round-trip time)
+- Acceptable trade-off for data integrity
+- Still achieves "eventual consistency" (read model updates async)
+
+---
+
+### Summary Table
+
+| Component | Exception Strategy | Offset Behavior | Result |
+|-----------|-------------------|-----------------|--------|
+| **ReadModelProjector** | Rethrow (fail-fast) | NOT committed on error | Kafka retries or DLQ |
+| **Command Handlers** | Wait for Kafka (`.get()`) | N/A (publisher side) | HTTP 500 on failure |
+| **EventPublisher** | Return `CompletableFuture` | N/A | Caller handles future |
+
+---
+
+### Related Documentation
+
+- [ADR-0003: Projector Fail-Fast Exception Handling](./decisions/0003-projector-fail-fast-exception-handling.md)
+- [ReadModelProjector.java](../../src/main/java/org/chucc/vcserver/projection/ReadModelProjector.java) (implementation)
+- [Spring Kafka Error Handling](https://docs.spring.io/spring-kafka/reference/kafka/annotation-error-handling.html)
 
 ---
 

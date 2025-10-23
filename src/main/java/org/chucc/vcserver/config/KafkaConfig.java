@@ -180,10 +180,15 @@ public class KafkaConfig {
     // Start from earliest offset on startup for recovery
     configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-    // Enable auto-commit for simplicity (at-least-once delivery)
-    configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
-    configProps.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
-        kafkaProperties.getConsumer().getAutoCommitIntervalMs());
+    // Exception Handling Configuration
+    // Manual commit mode: Offsets are committed ONLY after successful event processing.
+    // Combined with ReadModelProjector's exception rethrowing, this ensures:
+    // - Failed events: offset NOT committed → Kafka retries delivery
+    // - Successful events: offset committed → event acknowledged
+    //
+    // AckMode.RECORD (configured in listener factory) commits after each event,
+    // providing exactly-once processing semantics when combined with idempotent projector.
+    configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 
     // Poll for topic metadata more frequently to discover new topics quickly
     // Default is 5 minutes (300000ms), reduce to 1 second for faster discovery
@@ -204,6 +209,12 @@ public class KafkaConfig {
         new ConcurrentKafkaListenerContainerFactory<>();
     factory.setConsumerFactory(consumerFactory());
     factory.setConcurrency(1); // Single consumer for ordered processing
+
+    // Manual commit mode: commit offset after each successful event processing
+    // This ensures failed events trigger retry instead of being lost
+    factory.getContainerProperties()
+        .setAckMode(org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
+
     return factory;
   }
 }

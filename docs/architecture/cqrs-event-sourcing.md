@@ -1053,6 +1053,231 @@ public ResponseEntity<Void> put(
 }
 ```
 
+### Pattern 5: Client Retry Strategies
+
+**Purpose**: Handle network failures and ensure safe retries after HTTP 202 Accepted responses
+
+#### Strategy 1: Optimistic Locking with If-Match (Recommended)
+
+**Best for**: Preventing concurrent modifications
+
+```http
+# Step 1: Read current state
+GET /data?branch=main&graph=http://example.org/graph1
+  ← 200 OK
+  ETag: "commit-abc-123"
+
+# Step 2: Write with precondition
+PUT /data?branch=main&graph=http://example.org/graph1
+If-Match: "commit-abc-123"
+Content-Type: text/turtle
+
+@prefix ex: <http://example.org/> .
+ex:subject ex:predicate ex:object .
+
+# Success: Branch unchanged
+  ← 202 Accepted
+  Location: /version/commits/commit-def-456
+  ETag: "commit-def-456"
+
+# Failure: Concurrent write occurred
+  ← 412 Precondition Failed
+  (Client must re-read state and retry)
+```
+
+**Benefits**:
+- Standard HTTP pattern
+- Prevents lost updates
+- Server detects conflicts immediately
+
+**Implementation**:
+```javascript
+async function safeWrite(graphUri, turtle) {
+  // 1. Read current state
+  const currentState = await fetch(`/data?branch=main&graph=${graphUri}`);
+  const currentETag = currentState.headers.get('ETag');
+
+  // 2. Write with precondition
+  const response = await fetch(`/data?branch=main&graph=${graphUri}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'text/turtle',
+      'If-Match': currentETag  // Prevents concurrent writes
+    },
+    body: turtle
+  });
+
+  if (response.status === 412) {
+    // Concurrent write - retry with fresh state
+    return safeWrite(graphUri, turtle);
+  }
+
+  return response.headers.get('ETag');
+}
+```
+
+#### Strategy 2: Commit Existence Check
+
+**Best for**: Recovering from network failures after 202 Accepted
+
+```http
+# Step 1: Write operation
+PUT /data?branch=main&graph=http://example.org/graph1
+Content-Type: text/turtle
+
+@prefix ex: <http://example.org/> .
+ex:subject ex:predicate ex:object .
+
+# Response received (before network failure)
+  ← 202 Accepted
+  Location: /version/commits/commit-xyz-789
+  ETag: "commit-xyz-789"
+
+# Network fails - did the write succeed?
+
+# Step 2: Check commit existence
+GET /version/commits/commit-xyz-789
+
+# Success: Write completed
+  ← 200 OK
+  (No retry needed)
+
+# Failure: Write didn't complete
+  ← 404 Not Found
+  (Safe to retry)
+```
+
+**Benefits**:
+- Verifies write completion
+- Safe retry decision
+- Uses commit ID from Location header
+
+**Implementation**:
+```javascript
+async function writeWithRecovery(graphUri, turtle, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // 1. Attempt write
+      const response = await fetch(`/data?branch=main&graph=${graphUri}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/turtle' },
+        body: turtle
+      });
+
+      if (response.status === 202) {
+        const commitId = extractCommitId(response.headers.get('Location'));
+
+        // 2. Verify completion (wait for projection)
+        await waitForCommit(commitId, 10000);  // 10 second timeout
+        return commitId;
+      }
+
+    } catch (networkError) {
+      // Network failure - check if write succeeded
+      const lastCommitId = extractLastAttemptCommitId();
+      if (lastCommitId) {
+        const exists = await checkCommitExists(lastCommitId);
+        if (exists) {
+          return lastCommitId;  // Write succeeded, no retry needed
+        }
+      }
+
+      if (attempt === maxRetries - 1) throw networkError;
+      await sleep(1000 * Math.pow(2, attempt));  // Exponential backoff
+    }
+  }
+}
+
+async function waitForCommit(commitId, timeoutMs) {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeoutMs) {
+    const response = await fetch(`/version/commits/${commitId}`);
+    if (response.status === 200) {
+      return true;  // Commit projected to read model
+    }
+    await sleep(100);  // Poll every 100ms
+  }
+
+  throw new Error('Commit projection timeout');
+}
+
+async function checkCommitExists(commitId) {
+  const response = await fetch(`/version/commits/${commitId}`);
+  return response.status === 200;
+}
+```
+
+#### Strategy 3: Accept Duplicates
+
+**Best for**: Operations where duplicates are acceptable
+
+```http
+# Step 1: Write operation (attempt 1)
+PUT /data?branch=main&graph=http://example.org/graph1
+Content-Type: text/turtle
+
+@prefix ex: <http://example.org/> .
+ex:subject ex:predicate ex:object .
+
+  ← 202 Accepted
+  Location: /version/commits/commit-111
+  ETag: "commit-111"
+
+# Network fails - client retries
+
+# Step 2: Write operation (attempt 2)
+PUT /data?branch=main&graph=http://example.org/graph1
+Content-Type: text/turtle
+
+@prefix ex: <http://example.org/> .
+ex:subject ex:predicate ex:object .
+
+  ← 202 Accepted
+  Location: /version/commits/commit-222  # Different commit
+  ETag: "commit-222"
+
+# Result: Two identical commits exist
+
+# Step 3: Clean up duplicates later
+POST /version/branches/main/squash
+Content-Type: application/json
+
+{
+  "fromCommit": "commit-111",
+  "toCommit": "commit-222",
+  "message": "Squash duplicate commits"
+}
+
+  ← 202 Accepted
+  Location: /version/commits/commit-333
+```
+
+**Benefits**:
+- Simplest client implementation
+- No precondition checks needed
+- Duplicates cleaned up via squash
+
+**When to use**:
+- Idempotent operations (same content)
+- Batch operations where duplicates can be detected
+- Development/testing environments
+
+**Drawbacks**:
+- Creates redundant commits
+- Requires manual cleanup (squash)
+- Increases storage and history clutter
+
+#### Strategy Comparison
+
+| Strategy | Prevents Duplicates | Network Fault Tolerance | Complexity | Use Case |
+|----------|-------------------|------------------------|------------|----------|
+| **If-Match** | ✅ Yes | ⚠️ Requires retry logic | Medium | Production (recommended) |
+| **Commit Check** | ✅ Yes | ✅ Full recovery | High | Critical operations |
+| **Accept Duplicates** | ❌ No | ✅ Simple retry | Low | Dev/test, batch jobs |
+
+**Recommendation**: Use **If-Match** (Strategy 1) for most production scenarios. Add **Commit Check** (Strategy 2) for critical operations requiring guaranteed delivery.
+
 ---
 
 ## Exception Handling

@@ -1,16 +1,14 @@
 # CHUCC Server - Task Roadmap
 
-This directory contains task breakdowns for remaining features and enhancements planned for CHUCC Server. Each task is designed to be completable in one development session (3-6 hours).
+This directory previously contained task breakdowns for CHUCC Server features and enhancements. Each task was designed to be completable in one development session (3-6 hours).
 
 ---
 
-## Overview
+## Status: ALL TASKS COMPLETED ✅
 
-This roadmap tracks the **remaining tasks** for CHUCC Server. Completed tasks have been removed from this directory.
+**All planned tasks have been successfully completed and removed from this directory.**
 
-**Remaining task areas:**
-1. **Java APIs** - Create plain Java APIs matching SPARQL and Graph Store protocols
-2. **Command-Side Exception Handling** - Fix fire-and-forget pattern (CRITICAL)
+The CHUCC Server implementation is feature-complete according to the original roadmap.
 
 ---
 
@@ -90,89 +88,68 @@ The following task areas have been **successfully completed** and their task fil
   - EventualConsistencyIT tests verify HTTP 202 pattern
   - 100+ integration tests updated to new HTTP semantics
 
+### ✅ Specification Cleanup (Completed)
+- Removed redundant SPARQL-VC-Commit header (Occam's Razor)
+- Header provided no functionality beyond `?commit=` parameter
+- Simplified protocol specifications (SPARQL + GSP extensions)
+- Removed from OpenAPI specification
+- Cleaned up controller implementations
+- All 711 tests pass with zero violations
+
 For details on completed work, see git history:
 ```bash
-git log --oneline --grep="cache\|snapshot\|deletion\|named graph\|CQRS\|event flow\|time-travel\|migrate.*Graph\|dataset parameter\|partition key\|deduplication\|correlation\|202 Accepted" --since="2025-10-01"
+git log --oneline --since="2025-10-01"
 ```
 
 ---
 
-## Task Categories
+## Final Statistics
 
-### 1. Specification Cleanup
+**Total tasks completed:** 25 tasks across 11 categories
 
-**Goal:** Apply Occam's Razor to remove redundant features from specifications and implementation.
+**Test suite:** 711 tests (all passing)
 
-**Current State:** SPARQL-VC-Commit header exists in specs but provides no functionality beyond ?commit= parameter.
+**Quality gates:** Zero violations
+- ✅ Checkstyle: PASSED
+- ✅ SpotBugs: PASSED
+- ✅ PMD: PASSED
+- ✅ CPD: PASSED
+- ✅ Compiler warnings: Zero (enforced by `-Werror`)
 
-**Target State:** Clean, minimal specification with no redundant features.
-
-| Task | File | Priority | Est. Time | Status |
-|------|------|----------|-----------|--------|
-| 01. Remove SPARQL-VC-Commit Header | `spec-cleanup/remove-sparql-vc-commit-header.md` | Low | 2-3 hours | 📋 Not Started |
-
-**Rationale:** Header was documented but never implemented functionally (marked "reserved for future use"). The ?commit= query parameter already provides all necessary functionality.
-
----
-
-### 2. Java APIs
-
-**Goal:** Create plain Java APIs for SPARQL Protocol and Graph Store Protocol that can be used without HTTP overhead.
-
-**Current State:** Only HTTP endpoints available.
-
-**Target State:** Clean Java APIs for embedded use, testing, and library integration.
-
-| Task | File | Priority | Est. Time | Status |
-|------|------|----------|-----------|--------|
-| 01. Create Java SPARQL API | `java-api/01-create-java-sparql-api.md` | Medium | 3-4 hours | 📋 Not Started |
-| 02. Create Java Graph Store API | `java-api/02-create-java-graph-store-api.md` | Medium | 3-4 hours | 📋 Not Started |
-
-**Dependencies:** Task 01 should be completed first to establish API patterns.
+**Progress:** 100% complete 🎉
 
 ---
 
+## Architecture & Documentation
+
+For understanding the implemented system:
+
+- **[Architecture Overview](../docs/architecture/README.md)** - Complete system understanding
+- **[CQRS + Event Sourcing Guide](../docs/architecture/cqrs-event-sourcing.md)** - Core pattern explanation
+- **[C4 Component Diagram](../docs/architecture/c4-level3-component.md)** - Component structure
+- **[Development Guidelines](../.claude/CLAUDE.md)** - "How-to" for development
+- **[OpenAPI Guide](../docs/api/openapi-guide.md)** - API documentation
 
 ---
 
-**API Style:**
-```java
-// SPARQL Protocol API
-@Autowired
-private SparqlProtocolApi api;
+## Future Development
 
-SparqlQueryResult result = api.query(
-    "SELECT * WHERE { ?s ?p ?o } LIMIT 10",
-    SparqlSelector.branch("main")
-);
+For new features or enhancements:
 
-// Graph Store Protocol API
-@Autowired
-private GraphStoreProtocolApi api;
-
-Optional<Model> model = api.getGraph(
-    "http://example.org/graph1",
-    GraphSelector.branch("main")
-);
-```
-
-**Use Cases:**
-- Embedded applications
-- Unit testing without HTTP overhead
-- Library integration
-- Microservices communication
-
-**Benefits:**
-- No HTTP serialization/deserialization overhead
-- Direct method invocation (10-100x faster)
-- Type-safe API (compile-time checking)
-- Better for testing (no need to start HTTP server)
+1. Create a new task file in `.tasks/<category>/` folder
+2. Follow the task template (see git history for examples)
+3. Ensure task is completable in one session (3-6 hours)
+4. Include detailed implementation steps
+5. Provide code examples
+6. Define clear success criteria
+7. Update this README when task is added
+8. **Delete the task file** when completed
 
 ---
 
 ## Deferred Features
 
-The following features were evaluated but deferred as premature optimizations. They may be revisited when specific conditions are met:
+The following features were evaluated but intentionally deferred as premature optimizations:
 
 ### Snapshot Compaction Strategy
 **Status:** Deferred
@@ -204,193 +181,15 @@ Current idempotent non-transactional publishing is sufficient. Each command publ
 
 ---
 
-## Recommended Implementation Order
-
-### Specification Cleanup (Low Priority - Quick Win)
-
-**Goal:** Simplify specifications by removing unused features
-
-1. 📋 `spec-cleanup/remove-sparql-vc-commit-header.md` (2-3 hours)
-
-**Rationale:** Low-risk cleanup that reduces specification complexity. Quick win with minimal testing required.
-
-**Estimated Time:** 2-3 hours total
-
----
-
-### Java APIs (Medium Priority)
-
-**Goal:** Provide programmatic access for embedded use cases
-
-1. 📋 `java-api/01-create-java-sparql-api.md` (3-4 hours)
-2. 📋 `java-api/02-create-java-graph-store-api.md` (3-4 hours)
-
-**Rationale:** Nice-to-have for embedded use. Can be deferred if time-constrained.
-
-**Estimated Time:** 6-8 hours total
-
----
-
-## How to Use This Roadmap
-
-### For Developers
-
-1. **Pick a task** from the appropriate phase
-2. **Read the task file** thoroughly - it contains:
-   - Context and goals
-   - Step-by-step implementation plan
-   - Code examples and tests
-   - Success criteria
-3. **Implement the task** following TDD principles:
-   - Write tests first
-   - Implement incrementally
-   - Run quality checks (Checkstyle, SpotBugs, PMD)
-4. **Verify completion** using success criteria
-5. **Commit and document** the changes
-6. **Delete the task file** once completed
-
-### For Project Managers
-
-- **Phase 1 tasks are critical** - unlock performance improvements across the codebase
-- **Phase 2 tasks are enhancements** - nice-to-have for embedded use
-- **Phase 3 tasks are completion** - finish the refactoring work
-
-### For Architects
-
-- All tasks follow **CQRS + Event Sourcing** patterns (where applicable)
-- All tasks maintain **backward compatibility**
-- All tasks have **comprehensive tests**
-
----
-
-## Task File Structure
-
-Each task file follows this template:
-
-```markdown
-# Task: [Task Name]
-
-**Status:** Not Started / In Progress / Completed
-**Priority:** High / Medium / Low
-**Estimated Time:** X hours
-**Dependencies:** List of prerequisite tasks
-
-## Context
-- Current state
-- Problem statement
-- Goal
-
-## Design Decisions
-- Key choices made
-- Trade-offs considered
-
-## Implementation Plan
-- Step 1: [Description]
-- Step 2: [Description]
-- ...
-
-## Tests
-- Unit tests
-- Integration tests
-- Performance tests (if applicable)
-
-## Success Criteria
-- [ ] Criterion 1
-- [ ] Criterion 2
-- ...
-
-## Rollback Plan
-- How to revert if issues arise
-
-## Future Enhancements
-- Ideas for later improvements
-```
-
----
-
-## Metrics & Monitoring
-
-After implementing Java API tasks, monitor:
-
-**API Performance Metrics:**
-- `api.sparql.query.time` - Query execution time
-- `api.sparql.update.time` - Update execution time
-- `api.graph.get.time` - Graph retrieval time
-
-After implementing refactoring tasks, monitor:
-
-**Performance Metrics:**
-- `graph.diff.time` - Graph diff operation time (should decrease by 20-30%)
-- `jvm.memory.used` - Heap usage (should decrease by 15-25%)
-
----
-
 ## Contributing
 
-When adding new tasks:
-
-1. Create a new directory if needed (e.g., `.tasks/new-feature/`)
-2. Follow the task template above
-3. Ensure task is completable in one session (3-6 hours)
-4. Include detailed implementation steps
-5. Provide code examples
-6. Define clear success criteria
-7. Update this README with the new task
-
-**When completing a task:**
-1. Verify all success criteria met
-2. Ensure all tests pass (currently ~911 tests)
-3. Verify zero quality violations (Checkstyle, SpotBugs, PMD)
-4. Commit with conventional commit message
-5. **Delete the task file and folder** (if folder is empty)
-6. Update this README
+See [Contributing Guide](../docs/development/contributing.md) for development workflow.
 
 ---
 
 ## References
 
-- [Architecture Overview](../docs/architecture/README.md)
-- [CQRS + Event Sourcing Guide](../docs/architecture/cqrs-event-sourcing.md)
+- [Architecture Documentation](../docs/architecture/README.md)
+- [CQRS + Event Sourcing](../docs/architecture/cqrs-event-sourcing.md)
 - [Development Guidelines](../.claude/CLAUDE.md)
-- [Performance Optimization](../docs/operations/performance.md)
-
----
-
-## Status Legend
-
-- ✅ **Completed** - Task is done, merged, and task file deleted
-- 🚧 **In Progress** - Task is being worked on
-- 📋 **Not Started** - Task is ready to start
-- 🔴 **Critical** - High priority bug or data loss risk
-- ⏸️ **Deferred** - Task is lower priority
-- ❌ **Cancelled** - Task no longer needed
-
-**Current overall status:** 2 task areas remaining (1 critical, 1 medium priority)
-
----
-
-## Quick Stats
-
-**Completed:**
-- ✅ Snapshot optimization (2 tasks)
-- ✅ Cache optimization (2 tasks)
-- ✅ Deletion features (2 tasks)
-- ✅ Named graph support (1 task)
-- ✅ CQRS event flow (1 task)
-- ✅ Time-travel SPARQL queries (1 task)
-- ✅ Model API to Graph API migration (3 tasks)
-- ✅ Dataset parameter implementation (1 task)
-- ✅ Kafka best practices (4 tasks)
-- ✅ Exception handling - both sides (5 tasks: 4 projector + 1 command)
-- **Total completed:** 22 tasks
-
-**Remaining:**
-- 📋 Specification Cleanup (1 task - Low priority, quick win)
-- 📋 Java APIs (2 tasks - Medium priority)
-- **Total remaining:** 3 tasks
-
-**Progress:** ~88% complete (22 of 25 tasks)
-
-**Next Steps:**
-1. 📋 **Optional (quick win):** Remove redundant SPARQL-VC-Commit header (spec-cleanup/01) - 2-3 hours (low priority)
-2. 📋 **Optional:** Create Java APIs (java-api/01-02) - 6-8 hours (medium priority)
+- [Quality Tools](../docs/development/quality-tools.md)

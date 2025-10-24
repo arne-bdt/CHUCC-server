@@ -91,7 +91,8 @@ class CherryPickIT {
         List.of(),
         "Alice",
         "Branch A - Initial commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, branchACommit1,
         RDFPatchOps.emptyPatch());
@@ -113,7 +114,8 @@ class CherryPickIT {
         List.of(branchACommit1Id),
         "Alice",
         "Branch A - Add Alice data",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, branchACommit2, branchACommit2Patch);
 
@@ -127,7 +129,8 @@ class CherryPickIT {
         List.of(),
         "Bob",
         "Branch B - Initial commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, branchBCommit1,
         RDFPatchOps.emptyPatch());
@@ -138,7 +141,8 @@ class CherryPickIT {
         List.of(branchBCommit1Id),
         "Bob",
         "Branch B - Second commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, branchBCommit2,
         RDFPatchOps.emptyPatch());
@@ -242,7 +246,8 @@ class CherryPickIT {
         List.of(branchBCommit2Id),
         "Bob",
         "Conflicting commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, conflictingCommit, conflictingPatch);
 

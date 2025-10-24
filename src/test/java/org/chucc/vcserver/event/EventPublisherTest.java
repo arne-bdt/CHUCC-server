@@ -98,6 +98,7 @@ class EventPublisherTest {
         "Alice <alice@example.com>",
         Instant.now(),
         "H 1 .\n"
+        , 1
     );
 
     eventPublisher.publish(event);
@@ -131,6 +132,7 @@ class EventPublisherTest {
         "Alice <alice@example.com>",
         Instant.now(),
         "H 1 .\n"
+        , 1
     );
 
     eventPublisher.publish(event);
@@ -345,6 +347,7 @@ class EventPublisherTest {
         "Alice <alice@example.com>",
         Instant.now(),
         "H 1 .\n"
+        , 1
     );
 
     // Act

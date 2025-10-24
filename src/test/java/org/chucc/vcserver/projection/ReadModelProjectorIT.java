@@ -134,6 +134,7 @@ class ReadModelProjectorIT {
         "test-author",
         Instant.now(),
         rdfPatchStr
+        , 1
     );
 
     // When
@@ -193,6 +194,7 @@ class ReadModelProjectorIT {
         "test-author",
         Instant.now(),
         "TX .\nTC ."
+        , 1
     );
 
     // When
@@ -219,6 +221,7 @@ class ReadModelProjectorIT {
         "test-author",
         Instant.now().plusSeconds(1),
         "TX .\nTC ."
+        , 1
     );
     eventPublisher.publish(event2).get();
 
@@ -254,6 +257,7 @@ class ReadModelProjectorIT {
         "test-author",
         Instant.now(),
         "TX .\nTC ."
+        , 1
     );
 
     BranchCreatedEvent branchEvent = new BranchCreatedEvent(

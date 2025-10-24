@@ -91,7 +91,8 @@ class SquashIT {
         List.of(),
         "Alice",
         "Initial commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commitA, RDFPatchOps.emptyPatch());
 
@@ -103,7 +104,8 @@ class SquashIT {
         List.of(commitAId),
         "Bob",
         "Commit B",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commitB, patchB);
 
@@ -115,7 +117,8 @@ class SquashIT {
         List.of(commitBId),
         "Bob",
         "Commit C",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commitC, patchC);
 
@@ -241,7 +244,8 @@ class SquashIT {
         List.of(commitCId),
         "Bob",
         "Commit D",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commitD, patchD);
 

@@ -23,6 +23,7 @@ import org.chucc.vcserver.service.GraphDiffService;
 import org.chucc.vcserver.service.RdfParsingService;
 import org.chucc.vcserver.service.RdfPatchService;
 import org.chucc.vcserver.util.GraphCommandUtil;
+import org.chucc.vcserver.util.RdfPatchUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -146,6 +147,7 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
     // Create single commit
     CommitId commitId = CommitId.generate();
     String patchString = serializePatch(combinedPatch);
+    int patchSize = RdfPatchUtil.countOperations(combinedPatch);
 
     CommitCreatedEvent commitEvent = new CommitCreatedEvent(
         command.dataset(),
@@ -155,7 +157,8 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
         command.message(),
         command.author(),
         Instant.now(),
-        patchString
+        patchString,
+        patchSize
     );
 
     return new BatchGraphsCompletedEvent(
@@ -207,6 +210,7 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
     for (OperationResult result : nonEmptyResults) {
       CommitId commitId = CommitId.generate();
       String patchString = serializePatch(result.patch());
+      int patchSize = RdfPatchUtil.countOperations(result.patch());
 
       String operationMessage = command.message() + " [Operation "
           + (result.operationIndex() + 1) + ": "
@@ -220,7 +224,8 @@ public class BatchGraphsCommandHandler implements CommandHandler<BatchGraphsComm
           operationMessage,
           command.author(),
           Instant.now(),
-          patchString
+          patchString,
+          patchSize
       );
 
       commits.add(commitEvent);

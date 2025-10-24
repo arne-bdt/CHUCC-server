@@ -93,7 +93,8 @@ class RebaseIT {
         List.of(),
         "Alice",
         "Initial commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commitA, RDFPatchOps.emptyPatch());
 
@@ -105,7 +106,8 @@ class RebaseIT {
         List.of(commitAId),
         "Alice",
         "Main commit B",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commitB, patchB);
 
@@ -117,7 +119,8 @@ class RebaseIT {
         List.of(commitBId),
         "Alice",
         "Main commit E",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commitE, patchE);
 
@@ -133,7 +136,8 @@ class RebaseIT {
         List.of(commitAId),
         "Bob",
         "Feature commit C",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commitC, patchC);
 
@@ -145,7 +149,8 @@ class RebaseIT {
         List.of(commitCId),
         "Bob",
         "Feature commit D",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commitD, patchD);
 

@@ -104,6 +104,9 @@ public final class GraphCommandUtil {
     // Serialize patch to string
     String patchString = serializePatch(patch);
 
+    // Count patch operations
+    int patchSize = RdfPatchUtil.countOperations(patch);
+
     // Produce event
     return new CommitCreatedEvent(
         dataset,
@@ -113,7 +116,8 @@ public final class GraphCommandUtil {
         message,
         author,
         Instant.now(),
-        patchString
+        patchString,
+        patchSize
     );
   }
 

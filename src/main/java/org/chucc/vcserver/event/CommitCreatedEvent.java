@@ -8,7 +8,7 @@ import java.util.Objects;
 
 /**
  * Event representing the creation of a new commit.
- * Contains the commit metadata and the RDF Patch representing the changes.
+ * Contains the commit metadata, the RDF Patch representing the changes, and the patch size.
  */
 public record CommitCreatedEvent(
     @JsonProperty("eventId") String eventId,
@@ -19,7 +19,8 @@ public record CommitCreatedEvent(
     @JsonProperty("message") String message,
     @JsonProperty("author") String author,
     @JsonProperty("timestamp") Instant timestamp,
-    @JsonProperty("rdfPatch") String rdfPatch)
+    @JsonProperty("rdfPatch") String rdfPatch,
+    @JsonProperty("patchSize") int patchSize)
     implements VersionControlEvent {
 
   /**
@@ -35,6 +36,7 @@ public record CommitCreatedEvent(
    * @param author the commit author (must be non-null and non-blank)
    * @param timestamp the commit timestamp (must be non-null)
    * @param rdfPatch the RDF Patch representing the changes (must be non-null)
+   * @param patchSize the number of operations in the patch (must be non-negative)
    * @throws IllegalArgumentException if any validation fails
    */
   public CommitCreatedEvent {
@@ -59,6 +61,9 @@ public record CommitCreatedEvent(
     if (author.isBlank()) {
       throw new IllegalArgumentException("Author cannot be blank");
     }
+    if (patchSize < 0) {
+      throw new IllegalArgumentException("Patch size cannot be negative");
+    }
 
     // Create defensive copy of parents list to ensure immutability
     parents = List.copyOf(parents);
@@ -75,6 +80,7 @@ public record CommitCreatedEvent(
    * @param author the commit author
    * @param timestamp the commit timestamp
    * @param rdfPatch the RDF Patch representing the changes
+   * @param patchSize the number of operations in the patch
    */
   public CommitCreatedEvent(
       String dataset,
@@ -84,8 +90,10 @@ public record CommitCreatedEvent(
       String message,
       String author,
       Instant timestamp,
-      String rdfPatch) {
-    this(null, dataset, commitId, parents, branch, message, author, timestamp, rdfPatch);
+      String rdfPatch,
+      int patchSize) {
+    this(null, dataset, commitId, parents, branch, message, author, timestamp, rdfPatch,
+        patchSize);
   }
 
   @Override

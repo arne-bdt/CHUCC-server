@@ -65,7 +65,8 @@ class TimestampResolutionServiceTest {
         List.of(),
         "author",
         "Initial commit",
-        Instant.parse("2025-01-01T00:00:00Z")
+        Instant.parse("2025-01-01T00:00:00Z"),
+        0
     );
 
     commit2 = new Commit(
@@ -73,7 +74,8 @@ class TimestampResolutionServiceTest {
         List.of(commit1Id),
         "author",
         "Second commit",
-        Instant.parse("2025-01-02T00:00:00Z")
+        Instant.parse("2025-01-02T00:00:00Z"),
+        0
     );
 
     commit3 = new Commit(
@@ -81,7 +83,8 @@ class TimestampResolutionServiceTest {
         List.of(commit2Id),
         "author",
         "Third commit",
-        Instant.parse("2025-01-03T00:00:00Z")
+        Instant.parse("2025-01-03T00:00:00Z"),
+        0
     );
 
     branch = new Branch(BRANCH_NAME, commit3Id);

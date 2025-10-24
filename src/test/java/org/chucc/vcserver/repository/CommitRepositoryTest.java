@@ -24,7 +24,7 @@ class CommitRepositoryTest {
   @Test
   void shouldSaveAndFindCommit() {
     // Given
-    Commit commit = Commit.create(List.of(), "author", "message");
+    Commit commit = Commit.create(List.of(), "author", "message", 0);
     RDFPatch patch = RDFPatchOps.emptyPatch();
 
     // When
@@ -39,7 +39,7 @@ class CommitRepositoryTest {
   @Test
   void shouldSaveAndFindPatch() {
     // Given
-    Commit commit = Commit.create(List.of(), "author", "message");
+    Commit commit = Commit.create(List.of(), "author", "message", 0);
     RDFPatch patch = RDFPatchOps.emptyPatch();
 
     // When
@@ -78,8 +78,8 @@ class CommitRepositoryTest {
   @Test
   void shouldFindAllCommitsInDataset() {
     // Given
-    Commit commit1 = Commit.create(List.of(), "author1", "message1");
-    Commit commit2 = Commit.create(List.of(), "author2", "message2");
+    Commit commit1 = Commit.create(List.of(), "author1", "message1", 0);
+    Commit commit2 = Commit.create(List.of(), "author2", "message2", 0);
     RDFPatch patch = RDFPatchOps.emptyPatch();
 
     repository.save(DATASET_NAME, commit1, patch);
@@ -105,7 +105,7 @@ class CommitRepositoryTest {
   @Test
   void shouldCheckCommitExists() {
     // Given
-    Commit commit = Commit.create(List.of(), "author", "message");
+    Commit commit = Commit.create(List.of(), "author", "message", 0);
     RDFPatch patch = RDFPatchOps.emptyPatch();
     repository.save(DATASET_NAME, commit, patch);
 
@@ -117,7 +117,7 @@ class CommitRepositoryTest {
   @Test
   void shouldDeleteAllCommitsAndPatchesInDataset() {
     // Given
-    Commit commit = Commit.create(List.of(), "author", "message");
+    Commit commit = Commit.create(List.of(), "author", "message", 0);
     RDFPatch patch = RDFPatchOps.emptyPatch();
     repository.save(DATASET_NAME, commit, patch);
 
@@ -133,8 +133,8 @@ class CommitRepositoryTest {
   @Test
   void shouldIsolateCommitsBetweenDatasets() {
     // Given
-    Commit commit1 = Commit.create(List.of(), "author1", "message1");
-    Commit commit2 = Commit.create(List.of(), "author2", "message2");
+    Commit commit1 = Commit.create(List.of(), "author1", "message1", 0);
+    Commit commit2 = Commit.create(List.of(), "author2", "message2", 0);
     RDFPatch patch = RDFPatchOps.emptyPatch();
 
     repository.save("dataset1", commit1, patch);

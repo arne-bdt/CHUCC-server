@@ -137,7 +137,8 @@ public abstract class ITFixture {
         List.of(),
         DEFAULT_AUTHOR,
         "Initial commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(dataset, initialCommit, RDFPatchOps.emptyPatch());
 
@@ -162,7 +163,8 @@ public abstract class ITFixture {
       String message,
       String patchContent) {
     CommitId commitId = CommitId.generate();
-    Commit commit = new Commit(commitId, parents, author, message, Instant.now());
+    Commit commit = new Commit(commitId, parents, author, message, Instant.now(),
+        0);
     commitRepository.save(
         dataset,
         commit,

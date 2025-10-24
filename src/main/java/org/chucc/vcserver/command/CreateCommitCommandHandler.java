@@ -124,6 +124,9 @@ public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCo
     // Serialize patch to string
     String patchString = serializePatch(newPatch);
 
+    // Count patch operations
+    int patchSize = RdfPatchUtil.countOperations(newPatch);
+
     // Produce event
     VersionControlEvent event = new CommitCreatedEvent(
         command.dataset(),
@@ -133,7 +136,8 @@ public class CreateCommitCommandHandler implements CommandHandler<CreateCommitCo
         command.message(),
         command.author(),
         Instant.now(),
-        patchString);
+        patchString,
+        patchSize);
 
     // Publish event to Kafka (async, with proper error logging)
     eventPublisher.publish(event)

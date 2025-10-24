@@ -74,8 +74,8 @@ class SquashCommandHandlerTest {
     CommitId idB = new CommitId(commitBId);
     CommitId idC = new CommitId(commitCId);
 
-    Commit commitB = new Commit(idB, List.of(idA), "bob", "Commit B", Instant.now());
-    Commit commitC = new Commit(idC, List.of(idB), "bob", "Commit C", Instant.now());
+    Commit commitB = new Commit(idB, List.of(idA), "bob", "Commit B", Instant.now(), 0);
+    Commit commitC = new Commit(idC, List.of(idB), "bob", "Commit C", Instant.now(), 0);
 
     Branch branch = new Branch("feature", idC);
 
@@ -154,9 +154,9 @@ class SquashCommandHandlerTest {
     CommitId idC = new CommitId(commitCId);
     CommitId idD = new CommitId(commitDId);
 
-    Commit commitB = new Commit(idB, List.of(idA), "bob", "Commit B", Instant.now());
-    Commit commitC = new Commit(idC, List.of(idB), "bob", "Commit C", Instant.now());
-    Commit commitD = new Commit(idD, List.of(idC), "bob", "Commit D", Instant.now());
+    Commit commitB = new Commit(idB, List.of(idA), "bob", "Commit B", Instant.now(), 0);
+    Commit commitC = new Commit(idC, List.of(idB), "bob", "Commit C", Instant.now(), 0);
+    Commit commitD = new Commit(idD, List.of(idC), "bob", "Commit D", Instant.now(), 0);
 
     Branch branch = new Branch("feature", idD);
 
@@ -252,8 +252,8 @@ class SquashCommandHandlerTest {
     CommitId idC = new CommitId(commitCId);
     CommitId idD = new CommitId(commitDId);
 
-    Commit commitB = new Commit(idB, List.of(idA), "bob", "Commit B", Instant.now());
-    Commit commitD = new Commit(idD, List.of(idC), "bob", "Commit D", Instant.now());
+    Commit commitB = new Commit(idB, List.of(idA), "bob", "Commit B", Instant.now(), 0);
+    Commit commitD = new Commit(idD, List.of(idC), "bob", "Commit D", Instant.now(), 0);
 
     Branch branch = new Branch("feature", idD);
 
@@ -285,8 +285,8 @@ class SquashCommandHandlerTest {
     CommitId idA = new CommitId(commitAId);
     CommitId idB = new CommitId(commitBId);
 
-    Commit commitA = new Commit(idA, List.of(), "alice", "Commit A", Instant.now());
-    Commit commitB = new Commit(idB, List.of(idA), "bob", "Commit B", Instant.now());
+    Commit commitA = new Commit(idA, List.of(), "alice", "Commit A", Instant.now(), 0);
+    Commit commitB = new Commit(idB, List.of(idA), "bob", "Commit B", Instant.now(), 0);
 
     Branch branch = new Branch("feature", idB);
 

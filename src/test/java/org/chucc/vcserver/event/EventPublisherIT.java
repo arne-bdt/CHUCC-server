@@ -133,11 +133,13 @@ class EventPublisherIT {
     CommitCreatedEvent event = new CommitCreatedEvent(
         "test-dataset",
         "commit-123",
-        List.of("parent-1", "parent-2"), null,
+        List.of("parent-1", "parent-2"),
+        null,
         "Test commit message",
         "Alice <alice@example.com>",
         Instant.now(),
-        "H 1 .\nA <urn:s> <urn:p> <urn:o> .\n"
+        "H 1 .\nA <urn:s> <urn:p> <urn:o> .\n",
+        1
     );
 
     // When

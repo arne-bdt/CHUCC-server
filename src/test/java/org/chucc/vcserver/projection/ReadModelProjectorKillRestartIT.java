@@ -90,11 +90,13 @@ class ReadModelProjectorKillRestartIT {
     CommitCreatedEvent event1 = new CommitCreatedEvent(
         DATASET,
         commit1Id,
-        List.of(), null,
+        List.of(),
+        null,
         "Initial commit",
         "test-author",
         Instant.now(),
-        "TX .\nTC ."
+        "TX .\nTC .",
+        1
     );
     eventPublisher.publish(event1).get();
 
@@ -135,11 +137,13 @@ class ReadModelProjectorKillRestartIT {
     CommitCreatedEvent event2 = new CommitCreatedEvent(
         DATASET,
         commit2Id,
-        List.of(commit1Id), null,
+        List.of(commit1Id),
+        null,
         "Second commit (while stopped)",
         "test-author",
         Instant.now().plusSeconds(1),
-        "TX .\nTC ."
+        "TX .\nTC .",
+        1
     );
     eventPublisher.publish(event2).get();
 
@@ -214,13 +218,13 @@ class ReadModelProjectorKillRestartIT {
 
     // Publish all events while consumer is stopped
     CommitCreatedEvent event1 = new CommitCreatedEvent(
-        DATASET, commit1Id, List.of(), "main", "Commit 1", "author", Instant.now(), "TX .\nTC .");
+        DATASET, commit1Id, List.of(), "main", "Commit 1", "author", Instant.now(), "TX .\nTC .", 1);
     CommitCreatedEvent event2 = new CommitCreatedEvent(
         DATASET, commit2Id, List.of(commit1Id), "main", "Commit 2", "author",
-        Instant.now().plusSeconds(1), "TX .\nTC .");
+        Instant.now().plusSeconds(1), "TX .\nTC .", 1);
     CommitCreatedEvent event3 = new CommitCreatedEvent(
         DATASET, commit3Id, List.of(commit2Id), "main", "Commit 3", "author",
-        Instant.now().plusSeconds(2), "TX .\nTC .");
+        Instant.now().plusSeconds(2), "TX .\nTC .", 1);
 
     eventPublisher.publish(event1).get();
     eventPublisher.publish(event2).get();

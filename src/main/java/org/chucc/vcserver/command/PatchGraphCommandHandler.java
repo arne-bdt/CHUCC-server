@@ -16,6 +16,7 @@ import org.chucc.vcserver.service.GraphDiffService;
 import org.chucc.vcserver.service.PreconditionService;
 import org.chucc.vcserver.service.RdfPatchService;
 import org.chucc.vcserver.util.GraphCommandUtil;
+import org.chucc.vcserver.util.RdfPatchUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -129,6 +130,9 @@ public class PatchGraphCommandHandler implements CommandHandler<PatchGraphComman
     // Serialize filtered patch to string
     String patchString = GraphCommandUtil.serializePatch(filteredPatch);
 
+    // Count patch operations
+    int patchSize = RdfPatchUtil.countOperations(filteredPatch);
+
     // Produce event
     VersionControlEvent event = new CommitCreatedEvent(
         command.dataset(),
@@ -138,7 +142,8 @@ public class PatchGraphCommandHandler implements CommandHandler<PatchGraphComman
         command.message(),
         command.author(),
         Instant.now(),
-        patchString
+        patchString,
+        patchSize
     );
 
     // Publish event to Kafka (async, with proper error logging)

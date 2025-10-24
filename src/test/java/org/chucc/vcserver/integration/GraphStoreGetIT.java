@@ -77,7 +77,8 @@ class GraphStoreGetIT {
         java.util.List.of(),
         "System",
         "Add initial data",
-        java.time.Instant.now()
+        java.time.Instant.now(),
+        0
     );
 
     String patch1 = "TX .\n"
@@ -94,7 +95,8 @@ class GraphStoreGetIT {
         java.util.List.of(commit1Id),
         "System",
         "Add more data",
-        java.time.Instant.now()
+        java.time.Instant.now(),
+        0
     );
 
     String patch2 = "TX .\n"
@@ -118,7 +120,8 @@ class GraphStoreGetIT {
         java.util.List.of(commit2Id),
         "Alice",
         "Add named graph",
-        java.time.Instant.now()
+        java.time.Instant.now(),
+        0
     );
 
     // Create RDF Patch with quad for named graph

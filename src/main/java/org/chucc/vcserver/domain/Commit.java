@@ -6,14 +6,16 @@ import java.util.Objects;
 
 /**
  * Domain entity representing a commit in the version control system.
- * Contains metadata about the commit including parents, author, message, and timestamp.
+ * Contains metadata about the commit including parents, author, message, timestamp,
+ * and patch size.
  */
 public record Commit(
     CommitId id,
     List<CommitId> parents,
     String author,
     String message,
-    Instant timestamp) {
+    Instant timestamp,
+    int patchSize) {
 
   /**
    * Creates a new Commit with validation.
@@ -23,6 +25,7 @@ public record Commit(
    * @param author the commit author (must be non-null and non-blank)
    * @param message the commit message (must be non-null and non-blank)
    * @param timestamp the commit timestamp (must be non-null)
+   * @param patchSize the number of operations in the patch (must be non-negative)
    * @throws IllegalArgumentException if any validation fails
    */
   public Commit {
@@ -38,6 +41,9 @@ public record Commit(
     if (message.isBlank()) {
       throw new IllegalArgumentException("Commit message cannot be blank");
     }
+    if (patchSize < 0) {
+      throw new IllegalArgumentException("Patch size cannot be negative");
+    }
 
     // Create defensive copy of parents list to ensure immutability
     parents = List.copyOf(parents);
@@ -49,15 +55,18 @@ public record Commit(
    * @param parents the list of parent commit IDs
    * @param author the commit author
    * @param message the commit message
+   * @param patchSize the number of operations in the patch
    * @return a new Commit
    */
-  public static Commit create(List<CommitId> parents, String author, String message) {
+  public static Commit create(List<CommitId> parents, String author, String message,
+      int patchSize) {
     return new Commit(
         CommitId.generate(),
         parents,
         author,
         message,
-        Instant.now()
+        Instant.now(),
+        patchSize
     );
   }
 

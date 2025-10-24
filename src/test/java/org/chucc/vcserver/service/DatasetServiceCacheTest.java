@@ -111,7 +111,7 @@ class DatasetServiceCacheTest {
   @Test
   void shouldKeepLatestCommitInCache() {
     // Given: Create branch with latest commit
-    Commit latest = Commit.create(List.of(), AUTHOR, "latest commit");
+    Commit latest = Commit.create(List.of(), AUTHOR, "latest commit", 0);
     commitRepository.save(DATASET_NAME, latest, RDFPatchOps.emptyPatch());
 
     Branch branch = new Branch("main", latest.id());
@@ -139,7 +139,7 @@ class DatasetServiceCacheTest {
   @Test
   void shouldUpdateLatestCommitTracking() {
     // Given: Create initial commit and branch
-    Commit commit1 = Commit.create(List.of(), AUTHOR, "commit 1");
+    Commit commit1 = Commit.create(List.of(), AUTHOR, "commit 1", 0);
     commitRepository.save(DATASET_NAME, commit1, RDFPatchOps.emptyPatch());
 
     Branch branch = new Branch("main", commit1.id());
@@ -149,7 +149,7 @@ class DatasetServiceCacheTest {
     service.updateLatestCommit(DATASET_NAME, "main", commit1.id());
 
     // Then: Create second commit
-    Commit commit2 = Commit.create(List.of(commit1.id()), AUTHOR, "commit 2");
+    Commit commit2 = Commit.create(List.of(commit1.id()), AUTHOR, "commit 2", 0);
     commitRepository.save(DATASET_NAME, commit2, RDFPatchOps.emptyPatch());
 
     // Update branch and tracking
@@ -219,7 +219,7 @@ class DatasetServiceCacheTest {
 
     for (int i = 0; i < count; i++) {
       List<CommitId> parents = parentId == null ? List.of() : List.of(parentId);
-      Commit commit = Commit.create(parents, AUTHOR, "commit " + i);
+      Commit commit = Commit.create(parents, AUTHOR, "commit " + i, 0);
 
       // Save commit with empty patch
       commitRepository.save(dataset, commit, RDFPatchOps.emptyPatch());

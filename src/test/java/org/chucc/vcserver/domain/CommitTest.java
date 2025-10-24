@@ -23,7 +23,8 @@ class CommitTest {
         List.of(),
         "Alice <alice@example.com>",
         "Initial commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
 
     assertNotNull(commit);
@@ -42,7 +43,8 @@ class CommitTest {
         parents,
         "Bob <bob@example.com>",
         "Merge commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
 
     assertEquals(2, commit.parents().size());
@@ -55,7 +57,8 @@ class CommitTest {
     Commit commit = Commit.create(
         List.of(COMMIT_ID_1),
         "Charlie <charlie@example.com>",
-        "Add feature"
+        "Add feature",
+        5
     );
 
     assertNotNull(commit);
@@ -74,7 +77,8 @@ class CommitTest {
         List.of(),
         "Author",
         "Message",
-        Instant.now()
+        Instant.now(),
+        0
     ));
   }
 
@@ -85,7 +89,8 @@ class CommitTest {
         null,
         "Author",
         "Message",
-        Instant.now()
+        Instant.now(),
+        0
     ));
   }
 
@@ -96,7 +101,8 @@ class CommitTest {
         List.of(),
         null,
         "Message",
-        Instant.now()
+        Instant.now(),
+        0
     ));
   }
 
@@ -107,7 +113,8 @@ class CommitTest {
         List.of(),
         "",
         "Message",
-        Instant.now()
+        Instant.now(),
+        0
     ));
 
     assertThrows(IllegalArgumentException.class, () -> new Commit(
@@ -115,7 +122,8 @@ class CommitTest {
         List.of(),
         "   ",
         "Message",
-        Instant.now()
+        Instant.now(),
+        0
     ));
   }
 
@@ -126,7 +134,8 @@ class CommitTest {
         List.of(),
         "Author",
         null,
-        Instant.now()
+        Instant.now(),
+        0
     ));
   }
 
@@ -137,7 +146,8 @@ class CommitTest {
         List.of(),
         "Author",
         "",
-        Instant.now()
+        Instant.now(),
+        0
     ));
 
     assertThrows(IllegalArgumentException.class, () -> new Commit(
@@ -145,7 +155,8 @@ class CommitTest {
         List.of(),
         "Author",
         "   ",
-        Instant.now()
+        Instant.now(),
+        0
     ));
   }
 
@@ -156,7 +167,8 @@ class CommitTest {
         List.of(),
         "Author",
         "Message",
-        null
+        null,
+        0
     ));
   }
 
@@ -167,7 +179,8 @@ class CommitTest {
         List.of(),
         "Author",
         "Initial commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
 
     assertTrue(commit.isInitial());
@@ -181,7 +194,8 @@ class CommitTest {
         List.of(COMMIT_ID_1),
         "Author",
         "Second commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
 
     assertFalse(commit.isInitial());
@@ -195,7 +209,8 @@ class CommitTest {
         List.of(COMMIT_ID_1, COMMIT_ID_2),
         "Author",
         "Merge commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
 
     assertFalse(commit.isInitial());
@@ -212,7 +227,8 @@ class CommitTest {
         mutableList,
         "Author",
         "Message",
-        Instant.now()
+        Instant.now(),
+        0
     );
 
     // Modify original list
@@ -234,14 +250,16 @@ class CommitTest {
         List.of(),
         "Author",
         "Message",
-        timestamp
+        timestamp,
+        0
     );
     Commit commit2 = new Commit(
         COMMIT_ID_1,
         List.of(),
         "Author",
         "Message",
-        timestamp
+        timestamp,
+        0
     );
 
     assertEquals(commit1, commit2);
@@ -257,7 +275,8 @@ class CommitTest {
         List.of(),
         "Author",
         multilineMessage,
-        Instant.now()
+        Instant.now(),
+        0
     ));
   }
 }

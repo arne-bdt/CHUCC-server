@@ -249,7 +249,8 @@ public class ReadModelProjector {
             .toList(),
         event.author(),
         event.message(),
-        event.timestamp()
+        event.timestamp(),
+        event.patchSize()
     );
 
     // Save commit and patch
@@ -483,6 +484,9 @@ public class ReadModelProjector {
         event.rdfPatch().getBytes(StandardCharsets.UTF_8));
     RDFPatch patch = RDFPatchOps.read(inputStream);
 
+    // Count patch operations
+    int patchSize = org.chucc.vcserver.util.RdfPatchUtil.countOperations(patch);
+
     // Create Commit domain object for revert
     // The revert commit's parent is the current HEAD of the branch
     Commit commit = new Commit(
@@ -490,7 +494,8 @@ public class ReadModelProjector {
         java.util.List.of(targetBranch.getCommitId()),
         event.author(),
         event.message(),
-        event.timestamp()
+        event.timestamp(),
+        patchSize
     );
 
     // Save revert commit and patch
@@ -597,6 +602,9 @@ public class ReadModelProjector {
         event.rdfPatch().getBytes(StandardCharsets.UTF_8));
     RDFPatch patch = RDFPatchOps.read(inputStream);
 
+    // Count patch operations
+    int patchSize = org.chucc.vcserver.util.RdfPatchUtil.countOperations(patch);
+
     // Create Commit domain object for cherry-picked commit
     // The parent is the current HEAD of the target branch
     Commit commit = new Commit(
@@ -604,7 +612,8 @@ public class ReadModelProjector {
         java.util.List.of(targetBranch.getCommitId()),
         event.author(),
         event.message(),
-        event.timestamp()
+        event.timestamp(),
+        patchSize
     );
 
     // Save cherry-picked commit and patch

@@ -22,6 +22,76 @@ public final class RdfPatchUtil {
   }
 
   /**
+   * Counts the total number of operations in an RDF Patch.
+   * This includes all add and delete operations (quads).
+   *
+   * @param patch the RDF Patch to count operations in
+   * @return the total number of operations (adds + deletes)
+   * @throws IllegalArgumentException if patch is null
+   */
+  public static int countOperations(RDFPatch patch) {
+    if (patch == null) {
+      throw new IllegalArgumentException("RDFPatch cannot be null");
+    }
+
+    // Use a custom counter to count operations
+    OperationCounter counter = new OperationCounter();
+    patch.apply(counter);
+
+    return counter.getCount();
+  }
+
+  /**
+   * A simple RDFChanges implementation that counts add and delete operations.
+   * This is used internally to count operations in an RDF Patch.
+   */
+  private static class OperationCounter implements RDFChanges {
+    private int count = 0;
+
+    @Override
+    public void add(Node g, Node s, Node p, Node o) {
+      count++;
+    }
+
+    @Override
+    public void delete(Node g, Node s, Node p, Node o) {
+      count++;
+    }
+
+    public int getCount() {
+      return count;
+    }
+
+    // Other RDFChanges methods - no-ops for counting
+    @Override
+    public void start() {}
+
+    @Override
+    public void finish() {}
+
+    @Override
+    public void header(String field, Node value) {}
+
+    @Override
+    public void addPrefix(Node gn, String prefix, String uriStr) {}
+
+    @Override
+    public void deletePrefix(Node gn, String prefix) {}
+
+    @Override
+    public void txnBegin() {}
+
+    @Override
+    public void txnCommit() {}
+
+    @Override
+    public void txnAbort() {}
+
+    @Override
+    public void segment() {}
+  }
+
+  /**
    * Applies an RDF Patch to a DatasetGraph.
    * Wraps jena-rdfpatch's RDFPatchOps.applyChange for convenience.
    *

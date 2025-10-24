@@ -125,7 +125,8 @@ public class RebaseCommandHandler implements CommandHandler<RebaseCommand> {
           List.of(currentCommitId),
           originalCommit.author(),
           originalCommit.message(),
-          Instant.now()
+          Instant.now(),
+          originalCommit.patchSize()  // Preserve original patch size
       );
 
       // Save new commit

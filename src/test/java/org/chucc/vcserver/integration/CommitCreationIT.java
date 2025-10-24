@@ -78,7 +78,8 @@ class CommitCreationIT {
         java.util.List.of(),
         "System",
         "Initial commit",
-        java.time.Instant.now()
+        java.time.Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, initialCommit,
         org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
@@ -241,7 +242,8 @@ class CommitCreationIT {
         java.util.List.of(),
         "System",
         "Initial commit",
-        java.time.Instant.now()
+        java.time.Instant.now(),
+        0
     );
     commitRepository.save("default", initialCommit,
         org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());

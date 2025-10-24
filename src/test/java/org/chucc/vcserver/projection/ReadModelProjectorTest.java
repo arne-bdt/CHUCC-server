@@ -93,6 +93,7 @@ class ReadModelProjectorTest {
         "test-author",
         Instant.now(),
         rdfPatchStr
+        , 1
     );
 
     // When
@@ -221,6 +222,7 @@ class ReadModelProjectorTest {
         "Test Author",
         now,
         rdfPatchStr
+        , 1
     );
 
     CommitCreatedEvent event2 = new CommitCreatedEvent(
@@ -233,6 +235,7 @@ class ReadModelProjectorTest {
         "Test Author",
         now,
         rdfPatchStr
+        , 1
     );
 
     // When
@@ -263,6 +266,7 @@ class ReadModelProjectorTest {
         "Test Author",
         now,
         rdfPatchStr
+        , 1
     );
 
     CommitCreatedEvent event2 = new CommitCreatedEvent(
@@ -275,6 +279,7 @@ class ReadModelProjectorTest {
         "Test Author",
         now,
         rdfPatchStr
+        , 1
     );
 
     // When
@@ -312,6 +317,7 @@ class ReadModelProjectorTest {
         "Test Author",
         now,
         rdfPatchStr
+        , 1
     );
 
     CommitCreatedEvent event2 = new CommitCreatedEvent(
@@ -324,6 +330,7 @@ class ReadModelProjectorTest {
         "Test Author",
         now,
         rdfPatchStr
+        , 1
     );
 
     // When

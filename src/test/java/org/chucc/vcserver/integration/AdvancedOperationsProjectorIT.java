@@ -153,7 +153,8 @@ class AdvancedOperationsProjectorIT {
         "Commit for tag",
         "Alice",
         Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
     eventPublisher.publish(commitEvent).get();
 
@@ -203,7 +204,8 @@ class AdvancedOperationsProjectorIT {
         "Source commit to cherry-pick",
         "Alice",
         Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
     eventPublisher.publish(sourceCommit).get();
 
@@ -224,7 +226,8 @@ class AdvancedOperationsProjectorIT {
         "Target branch commit",
         "Bob",
         Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
     eventPublisher.publish(targetBranchCommit).get();
 
@@ -303,7 +306,8 @@ class AdvancedOperationsProjectorIT {
         "Commit 1",
         "Alice",
         Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
     eventPublisher.publish(commit1).get();
 
@@ -316,7 +320,8 @@ class AdvancedOperationsProjectorIT {
         "Commit 2",
         "Alice",
         Instant.now().plusMillis(1),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
     eventPublisher.publish(commit2).get();
 
@@ -329,7 +334,8 @@ class AdvancedOperationsProjectorIT {
         "Commit 3",
         "Alice",
         Instant.now().plusMillis(2),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
     eventPublisher.publish(commit3).get();
 
@@ -363,7 +369,8 @@ class AdvancedOperationsProjectorIT {
         "Squashed commits 1-3",
         "Alice",
         Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
     eventPublisher.publish(squashedCommit).get();
 

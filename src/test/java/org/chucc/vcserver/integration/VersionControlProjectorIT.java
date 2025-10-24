@@ -156,7 +156,8 @@ class VersionControlProjectorIT {
         "Feature commit",
         "Alice",
         Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
     eventPublisher.publish(featureCommit).get();
 
@@ -188,7 +189,8 @@ class VersionControlProjectorIT {
         "Feature commit (rebased 1)",
         "Alice",
         Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
     eventPublisher.publish(rebasedCommit1).get();
 
@@ -201,7 +203,8 @@ class VersionControlProjectorIT {
         "Feature commit (rebased 2)",
         "Alice",
         Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
     eventPublisher.publish(rebasedCommit2).get();
 
@@ -254,7 +257,8 @@ class VersionControlProjectorIT {
         "Commit to be reverted",
         "Bob",
         Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
     eventPublisher.publish(commitEvent).get();
 
@@ -321,7 +325,8 @@ class VersionControlProjectorIT {
         "Commit for snapshot",
         "Charlie",
         Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
     eventPublisher.publish(commitEvent).get();
 

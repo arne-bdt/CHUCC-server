@@ -78,9 +78,9 @@ class RebaseCommandHandlerTest {
     CommitId idD = new CommitId(commitDId);
 
     // Create commits
-    Commit commitA = new Commit(idA, List.of(), "alice", "Commit A", Instant.now());
-    Commit commitC = new Commit(idC, List.of(idB), "alice", "Commit C", Instant.now());
-    Commit commitD = new Commit(idD, List.of(idA), "bob", "Commit D", Instant.now());
+    Commit commitA = new Commit(idA, List.of(), "alice", "Commit A", Instant.now(), 0);
+    Commit commitC = new Commit(idC, List.of(idB), "alice", "Commit C", Instant.now(), 0);
+    Commit commitD = new Commit(idD, List.of(idA), "bob", "Commit D", Instant.now(), 0);
 
     // Create patches (non-conflicting)
     RDFPatch patchD = createPatch("http://example.org/d", "value-d");
@@ -187,7 +187,7 @@ class RebaseCommandHandlerTest {
     String commitCId = "12345678-1234-1234-1234-333333333333";
 
     CommitId idC = new CommitId(commitCId);
-    Commit commitC = new Commit(idC, List.of(), "alice", "Commit C", Instant.now());
+    Commit commitC = new Commit(idC, List.of(), "alice", "Commit C", Instant.now(), 0);
 
     Branch featureBranch = new Branch("feature", idC);
 
@@ -225,10 +225,10 @@ class RebaseCommandHandlerTest {
     CommitId idD = new CommitId(commitDId);
     CommitId idE = new CommitId(commitEId);
 
-    Commit commitA = new Commit(idA, List.of(), "alice", "Commit A", Instant.now());
-    Commit commitC = new Commit(idC, List.of(), "alice", "Commit C", Instant.now());
-    Commit commitD = new Commit(idD, List.of(idA), "bob", "Commit D", Instant.now());
-    Commit commitE = new Commit(idE, List.of(idD), "bob", "Commit E", Instant.now());
+    Commit commitA = new Commit(idA, List.of(), "alice", "Commit A", Instant.now(), 0);
+    Commit commitC = new Commit(idC, List.of(), "alice", "Commit C", Instant.now(), 0);
+    Commit commitD = new Commit(idD, List.of(idA), "bob", "Commit D", Instant.now(), 0);
+    Commit commitE = new Commit(idE, List.of(idD), "bob", "Commit E", Instant.now(), 0);
 
     RDFPatch patchD = createPatch("http://example.org/d", "value-d");
     RDFPatch patchE = createPatch("http://example.org/e", "value-e");

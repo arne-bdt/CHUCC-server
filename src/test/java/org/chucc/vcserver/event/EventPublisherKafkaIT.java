@@ -120,6 +120,7 @@ class EventPublisherKafkaIT {
         "Bob <bob@example.com>",
         Instant.now(),
         "TX .\nA <urn:subject> <urn:predicate> \"object\" .\nTC .\n"
+        , 1
     );
 
     String topicName = kafkaProperties.getTopicName(datasetId);

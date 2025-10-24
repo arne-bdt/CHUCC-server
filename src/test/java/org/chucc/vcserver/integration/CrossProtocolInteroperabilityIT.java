@@ -366,7 +366,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
    */
   @Test
   void asOfSelector_shouldBeAcceptedByGsp() throws Exception {
-    // Given - Create commit with known timestamp
+    // Given - Create commit with known timestamp,
     CommitId pastCommitId = CommitId.generate();
     Instant pastTime = Instant.parse("2025-01-01T12:00:00Z");
 
@@ -376,7 +376,8 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
         List.of(initialCommitId),
         "Time Traveler",
         "Past commit",
-        pastTime
+        pastTime,
+        0
     );
 
     commitRepository.save(

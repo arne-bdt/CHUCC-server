@@ -78,7 +78,8 @@ class SparqlUpdateNoOpIT {
         java.util.List.of(),
         "System",
         "Initial commit",
-        java.time.Instant.now()
+        java.time.Instant.now(),
+        0
     );
 
     // Create a patch with initial data

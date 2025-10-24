@@ -150,7 +150,8 @@ class GraphEventProjectorIT {
         "Add graph via PUT",
         "Alice",
         java.time.Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1  // Patch has 1 operation
     );
 
     // When - Publish event to Kafka
@@ -187,7 +188,8 @@ class GraphEventProjectorIT {
         "Commit 1",
         "Author1",
         java.time.Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1  // Patch has 1 operation
     );
 
     org.chucc.vcserver.event.CommitCreatedEvent event2 =
@@ -199,7 +201,8 @@ class GraphEventProjectorIT {
         "Commit 2",
         "Author2",
         java.time.Instant.now().plusMillis(1),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1  // Patch has 1 operation
     );
 
     org.chucc.vcserver.event.CommitCreatedEvent event3 =
@@ -211,7 +214,8 @@ class GraphEventProjectorIT {
         "Commit 3",
         "Author3",
         java.time.Instant.now().plusMillis(2),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1  // Patch has 1 operation
     );
 
     // When - Publish events
@@ -263,7 +267,8 @@ class GraphEventProjectorIT {
         "Add triples via POST",
         "Bob",
         java.time.Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1  // Patch has 1 operation
     );
 
     // When - Publish event
@@ -298,7 +303,8 @@ class GraphEventProjectorIT {
         "Delete graph",
         "Charlie",
         java.time.Instant.now(),
-        "TX .\nD <http://example.org/s> <http://example.org/p> \"value\" .\nTC ."
+        "TX .\nD <http://example.org/s> <http://example.org/p> \"value\" .\nTC .",
+        1
     );
 
     // When - Publish event
@@ -332,7 +338,8 @@ class GraphEventProjectorIT {
         "Patch graph",
         "David",
         java.time.Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1  // Patch has 1 operation
     );
 
     // When - Publish event
@@ -366,7 +373,8 @@ class GraphEventProjectorIT {
         "Batch update",
         "Batch Author",
         java.time.Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1  // Patch has 1 operation
     );
 
     org.chucc.vcserver.event.BatchGraphsCompletedEvent batchEvent =

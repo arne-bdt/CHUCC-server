@@ -84,7 +84,8 @@ class ResetOperationIT {
         List.of(),
         "Alice",
         "Initial commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commit1,
         org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
@@ -95,7 +96,8 @@ class ResetOperationIT {
         List.of(commit1Id),
         "Bob",
         "Second commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commit2,
         org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
@@ -106,7 +108,8 @@ class ResetOperationIT {
         List.of(commit2Id),
         "Charlie",
         "Third commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commit3,
         org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
@@ -425,7 +428,8 @@ class ResetOperationIT {
         List.of(),
         "Alice",
         "Initial commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save("default", commit1,
         org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
@@ -436,7 +440,8 @@ class ResetOperationIT {
         List.of(defaultCommit1),
         "Bob",
         "Second commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save("default", commit2,
         org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());

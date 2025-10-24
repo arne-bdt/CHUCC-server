@@ -153,7 +153,7 @@ class SparqlControllerTest {
     CommitCreatedEvent event = new CommitCreatedEvent(
         "default", commitIdValue, java.util.List.of(), "main",
         "Test commit message", "test@example.org",
-        java.time.Instant.now(), "");
+        java.time.Instant.now(), "", 1);
     when(sparqlUpdateCommandHandler.handle(any())).thenReturn(event);
 
     // When & Then: SPARQL-VC-Message header is accepted and update succeeds
@@ -174,7 +174,7 @@ class SparqlControllerTest {
     CommitCreatedEvent event = new CommitCreatedEvent(
         "default", commitIdValue, java.util.List.of(), "main",
         "Test message", "alice@example.org",
-        java.time.Instant.now(), "");
+        java.time.Instant.now(), "", 1);
     when(sparqlUpdateCommandHandler.handle(any())).thenReturn(event);
 
     // When & Then: SPARQL-VC-Author header is accepted and update succeeds

@@ -87,7 +87,8 @@ class GraphStoreTimeTravelIT extends ITFixture {
         List.of(),
         "Alice",
         "Version 1",
-        timestamp1
+        timestamp1,
+        0
     );
 
     Commit commit2 = new Commit(
@@ -95,7 +96,8 @@ class GraphStoreTimeTravelIT extends ITFixture {
         List.of(commit1Id),
         "Bob",
         "Version 2",
-        timestamp2
+        timestamp2,
+        0
     );
 
     Commit commit3 = new Commit(
@@ -103,7 +105,8 @@ class GraphStoreTimeTravelIT extends ITFixture {
         List.of(commit2Id),
         "Charlie",
         "Version 3",
-        timestamp3
+        timestamp3,
+        0
     );
 
     commitRepository.save(DATASET_NAME, commit1, patch1);
@@ -152,7 +155,7 @@ class GraphStoreTimeTravelIT extends ITFixture {
 
   @Test
   void getGraph_shouldReturn200WithHistoricalData_whenAsOfWithBranch() {
-    // Given - Commits created in setUp() at timestamp1, timestamp2, timestamp3
+    // Given - Commits created in setUp() at timestamp1, timestamp2, timestamp3,
     HttpHeaders headers = new HttpHeaders();
     headers.set("Accept", "text/turtle");
 
@@ -177,7 +180,7 @@ class GraphStoreTimeTravelIT extends ITFixture {
 
   @Test
   void getGraph_shouldBeInclusive_whenAsOfMatchesExactTimestamp() {
-    // Given - Commit at exactly timestamp2
+    // Given - Commit at exactly timestamp2,
     HttpHeaders headers = new HttpHeaders();
     headers.set("Accept", "text/turtle");
 
@@ -244,7 +247,7 @@ class GraphStoreTimeTravelIT extends ITFixture {
 
   @Test
   void getGraph_shouldReturn404_whenAsOfBeforeAnyCommit() {
-    // Given - First commit is at timestamp1
+    // Given - First commit is at timestamp1,
     HttpHeaders headers = new HttpHeaders();
     headers.set("Accept", "text/turtle");
 
@@ -266,7 +269,7 @@ class GraphStoreTimeTravelIT extends ITFixture {
 
   @Test
   void getGraph_shouldReturnLatest_whenAsOfInFuture() {
-    // Given - Latest commit is at timestamp3
+    // Given - Latest commit is at timestamp3,
     HttpHeaders headers = new HttpHeaders();
     headers.set("Accept", "text/turtle");
 

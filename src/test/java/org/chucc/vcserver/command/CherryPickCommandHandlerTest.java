@@ -77,7 +77,8 @@ class CherryPickCommandHandlerTest {
         List.of(),
         "bob",
         "Original commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
 
     RDFPatch sourcePatch = RDFPatchOps.emptyPatch();
@@ -132,7 +133,8 @@ class CherryPickCommandHandlerTest {
         List.of(),
         "bob",
         "Original commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
 
     RDFPatch sourcePatch = RDFPatchOps.emptyPatch();
@@ -221,7 +223,8 @@ class CherryPickCommandHandlerTest {
         List.of(),
         "bob",
         "Original commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
 
     when(branchRepository.findByDatasetAndName("test-dataset", "main"))
@@ -257,7 +260,8 @@ class CherryPickCommandHandlerTest {
         List.of(),
         "bob",
         "Original commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
 
     // Create patches that intersect (modify the same triple)

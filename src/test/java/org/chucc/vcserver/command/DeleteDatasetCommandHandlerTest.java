@@ -84,9 +84,11 @@ class DeleteDatasetCommandHandlerTest {
     Branch branch2 = new Branch("feature", commitId2);
 
     Commit commit1 = new Commit(commitId1, Collections.emptyList(), "alice", "First",
-        Instant.now());
+        Instant.now(),
+        0);
     Commit commit2 = new Commit(commitId2, Collections.emptyList(), "bob", "Second",
-        Instant.now());
+        Instant.now(),
+        0);
 
     DeleteDatasetCommand command = new DeleteDatasetCommand(
         dataset,

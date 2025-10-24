@@ -155,6 +155,7 @@ class SnapshotServiceIT {
         "test-author",
         Instant.now(),
         rdfPatch
+        , 1
     );
 
     eventPublisher.publish(commitEvent).get();

@@ -82,6 +82,7 @@ class ReadModelProjectorExceptionHandlingTest {
         "author@example.com",
         Instant.now(),
         "TX ."
+        , 1
     );
 
     // Mock repository to throw exception during save
@@ -121,6 +122,7 @@ class ReadModelProjectorExceptionHandlingTest {
         "author@example.com",
         Instant.now(),
         "INVALID RDF SYNTAX <<<"  // malformed RDF patch
+        , 1
     );
 
     ConsumerRecord<String, VersionControlEvent> record =
@@ -148,6 +150,7 @@ class ReadModelProjectorExceptionHandlingTest {
         "author@example.com",
         Instant.now(),
         "TX ."
+        , 1
     );
 
     // Mock repository to throw NPE (simulating unexpected error)

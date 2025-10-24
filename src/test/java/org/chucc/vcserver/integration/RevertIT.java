@@ -89,7 +89,8 @@ class RevertIT {
         List.of(),
         "Alice",
         "Initial commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, initialCommit, RDFPatchOps.emptyPatch());
 
@@ -110,7 +111,8 @@ class RevertIT {
         List.of(initialCommitId),
         "Alice",
         "Add Alice data",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save(DATASET_NAME, commitToRevert, patchToRevert);
 
@@ -370,7 +372,8 @@ class RevertIT {
         List.of(),
         "Alice",
         "Default dataset commit",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save("default", defaultCommit, RDFPatchOps.emptyPatch());
 
@@ -390,7 +393,8 @@ class RevertIT {
         List.of(defaultCommitId),
         "Alice",
         "Commit to revert",
-        Instant.now()
+        Instant.now(),
+        0
     );
     commitRepository.save("default", commit, collector.getRDFPatch());
 

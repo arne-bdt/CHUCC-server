@@ -154,7 +154,8 @@ class DatasetServiceTest {
     Commit secondCommit = Commit.create(
         java.util.List.of(initialCommit),
         AUTHOR,
-        "Second commit"
+        "Second commit",
+        0
     );
     RDFPatch patch = RDFPatchOps.emptyPatch();
     commitRepository.save(DATASET_NAME, secondCommit, patch);

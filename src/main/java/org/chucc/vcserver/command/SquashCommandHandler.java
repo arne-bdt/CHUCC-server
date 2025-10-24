@@ -97,12 +97,14 @@ public class SquashCommandHandler implements CommandHandler<SquashCommand> {
     // 8. Create new squashed commit
     CommitId newCommitId = CommitId.generate();
     String author = command.author() != null ? command.author() : firstCommit.author();
+    int patchSize = RdfPatchUtil.countOperations(combinedPatch);
     Commit newCommit = new Commit(
         newCommitId,
         List.of(baseCommitId),
         author,
         command.message(),
-        Instant.now()
+        Instant.now(),
+        patchSize
     );
 
     // 9. Save new commit with combined patch

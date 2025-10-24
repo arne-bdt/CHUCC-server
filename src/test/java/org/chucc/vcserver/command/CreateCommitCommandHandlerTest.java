@@ -75,7 +75,8 @@ class CreateCommitCommandHandlerTest {
         java.util.List.of(),
         "System",
         "Initial commit",
-        java.time.Instant.now());
+        java.time.Instant.now(),
+        0);
 
     when(branchRepository.findByDatasetAndName(DATASET_NAME, BRANCH_NAME))
         .thenReturn(Optional.of(mainBranch));
@@ -167,7 +168,8 @@ class CreateCommitCommandHandlerTest {
         java.util.List.of(earlierCommitId),
         "System",
         "Parent commit",
-        java.time.Instant.now());
+        java.time.Instant.now(),
+        0);
 
     // Create a parent patch that will intersect
     String patchContent = "TX .\nA <http://example.org/s> <http://example.org/p> \"old\" .\nTC .";
@@ -219,7 +221,8 @@ class CreateCommitCommandHandlerTest {
         java.util.List.of(),
         "System",
         "Initial commit",
-        java.time.Instant.now());
+        java.time.Instant.now(),
+        0);
 
     when(branchRepository.findByDatasetAndName(DATASET_NAME, BRANCH_NAME))
         .thenReturn(Optional.of(mainBranch));
@@ -266,7 +269,8 @@ class CreateCommitCommandHandlerTest {
         java.util.List.of(),
         "System",
         "Initial commit",
-        java.time.Instant.now());
+        java.time.Instant.now(),
+        0);
 
     when(branchRepository.findByDatasetAndName(DATASET_NAME, BRANCH_NAME))
         .thenReturn(Optional.of(mainBranch));

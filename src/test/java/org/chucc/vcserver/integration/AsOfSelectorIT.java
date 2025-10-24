@@ -104,7 +104,8 @@ class AsOfSelectorIT {
         List.of(),
         "Alice",
         "First commit",
-        timestamp1
+        timestamp1,
+        0
     );
 
     Commit commit2 = new Commit(
@@ -112,7 +113,8 @@ class AsOfSelectorIT {
         List.of(commit1Id),
         "Bob",
         "Second commit",
-        timestamp2
+        timestamp2,
+        0
     );
 
     Commit commit3 = new Commit(
@@ -120,7 +122,8 @@ class AsOfSelectorIT {
         List.of(commit2Id),
         "Charlie",
         "Third commit",
-        timestamp3
+        timestamp3,
+        0
     );
 
     commitRepository.save(DATASET_NAME, commit1, RDFPatchOps.emptyPatch());
@@ -183,7 +186,7 @@ class AsOfSelectorIT {
 
     HttpEntity<String> request = new HttpEntity<>(PATCH_BODY, headers);
 
-    // When: POST with exact timestamp
+    // When: POST with exact timestamp,
     ResponseEntity<String> response = restTemplate.exchange(
         "/version/commits?branch=" + BRANCH_NAME
             + "&asOf=2025-01-02T00:00:00Z&dataset=" + DATASET_NAME,
@@ -202,7 +205,7 @@ class AsOfSelectorIT {
    */
   @Test
   void createCommit_withFutureTimestamp_shouldReturn201() throws Exception {
-    // Given: Request with future timestamp
+    // Given: Request with future timestamp,
     HttpHeaders headers = new HttpHeaders();
     headers.set("Content-Type", "text/rdf-patch");
     headers.set("SPARQL-VC-Author", "Frank");
@@ -210,7 +213,7 @@ class AsOfSelectorIT {
 
     HttpEntity<String> request = new HttpEntity<>(PATCH_BODY, headers);
 
-    // When: POST with future timestamp
+    // When: POST with future timestamp,
     ResponseEntity<String> response = restTemplate.exchange(
         "/version/commits?branch=" + BRANCH_NAME
             + "&asOf=2025-01-10T00:00:00Z&dataset=" + DATASET_NAME,
@@ -262,7 +265,7 @@ class AsOfSelectorIT {
 
     HttpEntity<String> request = new HttpEntity<>(PATCH_BODY, headers);
 
-    // When: POST with invalid timestamp
+    // When: POST with invalid timestamp,
     ResponseEntity<String> response = restTemplate.exchange(
         "/version/commits?branch=" + BRANCH_NAME
             + "&asOf=not-a-timestamp&dataset=" + DATASET_NAME,

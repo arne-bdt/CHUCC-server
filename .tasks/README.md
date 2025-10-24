@@ -8,9 +8,11 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Previously:** All original tasks were completed and removed (October 24, 2025)
 
-**Now:** 6 tasks remain to implement protocol endpoints that currently return 501 "Not Implemented"
+**Now:** 5 tasks remain to implement protocol endpoints that currently return 501 "Not Implemented"
 
-**Recent Completion:** Branch Management API (2025-10-24)
+**Recent Completions:**
+- patchSize Schema Evolution (2025-01-24) - CQRS Compliant ✅
+- Branch Management API (2025-10-24)
 
 ---
 
@@ -71,20 +73,20 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-#### 4a. Add patchSize to Commit Entity (PREREQUISITE)
+#### 4a. ✅ Add patchSize to Commit Entity (COMPLETED)
 **File:** [`.tasks/commits/00-add-patchsize-to-commit-entity.md`](./commits/00-add-patchsize-to-commit-entity.md)
 
 **Changes:**
-- Add `patchSize` field to `Commit` entity
-- Add `patchSize` field to `CommitCreatedEvent`
-- Update all command handlers to compute patchSize
-- Update ReadModelProjector
+- ✅ Add `patchSize` field to `Commit` entity
+- ✅ Add `patchSize` field to `CommitCreatedEvent`
+- ✅ Update all command handlers to compute patchSize
+- ✅ Update ReadModelProjector
 
-**Status:** Not Started
-**Estimated Time:** 3-4 hours
+**Status:** ✅ Completed (2025-01-24)
+**Actual Time:** ~3 hours
 **Category:** Schema Evolution
 
-**Notes:** This is a **blocking task** for 4b. Event schema change requires careful testing.
+**CQRS Compliance:** ✅ Excellent (verified by cqrs-compliance-checker)
 
 ---
 
@@ -94,7 +96,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 **Endpoints:**
 - `GET /version/commits/{id}?dataset={name}` - Get commit metadata
 
-**Status:** Not Started (Blocked by 4a)
+**Status:** Ready to Start (Blocker 4a removed!)
 **Estimated Time:** 1-2 hours
 **Protocol Spec:** §3.2
 

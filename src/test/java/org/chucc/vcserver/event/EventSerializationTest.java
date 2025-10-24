@@ -32,6 +32,7 @@ class EventSerializationTest {
         "Alice",
         Instant.parse("2025-01-15T10:00:00Z"),
         "A <http://example.org/s> <http://example.org/p> \"value\" ."
+        , 1
     );
 
     // Act: Serialize to JSON
@@ -307,6 +308,7 @@ class EventSerializationTest {
         "Alice",
         Instant.parse("2025-01-15T10:00:00Z"),
         "patch1"
+        , 1
     );
     CommitCreatedEvent commit2 = new CommitCreatedEvent(
         "testDataset",
@@ -317,6 +319,7 @@ class EventSerializationTest {
         "Alice",
         Instant.parse("2025-01-15T10:01:00Z"),
         "patch2"
+        , 1
     );
 
     BatchGraphsCompletedEvent original = new BatchGraphsCompletedEvent(
@@ -402,7 +405,7 @@ class EventSerializationTest {
     // Arrange: Create all 12 event types
     List<VersionControlEvent> events = List.of(
         new CommitCreatedEvent(null, "test", "c1", List.of(), "main", "msg", "author",
-            Instant.now(), "patch"),
+            Instant.now(), "patch", 1),
         new BranchCreatedEvent(null, "test", "branch", "c1", "main", false, "author",
             Instant.now()),
         new TagCreatedEvent(null, "test", "tag", "c1", Instant.now()),

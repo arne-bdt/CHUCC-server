@@ -185,7 +185,8 @@ public class DatasetService {
     Commit initialCommit = Commit.create(
         List.of(),
         author,
-        "Initial commit"
+        "Initial commit",
+        0  // Initial commit has empty patch
     );
 
     // Create empty patch for initial commit

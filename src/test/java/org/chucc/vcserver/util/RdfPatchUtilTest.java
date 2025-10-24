@@ -561,4 +561,84 @@ class RdfPatchUtilTest {
       RdfPatchUtil.isNoOp(patch, null);
     });
   }
+
+  // ===== Count Operations Tests =====
+
+  @Test
+  void testCountOperationsWithEmptyPatch() {
+    // Create empty patch (no operations)
+    RDFPatch emptyPatch = RdfPatchUtil.diff(
+        GraphFactory.createDefaultGraph(),
+        GraphFactory.createDefaultGraph());
+
+    int count = RdfPatchUtil.countOperations(emptyPatch);
+
+    assertEquals(0, count, "Empty patch should have 0 operations");
+  }
+
+  @Test
+  void testCountOperationsWithOnlyAdds() {
+    // Create patch with only add operations
+    Graph sourceGraph = GraphFactory.createDefaultGraph();
+    Graph targetGraph = GraphFactory.createDefaultGraph();
+    targetGraph.add(createTriple("http://example.org/s1",
+        "http://example.org/p1", "http://example.org/o1"));
+    targetGraph.add(createTriple("http://example.org/s2",
+        "http://example.org/p2", "http://example.org/o2"));
+    targetGraph.add(createTriple("http://example.org/s3",
+        "http://example.org/p3", "http://example.org/o3"));
+
+    RDFPatch patch = RdfPatchUtil.diff(sourceGraph, targetGraph);
+    int count = RdfPatchUtil.countOperations(patch);
+
+    assertEquals(3, count, "Patch with 3 adds should have 3 operations");
+  }
+
+  @Test
+  void testCountOperationsWithOnlyDeletes() {
+    // Create patch with only delete operations
+    Graph sourceGraph = GraphFactory.createDefaultGraph();
+    sourceGraph.add(createTriple("http://example.org/s1",
+        "http://example.org/p1", "http://example.org/o1"));
+    sourceGraph.add(createTriple("http://example.org/s2",
+        "http://example.org/p2", "http://example.org/o2"));
+
+    Graph targetGraph = GraphFactory.createDefaultGraph();
+
+    RDFPatch patch = RdfPatchUtil.diff(sourceGraph, targetGraph);
+    int count = RdfPatchUtil.countOperations(patch);
+
+    assertEquals(2, count, "Patch with 2 deletes should have 2 operations");
+  }
+
+  @Test
+  void testCountOperationsWithMixedAddsAndDeletes() {
+    // Create patch with both adds and deletes
+    Graph sourceGraph = GraphFactory.createDefaultGraph();
+    sourceGraph.add(createTriple("http://example.org/s1",
+        "http://example.org/p1", "http://example.org/o1"));
+    sourceGraph.add(createTriple("http://example.org/s2",
+        "http://example.org/p2", "http://example.org/o2"));
+
+    Graph targetGraph = GraphFactory.createDefaultGraph();
+    targetGraph.add(createTriple("http://example.org/s1",
+        "http://example.org/p1", "http://example.org/o1")); // Kept (not counted)
+    targetGraph.add(createTriple("http://example.org/s3",
+        "http://example.org/p3", "http://example.org/o3")); // Added
+    targetGraph.add(createTriple("http://example.org/s4",
+        "http://example.org/p4", "http://example.org/o4")); // Added
+    // s2 deleted
+
+    RDFPatch patch = RdfPatchUtil.diff(sourceGraph, targetGraph);
+    int count = RdfPatchUtil.countOperations(patch);
+
+    assertEquals(3, count, "Patch with 2 adds + 1 delete should have 3 operations");
+  }
+
+  @Test
+  void testCountOperationsWithNullPatch() {
+    assertThrows(IllegalArgumentException.class, () -> {
+      RdfPatchUtil.countOperations(null);
+    }, "countOperations should throw IllegalArgumentException for null patch");
+  }
 }

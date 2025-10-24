@@ -29,15 +29,15 @@ This server implements:
 - ✅ Full version control integration
 
 ### Version Control
-- ✅ **Branches** - Create, list, switch, delete, reset
+- ✅ **Branches** - Create, list, get info, delete with Git-like metadata (timestamps, commit count, protection)
 - ✅ **Commits** - Atomic updates with UUIDv7 identifiers, metadata, and provenance
-- ✅ **History** - Browse commit history with filtering and pagination
+- ⏳ **History** - Browse commit history with filtering (in progress)
 - ✅ **Time-travel** - Query dataset state at any point in time (`asOf`)
-- ✅ **Merging** - Three-way merge with conflict detection
-- ✅ **Tags** - Immutable named snapshots
-- ✅ **Diff** - Compare any two commits
-- ✅ **Blame** - Last-writer attribution per triple
-- ✅ **Batch operations** - Apply multiple updates atomically
+- ⏳ **Merging** - Three-way merge with conflict detection (in progress)
+- ⏳ **Tags** - Create and list tags (partial - get/delete implemented)
+- ⏳ **Diff** - Compare any two commits (in progress)
+- ⏳ **Blame** - Last-writer attribution per triple (in progress)
+- ⏳ **Batch operations** - Apply multiple SPARQL operations atomically (in progress)
 
 ### Advanced Features
 - ✅ **Optimistic Concurrency** - ETags and If-Match headers
@@ -200,7 +200,7 @@ To temporarily increase test logging, override in your test:
 
 ## Development Status
 
-✅ **Feature Complete** - All planned features implemented and production-ready
+⏳ **In Active Development** - Core features complete, API endpoints in progress
 
 **Completed:**
 - ✅ Protocol specification (SPARQL 1.2 + Version Control Extension)
@@ -209,7 +209,7 @@ To temporarily increase test logging, override in your test:
 - ✅ Core SPARQL endpoint (Query + Update)
 - ✅ Graph Store Protocol (GET, PUT, POST, DELETE, PATCH, HEAD)
 - ✅ Named graph support (quad-based RDF Patch handling)
-- ✅ Version control layer (branches, commits, merges, tags)
+- ✅ Version control core (commits, advanced operations)
 - ✅ Storage backend (Apache Jena + Kafka event sourcing)
 - ✅ Full CQRS + Event Sourcing architecture (command handlers → Kafka → projectors)
 - ✅ Comprehensive test suite (711 tests, including async event flow validation)
@@ -218,6 +218,16 @@ To temporarily increase test logging, override in your test:
 - ✅ Time-travel query validation tests (5 comprehensive integration tests)
 - ✅ Performance refactoring (Model API → Graph API migration complete)
 - ✅ Consistent dataset parameter support (removed all hardcoded "default" values)
+- ✅ **Branch Management API** (GET/POST/GET/{name}/DELETE /version/branches) - Completed 2025-10-24
+
+**In Progress:**
+- ⏳ Commit Metadata API (GET /version/commits/{id})
+- ⏳ Tag Management API (GET/POST /version/tags)
+- ⏳ History & Diff API (GET /version/history, /diff, /blame)
+- ⏳ Merge Operations API (POST /version/merge)
+- ⏳ Batch Operations API (POST /version/batch)
+
+See [.tasks/README.md](.tasks/README.md) for detailed task roadmap.
 - ✅ Kafka best practices: Aggregate-ID partition key strategy
 - ✅ Kafka best practices: UUIDv7-based event deduplication
 - ✅ Kafka best practices: Correlation ID for distributed tracing

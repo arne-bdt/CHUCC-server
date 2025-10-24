@@ -4,33 +4,21 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-## Status: NEW TASKS ADDED ⚠️
+## Status: IN PROGRESS
 
-**Previously:** All tasks were completed and removed (October 24, 2025)
+**Previously:** All original tasks were completed and removed (October 24, 2025)
 
-**Now:** 6 new tasks added to implement protocol endpoints that currently return 501 "Not Implemented"
+**Now:** 6 tasks remain to implement protocol endpoints that currently return 501 "Not Implemented"
+
+**Recent Completion:** Branch Management API (2025-10-24)
 
 ---
 
-## New Tasks (Added 2025-10-24)
+## Remaining Tasks
 
 ### 🔴 High Priority
 
-#### 1. Branch Management API
-**File:** [`.tasks/branches/01-implement-branch-list-and-create-api.md`](./branches/01-implement-branch-list-and-create-api.md)
-
-**Endpoints:**
-- `GET /version/branches` - List all branches
-- `POST /version/branches` - Create new branch
-- `GET /version/branches/{name}` - Get branch info
-
-**Status:** Not Started
-**Estimated Time:** 3-4 hours
-**Protocol Spec:** §3.2 (implied)
-
----
-
-#### 2. Tag Management API
+#### 1. Tag Management API
 **File:** [`.tasks/tags/01-implement-tag-list-and-create-api.md`](./tags/01-implement-tag-list-and-create-api.md)
 
 **Endpoints:**
@@ -47,7 +35,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-#### 3. Merge Operations API
+#### 2. Merge Operations API
 **File:** [`.tasks/merge/01-implement-merge-api.md`](./merge/01-implement-merge-api.md)
 
 **Endpoints:**
@@ -67,7 +55,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🟡 Medium Priority
 
-#### 4. History & Diff API
+#### 3. History & Diff API
 **File:** [`.tasks/history/01-implement-history-diff-blame-api.md`](./history/01-implement-history-diff-blame-api.md)
 
 **Endpoints:**
@@ -83,22 +71,43 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-#### 5. Commit Metadata API
+#### 4a. Add patchSize to Commit Entity (PREREQUISITE)
+**File:** [`.tasks/commits/00-add-patchsize-to-commit-entity.md`](./commits/00-add-patchsize-to-commit-entity.md)
+
+**Changes:**
+- Add `patchSize` field to `Commit` entity
+- Add `patchSize` field to `CommitCreatedEvent`
+- Update all command handlers to compute patchSize
+- Update ReadModelProjector
+
+**Status:** Not Started
+**Estimated Time:** 3-4 hours
+**Category:** Schema Evolution
+
+**Notes:** This is a **blocking task** for 4b. Event schema change requires careful testing.
+
+---
+
+#### 4b. Commit Metadata API
 **File:** [`.tasks/commits/01-implement-commit-metadata-api.md`](./commits/01-implement-commit-metadata-api.md)
 
 **Endpoints:**
-- `GET /version/commits/{id}` - Get commit metadata
+- `GET /version/commits/{id}?dataset={name}` - Get commit metadata
 
-**Status:** Not Started
-**Estimated Time:** 2-3 hours
+**Status:** Not Started (Blocked by 4a)
+**Estimated Time:** 1-2 hours
 **Protocol Spec:** §3.2
+
+**Design:** Minimal implementation (id, message, author, timestamp, parents, patchSize)
+- No branches/tags lists (expensive O(n) scan)
+- Read-only, no CQRS complexity
 
 **Already Implemented:**
 - ✅ `POST /version/commits` - Create commit (apply RDF Patch)
 
 ---
 
-#### 6. Batch Operations API
+#### 5. Batch Operations API
 **File:** [`.tasks/batch/01-implement-batch-operations-api.md`](./batch/01-implement-batch-operations-api.md)
 
 **Endpoints:**
@@ -119,31 +128,34 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Progress Summary
 
-**Total New Tasks:** 6 tasks
-**Total Endpoints:** 11 endpoints
-**Estimated Total Time:** 21-27 hours
+**Total Tasks:** 6 tasks (5 endpoint tasks + 1 schema evolution)
+**Total Endpoints:** 8 endpoints
+**Estimated Total Time:** 21-28 hours
 
 **Priority Breakdown:**
-- 🔴 High Priority: 3 tasks (Branches, Tags, Merge)
-- 🟡 Medium Priority: 3 tasks (History, Commits, Batch)
+- 🔴 High Priority: 2 tasks (Tags, Merge)
+- 🟡 Medium Priority: 4 tasks (History, Schema Evolution, Commits, Batch)
 
-**Current Status:** 0 of 6 tasks completed (0%)
+**Current Status:** 1 of 7 tasks completed (14%)
+- ✅ Branch Management API (completed 2025-10-24)
 
 ---
 
 ## Recommended Implementation Order
 
-1. **Commit Metadata API** (2-3 hours)
-   - Simplest task
-   - Read-only, no CQRS complexity
-   - Good warm-up
+1. **Add patchSize to Commit Entity** (3-4 hours) - **PREREQUISITE**
+   - Schema evolution task
+   - Blocking task for Commit Metadata API
+   - Critical: Run @event-schema-evolution-checker after completion
 
-2. **Branch Management API** (3-4 hours)
-   - Essential functionality
-   - Builds on existing delete branch handler
+2. **Commit Metadata API** (1-2 hours)
+   - Simplest endpoint task
+   - Read-only, no CQRS complexity
+   - Good warm-up after schema change
+   - **Depends on Task 1**
 
 3. **Tag Management API** (3-4 hours)
-   - Similar to branches
+   - Similar to branches (already implemented)
    - Immutability adds slight complexity
 
 4. **History & Diff API** (4-5 hours)
@@ -174,15 +186,24 @@ The following endpoints are **already implemented** and working:
 
 **Controller:** [AdvancedOpsController.java](../src/main/java/org/chucc/vcserver/controller/AdvancedOpsController.java)
 
-### ✅ Branch Operations
+### ✅ Branch Operations (All Implemented - 2025-10-24)
+- `GET /version/branches` - List all branches with full metadata
+- `POST /version/branches` - Create new branch from commit/branch
+- `GET /version/branches/{name}` - Get branch information
 - `DELETE /version/branches/{name}` - Delete branch
 
-### ✅ Tag Operations
+**Controller:** [BranchController.java](../src/main/java/org/chucc/vcserver/controller/BranchController.java)
+
+### ✅ Tag Operations (Partial)
 - `GET /version/tags/{name}` - Get tag details
 - `DELETE /version/tags/{name}` - Delete tag
 
-### ✅ Commit Operations
+**Note:** Tag list and create endpoints still need implementation
+
+### ✅ Commit Operations (Partial)
 - `POST /version/commits` - Create commit (apply RDF Patch)
+
+**Note:** Commit metadata endpoint still needs implementation
 
 ### ✅ Graph Store Protocol
 - `GET/PUT/POST/DELETE` - All GSP operations
@@ -233,7 +254,7 @@ Each task file includes:
 2. Verify zero quality violations
 3. Create conventional commit message
 4. **Delete the task file** when completed
-5. Update this README (move task to "Completed" section)
+5. Update this README (move task to "Completed Tasks" section)
 
 ---
 
@@ -276,10 +297,10 @@ All tasks implement endpoints from:
 
 ### Required Endpoints (Normative)
 - ✅ Commit creation (`POST /version/commits`)
-- ✅ Refs listing (`GET /version/refs`) - *Already implemented*
+- ✅ Refs listing (`GET /version/refs`)
+- ✅ Branch management (`GET/POST/GET/{name} /version/branches`)
 - ❌ Commit metadata (`GET /version/commits/{id}`)
 - ❌ History listing (`GET /version/history`)
-- ❌ Branch management (`GET/POST /version/branches`)
 - ❌ Tag management (`GET/POST /version/tags`)
 - ❌ Merge operations (`POST /version/merge`)
 - ❌ Batch operations (`POST /version/batch`)
@@ -291,7 +312,22 @@ All tasks implement endpoints from:
 
 ---
 
-## Completed Work (October 2025)
+## Completed Tasks (October 2025)
+
+### ✅ Branch Management API (Completed 2025-10-24)
+- Implemented `GET /version/branches` - List all branches
+- Implemented `POST /version/branches` - Create new branch
+- Implemented `GET /version/branches/{name}` - Get branch info
+- Full Git-like metadata support (timestamps, commit count, protection)
+
+**Files:**
+- Controller: [BranchController.java](../src/main/java/org/chucc/vcserver/controller/BranchController.java)
+- Service: [BranchService.java](../src/main/java/org/chucc/vcserver/service/BranchService.java)
+- Command Handler: [CreateBranchCommandHandler.java](../src/main/java/org/chucc/vcserver/command/CreateBranchCommandHandler.java)
+
+---
+
+## Completed Work (Before October 2025)
 
 The following major features were completed before these tasks were added:
 
@@ -358,13 +394,13 @@ When a task is completed:
    - Include "Generated with Claude Code" footer
 
 3. **Update This README**
-   - Move task from "New Tasks" to "Completed Tasks"
+   - Move task from "Remaining Tasks" to "Completed Tasks"
    - Update progress percentage
    - Update endpoint status (❌ → ✅)
 
-4. **Delete Task File**
+4. **Delete Task File/Folder**
    - Remove `.tasks/<category>/<task-file>.md`
-   - Keep directory if other tasks remain
+   - Remove directory if no other tasks remain
 
 5. **Celebrate!** 🎉
 
@@ -380,4 +416,4 @@ When a task is completed:
 ---
 
 **Last Updated:** 2025-10-24
-**Next Review:** After first task completion
+**Next Review:** After next task completion

@@ -7,6 +7,8 @@ import org.springframework.http.HttpStatus;
  * Maps to HTTP 400 Bad Request with error code "unconfirmed_deletion".
  */
 public class UnconfirmedDeletionException extends VcException {
+  
+  private static final long serialVersionUID = 1L;
 
   private static final String ERROR_CODE = "unconfirmed_deletion";
 

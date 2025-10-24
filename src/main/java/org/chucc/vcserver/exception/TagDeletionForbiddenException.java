@@ -7,6 +7,8 @@ import org.springframework.http.HttpStatus;
  * Maps to HTTP 403 Forbidden with error code "tag_deletion_forbidden".
  */
 public class TagDeletionForbiddenException extends VcException {
+  
+  private static final long serialVersionUID = 1L;
 
   private static final String ERROR_CODE = "tag_deletion_forbidden";
 

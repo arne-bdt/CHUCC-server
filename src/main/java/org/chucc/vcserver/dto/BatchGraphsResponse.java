@@ -20,7 +20,7 @@ public class BatchGraphsResponse {
 
   @Schema(
       description = "List of commits created by the batch operation",
-      required = true
+      requiredMode = Schema.RequiredMode.REQUIRED
   )
   private List<BatchCommit> commits;
 
@@ -62,7 +62,7 @@ public class BatchGraphsResponse {
     @Schema(
         description = "Commit ID (UUIDv7)",
         example = "01936c7f-8a2e-7890-abcd-ef1234567890",
-        required = true
+        requiredMode = Schema.RequiredMode.REQUIRED
     )
     private String id;
 

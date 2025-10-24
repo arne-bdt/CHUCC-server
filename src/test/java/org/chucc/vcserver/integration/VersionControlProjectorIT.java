@@ -119,7 +119,7 @@ class VersionControlProjectorIT {
       NewTopic newTopic = new NewTopic(
           topicName,
           kafkaProperties.getPartitions(),
-          (short) kafkaProperties.getReplicationFactor()
+          kafkaProperties.getReplicationFactor()
       );
 
       adminClient.createTopics(Collections.singletonList(newTopic)).all().get();

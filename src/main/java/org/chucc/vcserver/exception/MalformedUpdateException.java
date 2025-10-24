@@ -13,6 +13,8 @@ package org.chucc.vcserver.exception;
  * <p>This exception maps to HTTP 400 BAD REQUEST responses with RFC 7807 Problem Details.</p>
  */
 public class MalformedUpdateException extends RuntimeException {
+  
+  private static final long serialVersionUID = 1L;
 
   /**
    * Creates a new malformed update exception with a message.

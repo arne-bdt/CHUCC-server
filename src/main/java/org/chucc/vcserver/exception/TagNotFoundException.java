@@ -7,6 +7,8 @@ import org.springframework.http.HttpStatus;
  * Maps to HTTP 404 Not Found with error code "tag_not_found".
  */
 public class TagNotFoundException extends VcException {
+  
+  private static final long serialVersionUID = 1L;
 
   private static final String ERROR_CODE = "tag_not_found";
 

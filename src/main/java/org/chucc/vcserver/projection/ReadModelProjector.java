@@ -129,7 +129,7 @@ public class ReadModelProjector {
     // Initialize deduplication cache
     this.processedEventIds = Caffeine.newBuilder()
         .maximumSize(projectorProperties.getDeduplication().getCacheSize())
-        .build();
+        .<String, Boolean>build();
   }
 
   /**
@@ -533,7 +533,7 @@ public class ReadModelProjector {
 
       // Count quads for logging
       long quadCount = 0;
-      java.util.Iterator<org.apache.jena.sparql.core.Quad> quadIter = graph.find();
+      var quadIter = graph.find(); // Using var to avoid unchecked cast warning
       while (quadIter.hasNext()) {
         quadIter.next();
         quadCount++;
@@ -705,6 +705,9 @@ public class ReadModelProjector {
    * Exception thrown when event projection fails.
    */
   public static class ProjectionException extends RuntimeException {
+
+    private static final long serialVersionUID = 1L;
+
     /**
      * Constructs a new ProjectionException with the specified message and cause.
      *

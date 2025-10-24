@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
  * does not match the current HEAD commit, signaling a concurrent modification conflict.
  */
 public class PreconditionFailedException extends VcException {
+  
+  private static final long serialVersionUID = 1L;
 
   private final String expected;
   private final String actual;

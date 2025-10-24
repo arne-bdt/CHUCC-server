@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
  * HTTP status: 400 Bad Request
  */
 public class SelectorConflictException extends VcException {
+  
+  private static final long serialVersionUID = 1L;
 
   /**
    * Constructs a new SelectorConflictException with the specified message.

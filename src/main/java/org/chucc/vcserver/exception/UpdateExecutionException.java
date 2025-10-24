@@ -14,6 +14,8 @@ package org.chucc.vcserver.exception;
  * Problem Details.</p>
  */
 public class UpdateExecutionException extends RuntimeException {
+  
+  private static final long serialVersionUID = 1L;
 
   /**
    * Creates a new update execution exception with a message.

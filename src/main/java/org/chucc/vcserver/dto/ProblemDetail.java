@@ -35,14 +35,14 @@ public class ProblemDetail {
   @Schema(
       description = "Human-readable summary of the problem type",
       example = "Bad Request",
-      required = true
+      requiredMode = Schema.RequiredMode.REQUIRED
   )
   private String title;
 
   @Schema(
       description = "HTTP status code",
       example = "400",
-      required = true
+      requiredMode = Schema.RequiredMode.REQUIRED
   )
   private int status;
 

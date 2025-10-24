@@ -30,7 +30,7 @@ public class BatchGraphsRequest {
       description = "Batch mode: 'single' (one commit for all operations) or "
           + "'multiple' (one commit per operation)",
       example = "single",
-      required = true,
+      requiredMode = Schema.RequiredMode.REQUIRED,
       allowableValues = {"single", "multiple"}
   )
   private String mode;
@@ -38,27 +38,27 @@ public class BatchGraphsRequest {
   @Schema(
       description = "Target branch name",
       example = "main",
-      required = true
+      requiredMode = Schema.RequiredMode.REQUIRED
   )
   private String branch;
 
   @Schema(
       description = "Commit author",
       example = "Alice",
-      required = true
+      requiredMode = Schema.RequiredMode.REQUIRED
   )
   private String author;
 
   @Schema(
       description = "Commit message",
       example = "Batch update",
-      required = true
+      requiredMode = Schema.RequiredMode.REQUIRED
   )
   private String message;
 
   @Schema(
       description = "List of graph operations to execute",
-      required = true
+      requiredMode = Schema.RequiredMode.REQUIRED
   )
   private List<GraphOperation> operations;
 
@@ -180,7 +180,7 @@ public class BatchGraphsRequest {
     @Schema(
         description = "HTTP method for the operation",
         example = "PUT",
-        required = true,
+        requiredMode = Schema.RequiredMode.REQUIRED,
         allowableValues = {"PUT", "POST", "PATCH", "DELETE"}
     )
     private String method;

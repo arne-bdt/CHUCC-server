@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
  * HTTP status: 404 Not Found
  */
 public class GraphNotFoundException extends VcException {
+  
+  private static final long serialVersionUID = 1L;
 
   /**
    * Constructs a new GraphNotFoundException with the specified message.

@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
  */
 public class VcException extends RuntimeException {
 
+  private static final long serialVersionUID = 1L;
+
   private final String code;
   private final int status;
 

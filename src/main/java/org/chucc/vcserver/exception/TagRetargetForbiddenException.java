@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
  * HTTP status: 409 Conflict
  */
 public class TagRetargetForbiddenException extends VcException {
+  
+  private static final long serialVersionUID = 1L;
 
   /**
    * Constructs a new TagRetargetForbiddenException with the specified message.

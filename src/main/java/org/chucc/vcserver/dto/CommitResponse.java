@@ -24,7 +24,7 @@ public class CommitResponse {
   @Schema(
       description = "Commit ID (UUIDv7)",
       example = "01936c7f-8a2e-7890-abcd-ef1234567890",
-      required = true
+      requiredMode = Schema.RequiredMode.REQUIRED
   )
   private String id;
 
@@ -37,21 +37,21 @@ public class CommitResponse {
   @Schema(
       description = "Commit author",
       example = "Alice",
-      required = true
+      requiredMode = Schema.RequiredMode.REQUIRED
   )
   private String author;
 
   @Schema(
       description = "Commit message describing the changes",
       example = "Update graph content",
-      required = true
+      requiredMode = Schema.RequiredMode.REQUIRED
   )
   private String message;
 
   @Schema(
       description = "Commit timestamp in RFC 3339 format",
       example = "2025-10-09T12:00:00Z",
-      required = true
+      requiredMode = Schema.RequiredMode.REQUIRED
   )
   private String timestamp;
 

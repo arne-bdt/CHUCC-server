@@ -173,6 +173,18 @@ class MyTest {
 - **CPD (Copy/Paste Detector)**: No code duplication
 - Extract common code into helper methods/utility classes
 
+### Compiler Warnings
+
+- **All warnings enabled**: `-Xlint:all,-options` (deprecation, unchecked, rawtypes, etc.)
+- **Warnings fail build**: `-Werror` enforces zero-tolerance policy
+- **Rationale**: Prevent technical debt from deprecated APIs and unsafe operations
+- **What's checked**:
+  - Deprecation warnings (using deprecated APIs)
+  - Unchecked operations (raw types, unchecked casts)
+  - Unused imports/variables (also caught by Checkstyle/PMD)
+  - Serial version UID warnings
+  - Varargs heap pollution
+
 ---
 
 ## Build Process
@@ -184,6 +196,7 @@ class MyTest {
 - ✅ Zero Checkstyle violations
 - ✅ Zero SpotBugs warnings
 - ✅ Zero PMD violations
+- ✅ Zero compiler warnings (enforced by `-Werror`)
 - ✅ `BUILD SUCCESS` message
 
 ### Token-Efficient Build Strategy
@@ -328,12 +341,13 @@ User intentionally uses "maybe" to invite alternative suggestions. Feel free to 
 - Fix any errors/warnings as part of your task
 - If you find a bug, check for pattern across codebase
 
-### Test Configuration
+### Build and Test Configuration
 
-- Batch mode enabled via `.mvn/maven.config`
-- `logback-test.xml` reduces Spring/Kafka/Testcontainers noise
-- Test config in `src/test/resources/test.properties`
-- Use test utilities: `IntegrationTestFixture`, `TestConstants`, `KafkaTestContainers`
+- **Batch mode**: Enabled via `.mvn/maven.config` (cleaner output)
+- **English locale**: Enforced via `.mvn/jvm.config` (consistent messages across environments)
+- **Test logging**: `logback-test.xml` reduces Spring/Kafka/Testcontainers noise
+- **Test config**: `src/test/resources/test.properties`
+- **Test utilities**: `IntegrationTestFixture`, `TestConstants`, `KafkaTestContainers`
 
 ---
 

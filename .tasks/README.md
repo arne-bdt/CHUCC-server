@@ -128,29 +128,80 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
+### 🔵 Low Priority (Technical Debt)
+
+#### 6. Add patchSize to Revert/CherryPick Events
+**File:** [`.tasks/architecture/01-add-patchsize-to-revert-cherrypick-events.md`](./architecture/01-add-patchsize-to-revert-cherrypick-events.md)
+
+**Changes:**
+- Add `patchSize` field to `RevertCreatedEvent`
+- Add `patchSize` field to `CherryPickedEvent`
+- Update command handlers to compute patchSize
+- Remove business logic from ReadModelProjector
+
+**Status:** Not Started
+**Estimated Time:** 2-3 hours
+**Category:** Event Schema Evolution / CQRS Compliance
+
+**Why:**
+- Consistency with CommitCreatedEvent
+- Eliminates business logic from projector (read side)
+- Events should be fully self-contained
+
+---
+
+#### 7. Refactor Squash/Rebase Handlers to Pure CQRS
+**File:** [`.tasks/architecture/02-refactor-squash-rebase-to-pure-cqrs.md`](./architecture/02-refactor-squash-rebase-to-pure-cqrs.md)
+
+**Problem:**
+- `SquashCommandHandler` and `RebaseCommandHandler` write directly to repository
+- Violates CQRS pattern (dual-write, no event replay)
+- Breaks eventual consistency promise
+
+**Solution:**
+- Enrich events with full commit data (patch, patchSize, parents)
+- Remove repository writes from command handlers
+- Let projector handle all repository updates
+
+**Status:** Not Started
+**Estimated Time:** 8-12 hours
+**Category:** Architectural Refactoring
+**Complexity:** High
+
+**Note:** This is technical debt, not a critical bug. Can be deferred.
+
+---
+
 ## Progress Summary
 
-**Total Tasks:** 6 tasks (5 endpoint tasks + 1 schema evolution)
-**Total Endpoints:** 8 endpoints
-**Estimated Total Time:** 21-28 hours
+**Feature Tasks:** 5 tasks (5 endpoint implementations)
+**Schema Evolution:** 1 task (completed)
+**Architecture/Technical Debt:** 2 tasks (optional improvements)
+
+**Total Endpoints:** 11 endpoints to implement
+**Total Estimated Time:** 31-43 hours (features) + 10-15 hours (architecture)
 
 **Priority Breakdown:**
 - 🔴 High Priority: 2 tasks (Tags, Merge)
-- 🟡 Medium Priority: 4 tasks (History, Schema Evolution, Commits, Batch)
+- 🟡 Medium Priority: 3 tasks (History, Commits, Batch)
+- 🔵 Low Priority: 2 tasks (Architecture improvements - optional)
 
-**Current Status:** 1 of 7 tasks completed (14%)
+**Current Status:** 1 of 6 feature tasks completed (17%)
+- ✅ Task 4a: patchSize Schema Evolution (completed 2025-01-24)
 - ✅ Branch Management API (completed 2025-10-24)
 
 ---
 
 ## Recommended Implementation Order
 
-1. **Add patchSize to Commit Entity** (3-4 hours) - **PREREQUISITE**
+### Feature Implementation
+
+1. ✅ **Add patchSize to Commit Entity** (3-4 hours) - **COMPLETED 2025-01-24**
    - Schema evolution task
    - Blocking task for Commit Metadata API
-   - Critical: Run @event-schema-evolution-checker after completion
+   - CQRS compliance verified
 
-2. **Commit Metadata API** (1-2 hours)
+2. **Commit Metadata API** (1-2 hours) - **UNBLOCKED**
    - Simplest endpoint task
    - Read-only, no CQRS complexity
    - Good warm-up after schema change
@@ -172,6 +223,22 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
    - Most complex task
    - Requires merge algorithm
    - Should be implemented last
+
+### Architecture/Technical Debt (Optional)
+
+These tasks improve CQRS compliance and event structure but are not required for feature completeness:
+
+**A. Add patchSize to Revert/CherryPick Events** (2-3 hours)
+   - Low complexity, similar to completed Task 4a
+   - Removes business logic from projector
+   - Improves event consistency
+   - **Recommended:** Implement after Task 2 (Commit Metadata API)
+
+**B. Refactor Squash/Rebase to Pure CQRS** (8-12 hours)
+   - High complexity, significant refactoring
+   - Fixes dual-write pattern and event replay
+   - Enables proper eventual consistency testing
+   - **Recommended:** Defer until production deployment is planned
 
 ---
 

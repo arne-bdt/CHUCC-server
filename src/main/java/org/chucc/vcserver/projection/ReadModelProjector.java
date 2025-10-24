@@ -289,23 +289,28 @@ public class ReadModelProjector {
   }
 
   /**
-   * Handles BranchCreatedEvent by creating a new branch.
+   * Handles BranchCreatedEvent by creating a new branch with full metadata.
    *
    * @param event the branch created event
    */
   void handleBranchCreated(BranchCreatedEvent event) {
-    logger.debug("Processing BranchCreatedEvent: branchName={}, commitId={}, dataset={}",
-        event.branchName(), event.commitId(), event.dataset());
+    logger.debug(
+        "Processing BranchCreatedEvent: branchName={}, commitId={}, protected={}, dataset={}",
+        event.branchName(), event.commitId(), event.isProtected(), event.dataset());
 
     Branch branch = new Branch(
         event.branchName(),
-        CommitId.of(event.commitId())
+        CommitId.of(event.commitId()),
+        event.isProtected(),
+        event.timestamp(),       // createdAt
+        event.timestamp(),       // lastUpdated (same as creation initially)
+        1                        // Initial commit count
     );
 
     branchRepository.save(event.dataset(), branch);
 
-    logger.debug("Created branch: {} pointing to {} in dataset: {}",
-        event.branchName(), event.commitId(), event.dataset());
+    logger.debug("Created branch: {} pointing to {} (protected: {}) in dataset: {}",
+        event.branchName(), event.commitId(), event.isProtected(), event.dataset());
   }
 
   /**

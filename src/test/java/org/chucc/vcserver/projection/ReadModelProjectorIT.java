@@ -160,6 +160,9 @@ class ReadModelProjectorIT {
         DATASET,
         branchName,
         commitIdStr,
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
 
@@ -200,6 +203,9 @@ class ReadModelProjectorIT {
         DATASET,
         "main",
         commit1IdStr,
+        "main",
+        true,
+        "test-author",
         Instant.now()
     );
     eventPublisher.publish(branchEvent).get();
@@ -254,6 +260,9 @@ class ReadModelProjectorIT {
         DATASET,
         "main",
         commitIdStr,
+        "main",
+        true,
+        "test-author",
         Instant.now()
     );
 

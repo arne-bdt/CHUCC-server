@@ -41,7 +41,7 @@ class CreateBranchCommandHandlerTest {
     // Mock EventPublisher.publish() to return completed future (lenient for tests that don't publish)
     lenient().when(eventPublisher.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
 
-    handler = new CreateBranchCommandHandler(eventPublisher, branchRepository, commitRepository);
+    handler = new CreateBranchCommandHandler(branchRepository, commitRepository, eventPublisher);
   }
 
   @Test
@@ -51,7 +51,9 @@ class CreateBranchCommandHandlerTest {
     CreateBranchCommand command = new CreateBranchCommand(
         "test-dataset",
         "feature-branch",
-        validCommitId);
+        validCommitId,
+        false,
+        "test-author");
 
     when(branchRepository.exists("test-dataset", "feature-branch")).thenReturn(false);
     when(commitRepository.exists(eq("test-dataset"), any(CommitId.class))).thenReturn(true);
@@ -67,6 +69,9 @@ class CreateBranchCommandHandlerTest {
     assertEquals("test-dataset", branchEvent.dataset());
     assertEquals("feature-branch", branchEvent.branchName());
     assertEquals(validCommitId, branchEvent.commitId());
+    assertEquals(validCommitId, branchEvent.sourceRef());
+    assertEquals(false, branchEvent.isProtected());
+    assertEquals("test-author", branchEvent.author());
     assertNotNull(branchEvent.timestamp());
   }
 
@@ -76,12 +81,15 @@ class CreateBranchCommandHandlerTest {
     CreateBranchCommand command = new CreateBranchCommand(
         "test-dataset",
         "existing-branch",
-        "commit-123");
+        "main",
+        false,
+        "test-author");
 
     when(branchRepository.exists("test-dataset", "existing-branch")).thenReturn(true);
 
     // When/Then
-    assertThrows(IllegalStateException.class, () -> handler.handle(command));
+    assertThrows(org.chucc.vcserver.exception.BranchAlreadyExistsException.class,
+        () -> handler.handle(command));
   }
 
   @Test
@@ -91,12 +99,15 @@ class CreateBranchCommandHandlerTest {
     CreateBranchCommand command = new CreateBranchCommand(
         "test-dataset",
         "new-branch",
-        validCommitId);
+        validCommitId,
+        false,
+        "test-author");
 
     when(branchRepository.exists("test-dataset", "new-branch")).thenReturn(false);
     when(commitRepository.exists("test-dataset", new CommitId(validCommitId))).thenReturn(false);
 
     // When/Then
-    assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+    assertThrows(org.chucc.vcserver.exception.RefNotFoundException.class,
+        () -> handler.handle(command));
   }
 }

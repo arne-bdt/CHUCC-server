@@ -47,7 +47,8 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
 │  │  │  GraphDiffService          TimestampResolutionService    │    ││
 │  │  │  GraphSerializationService PreconditionService           │    ││
 │  │  │  RefService                SnapshotService               │    ││
-│  │  │  TagService                DatasetService                │    ││
+│  │  │  BranchService             TagService                    │    ││
+│  │  │  DatasetService                                          │    ││
 │  │  └────────────────────┬─────────────────────────────────────┘    ││
 │  │                       │ Creates                                  ││
 │  │                       ▼                                          ││
@@ -348,15 +349,21 @@ All handlers:
    - Lists all references (branches + tags)
    - Combines branch and tag repositories
 
-10. **TagService**
+10. **BranchService**
+    - Branch-specific query operations
+    - Lists branches with full metadata (protected status, timestamps, commit count)
+    - Provides detailed branch information for API endpoints
+    - Read-side service (queries only, no mutations)
+
+11. **TagService**
     - Tag-specific business logic
     - Validates tag immutability
 
-11. **SnapshotService**
+12. **SnapshotService**
     - Creates dataset snapshots
     - Combines all graphs into single commit
 
-12. **DatasetService**
+13. **DatasetService**
     - Dataset-level operations
     - Currently hardcoded to "default" dataset
 

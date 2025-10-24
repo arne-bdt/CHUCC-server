@@ -138,9 +138,9 @@ class DatasetDeletionIT {
     CommitId commit2 = CommitId.generate();
 
     eventPublisher.publish(new BranchCreatedEvent(
-        TEST_DATASET, "main", commit1.value(), Instant.now())).get();
+        TEST_DATASET, "main", commit1.value(), "main", true, "test-author", Instant.now())).get();
     eventPublisher.publish(new BranchCreatedEvent(
-        TEST_DATASET, "feature", commit2.value(), Instant.now())).get();
+        TEST_DATASET, "feature", commit2.value(), "main", false, "test-author", Instant.now())).get();
 
     // Wait for branches to be created
     await().atMost(Duration.ofSeconds(10))
@@ -177,7 +177,7 @@ class DatasetDeletionIT {
     // Given - Create dataset with a branch
     CommitId commitId = CommitId.generate();
     eventPublisher.publish(new BranchCreatedEvent(
-        TEST_DATASET, "main", commitId.value(), Instant.now())).get();
+        TEST_DATASET, "main", commitId.value(), "main", true, "test-author", Instant.now())).get();
 
     await().atMost(Duration.ofSeconds(10))
         .until(() -> branchRepository.findAllByDataset(TEST_DATASET).size() == 1);

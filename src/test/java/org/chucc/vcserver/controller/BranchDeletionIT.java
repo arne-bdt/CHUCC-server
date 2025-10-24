@@ -136,6 +136,9 @@ class BranchDeletionIT {
         DEFAULT_DATASET,
         branchName,
         commitId.value(),
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
     eventPublisher.publish(createEvent).get();
@@ -179,6 +182,9 @@ class BranchDeletionIT {
         DEFAULT_DATASET,
         "main",
         commitId.value(),
+        "main",
+        true,
+        "test-author",
         Instant.now()
     );
     eventPublisher.publish(createEvent).get();
@@ -240,6 +246,9 @@ class BranchDeletionIT {
         DEFAULT_DATASET,
         branchName,
         commitId.value(),
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
     eventPublisher.publish(createEvent).get();

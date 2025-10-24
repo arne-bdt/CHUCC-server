@@ -15,14 +15,13 @@ import org.springframework.stereotype.Component;
 
 /**
  * Handles DeleteBranchCommand by validating the command and producing a BranchDeletedEvent.
- * Protects the main branch from deletion.
+ * Protects branches marked as protected from deletion.
  */
 @Component
 @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class DeleteBranchCommandHandler implements CommandHandler<DeleteBranchCommand> {
 
   private static final Logger logger = LoggerFactory.getLogger(DeleteBranchCommandHandler.class);
-  private static final String MAIN_BRANCH = "main";
 
   private final EventPublisher eventPublisher;
   private final BranchRepository branchRepository;
@@ -47,15 +46,15 @@ public class DeleteBranchCommandHandler implements CommandHandler<DeleteBranchCo
   public VersionControlEvent handle(DeleteBranchCommand command) {
     logger.info("Deleting branch: {} in dataset: {}", command.branchName(), command.dataset());
 
-    // Protect main branch from deletion
-    if (MAIN_BRANCH.equals(command.branchName())) {
-      throw new ProtectedBranchException("Cannot delete main branch");
-    }
-
     // Validate branch exists
     Branch branch = branchRepository.findByDatasetAndName(command.dataset(), command.branchName())
         .orElseThrow(() -> new BranchNotFoundException(
             command.branchName() + " in dataset: " + command.dataset()));
+
+    // Check if branch is protected
+    if (branch.isProtected()) {
+      throw new ProtectedBranchException("Cannot delete protected branch: " + command.branchName());
+    }
 
     // Produce event
     VersionControlEvent event = new BranchDeletedEvent(

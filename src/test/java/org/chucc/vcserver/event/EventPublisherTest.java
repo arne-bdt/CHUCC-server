@@ -62,6 +62,9 @@ class EventPublisherTest {
         "test-dataset",
         "main",
         "commit-123",
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
 
@@ -250,6 +253,9 @@ class EventPublisherTest {
         "test-dataset",
         "main",
         "commit-123",
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
 
@@ -275,6 +281,9 @@ class EventPublisherTest {
         "test-dataset",
         "main",
         "commit-123",
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
 
@@ -298,6 +307,9 @@ class EventPublisherTest {
         "test-dataset",
         "main",
         "commit-123",
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
 

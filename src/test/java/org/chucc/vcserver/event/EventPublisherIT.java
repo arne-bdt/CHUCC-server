@@ -19,11 +19,13 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -95,6 +97,9 @@ class EventPublisherIT {
         "test-dataset",
         "main",
         "550e8400-e29b-41d4-a716-446655440000",
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
 
@@ -102,8 +107,10 @@ class EventPublisherIT {
     eventPublisher.publish(event).get(10, TimeUnit.SECONDS);
 
     // Then - Wait for message to be consumed
-    Thread.sleep(1000);
-    assertNotNull(receivedRecord, "Should receive the published event");
+    await().atMost(Duration.ofSeconds(10))
+        .untilAsserted(() -> {
+          assertNotNull(receivedRecord, "Should receive the published event");
+        });
     assertEquals("test-dataset:main", receivedRecord.key());
 
     // Verify headers

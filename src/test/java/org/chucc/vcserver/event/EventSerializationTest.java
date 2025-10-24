@@ -63,6 +63,9 @@ class EventSerializationTest {
         "testDataset",
         "feature-branch",
         "01934f8e-5678-7890-abcd-ef1234567890", // commitId
+        "main", // sourceRef
+        false, // isProtected
+        "test-author", // author
         Instant.parse("2025-01-15T10:00:00Z")
     );
 
@@ -77,6 +80,9 @@ class EventSerializationTest {
     assertThat(result.dataset()).isEqualTo(original.dataset());
     assertThat(result.branchName()).isEqualTo(original.branchName());
     assertThat(result.commitId()).isEqualTo(original.commitId());
+    assertThat(result.sourceRef()).isEqualTo(original.sourceRef());
+    assertThat(result.isProtected()).isEqualTo(original.isProtected());
+    assertThat(result.author()).isEqualTo(original.author());
     assertThat(result.timestamp()).isEqualTo(original.timestamp());
   }
 
@@ -397,7 +403,8 @@ class EventSerializationTest {
     List<VersionControlEvent> events = List.of(
         new CommitCreatedEvent(null, "test", "c1", List.of(), "main", "msg", "author",
             Instant.now(), "patch"),
-        new BranchCreatedEvent(null, "test", "branch", "c1", Instant.now()),
+        new BranchCreatedEvent(null, "test", "branch", "c1", "main", false, "author",
+            Instant.now()),
         new TagCreatedEvent(null, "test", "tag", "c1", Instant.now()),
         new BranchResetEvent(null, "test", "main", "c1", "c2", Instant.now()),
         new RevertCreatedEvent(null, "test", "c1", "c2", "main", "msg", "author", Instant.now(),

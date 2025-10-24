@@ -166,6 +166,9 @@ class VersionControlProjectorIT {
         DEFAULT_DATASET,
         "feature",
         featureBranchId.value(),
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
     eventPublisher.publish(branchEvent).get();

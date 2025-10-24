@@ -233,6 +233,9 @@ class AdvancedOperationsProjectorIT {
         DEFAULT_DATASET,
         "target-branch",
         targetBranchCommitId.value(),
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
     eventPublisher.publish(branchEvent).get();
@@ -336,6 +339,9 @@ class AdvancedOperationsProjectorIT {
         DEFAULT_DATASET,
         "feature",
         commit3Id.value(),
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
     eventPublisher.publish(branchEvent).get();

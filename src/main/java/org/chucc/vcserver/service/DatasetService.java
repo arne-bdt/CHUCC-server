@@ -8,6 +8,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.micrometer.core.annotation.Timed;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -193,8 +194,15 @@ public class DatasetService {
     // Save commit and patch
     commitRepository.save(datasetName, initialCommit, emptyPatch);
 
-    // Create main branch pointing to initial commit
-    Branch mainBranch = new Branch("main", initialCommit.id());
+    // Create main branch pointing to initial commit (PROTECTED by default)
+    Branch mainBranch = new Branch(
+        "main",
+        initialCommit.id(),
+        true,                    // main is protected
+        Instant.now(),          // createdAt
+        Instant.now(),          // lastUpdated
+        1                       // initial commit count
+    );
     branchRepository.save(datasetName, mainBranch);
 
     // Initialize empty dataset graph for this commit

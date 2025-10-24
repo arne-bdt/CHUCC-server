@@ -103,6 +103,9 @@ class ReadModelProjectorKillRestartIT {
         DATASET,
         "main",
         commit1Id,
+        "main",
+        true,
+        "test-author",
         Instant.now()
     );
     eventPublisher.publish(branchEvent).get();

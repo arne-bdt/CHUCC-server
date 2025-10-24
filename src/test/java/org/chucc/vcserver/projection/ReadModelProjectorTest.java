@@ -113,6 +113,9 @@ class ReadModelProjectorTest {
         dataset,
         branchName,
         commitIdStr,
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
 

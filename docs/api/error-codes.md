@@ -452,6 +452,89 @@ TC .
 **Resolution:**
 - Verify commit ID is correct
 - Use branch selector instead
+
+---
+
+### branch_already_exists
+
+**HTTP Status:** 409 Conflict
+**Description:** A branch with the specified name already exists in the dataset.
+
+**Common Causes:**
+- Attempting to create a branch that already exists
+- Race condition in concurrent branch creation
+- Branch name collision
+
+**Example:**
+```http
+POST /version/branches?dataset=default HTTP/1.1
+Content-Type: application/json
+
+{
+  "name": "feature-x",
+  "from": "main"
+}
+```
+
+**Response:**
+```json
+{
+  "type": "about:blank",
+  "title": "Conflict",
+  "status": 409,
+  "detail": "Branch already exists: feature-x",
+  "instance": "/errors/550e8400-e29b-41d4-a716-446655440010",
+  "code": "BRANCH_ALREADY_EXISTS"
+}
+```
+
+**Resolution:**
+- Use a different branch name
+- Delete the existing branch first (if not protected)
+- Use GET /version/branches to list existing branches
+- Check if the branch was already created by a previous request
+
+---
+
+### ref_not_found
+
+**HTTP Status:** 404 Not Found
+**Description:** The specified source reference (branch or commit) does not exist.
+
+**Common Causes:**
+- Invalid branch name in `from` parameter
+- Invalid commit ID
+- Typo in reference name
+- Reference from different dataset
+
+**Example:**
+```http
+POST /version/branches?dataset=default HTTP/1.1
+Content-Type: application/json
+
+{
+  "name": "new-branch",
+  "from": "nonexistent-branch"
+}
+```
+
+**Response:**
+```json
+{
+  "type": "about:blank",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "Source ref not found: nonexistent-branch",
+  "instance": "/errors/550e8400-e29b-41d4-a716-446655440011",
+  "code": "REF_NOT_FOUND"
+}
+```
+
+**Resolution:**
+- Verify the source reference exists using GET /version/branches or GET /version/refs
+- Check for typos in the reference name
+- Ensure you're using the correct dataset parameter
+- Create the source reference if it doesn't exist
 - Check commit history
 
 ---

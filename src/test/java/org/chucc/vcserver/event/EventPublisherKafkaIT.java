@@ -63,6 +63,9 @@ class EventPublisherKafkaIT {
         datasetId,
         "feature-branch",
         commitId,
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
 
@@ -214,6 +217,9 @@ class EventPublisherKafkaIT {
         datasetId,
         "branch-1",
         commitId1,
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
 
@@ -221,6 +227,9 @@ class EventPublisherKafkaIT {
         datasetId,
         "branch-2",
         commitId2,
+        "main",
+        false,
+        "test-author",
         Instant.now()
     );
 

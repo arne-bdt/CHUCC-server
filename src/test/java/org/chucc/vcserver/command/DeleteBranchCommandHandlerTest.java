@@ -77,17 +77,29 @@ class DeleteBranchCommandHandlerTest {
   @Test
   void shouldRejectDeletionOfMainBranch() {
     // Given
+    String commitId = "12345678-1234-1234-1234-123456789abc";
+    // Create protected main branch using full constructor
+    Branch mainBranch = new Branch(
+        "main",
+        new CommitId(commitId),
+        true,  // protected
+        java.time.Instant.now(),
+        java.time.Instant.now(),
+        1);
     DeleteBranchCommand command = new DeleteBranchCommand(
         "test-dataset",
         "main",
         "alice");
+
+    when(branchRepository.findByDatasetAndName("test-dataset", "main"))
+        .thenReturn(Optional.of(mainBranch));
 
     // When/Then
     ProtectedBranchException exception = assertThrows(
         ProtectedBranchException.class,
         () -> handler.handle(command));
 
-    assertEquals("Cannot delete main branch", exception.getMessage());
+    assertEquals("Cannot delete protected branch: main", exception.getMessage());
   }
 
   @Test

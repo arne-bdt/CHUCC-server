@@ -139,8 +139,10 @@ class BranchTest {
     Branch branch = new Branch("main", COMMIT_ID_1);
     String toString = branch.toString();
 
-    // Should contain both name and commit ID
-    assertEquals("Branch{name='main', commitId=" + COMMIT_ID_1 + "}", toString);
+    // Should contain name, commitId, isProtected, and commitCount
+    // Note: 2-arg constructor creates unprotected branch
+    assertEquals("Branch{name='main', commitId=" + COMMIT_ID_1
+        + ", isProtected=false, commitCount=1}", toString);
   }
 
   @Test

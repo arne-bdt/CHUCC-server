@@ -662,7 +662,6 @@ After implementing this task, invoke these specialized agents for verification:
 
 After completing this task, consider:
 
-- **Task 04b:** [Operation Status Endpoint](./04b-operation-status-endpoint.md) - Allow clients to poll for completion
 - **Task 04c:** [Idempotency Token Support](./04c-idempotency-tokens.md) - Allow safe retries with duplicate detection
 
 ---

@@ -175,7 +175,7 @@ class GraphStorePatchIT extends ITFixture {
     );
 
     // Then - Should return 204 No Content (no-op)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
   }
 
   @Test

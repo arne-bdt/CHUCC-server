@@ -36,6 +36,7 @@
     <!-- Suppress expected error messages from tests that verify error handling -->
     <logger name="org.zalando.problem.spring.common.AdviceTraits" level="ERROR"/>
     <logger name="org.apache.jena.riot" level="OFF"/>
+    <logger name="org.chucc.vcserver.projection.ReadModelProjector" level="OFF"/>
 
     <!-- Suppress INFO/WARN from command handlers in unit tests -->
     <logger name="org.chucc.vcserver.command.DeleteBranchCommandHandler" level="ERROR"/>

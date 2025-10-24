@@ -109,12 +109,18 @@ class GraphStorePutIT extends ITFixture {
     headers1.set("Content-Type", "text/turtle");
     headers1.set("SPARQL-VC-Author", "Alice");
     headers1.set("SPARQL-VC-Message", "Create graph");
-    restTemplate.exchange(
+    ResponseEntity<String> firstPutResponse = restTemplate.exchange(
         "/data?default=true&branch=main",
         HttpMethod.PUT,
         new HttpEntity<>(TestConstants.TURTLE_SIMPLE, headers1),
         String.class
     );
+
+    // Wait for projection to complete so no-op detection works
+    String firstCommitId = firstPutResponse.getHeaders().getETag().replace("\"", "");
+    await().atMost(Duration.ofSeconds(10))
+        .until(() -> commitRepository.findByDatasetAndId(DEFAULT_DATASET, new CommitId(firstCommitId))
+            .isPresent());
 
     // When - PUT same content again (no-op)
     HttpHeaders headers2 = new HttpHeaders();
@@ -131,7 +137,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
   }
 
   @Test

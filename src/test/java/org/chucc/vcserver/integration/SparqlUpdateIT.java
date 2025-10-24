@@ -66,7 +66,7 @@ public class SparqlUpdateIT extends ITFixture {
     assertThat(response.getHeaders().getLocation()).isNotNull();
     assertThat(response.getHeaders().getLocation().toString())
         .contains("/version/datasets/default/commits/");
-    assertThat(response.getBody()).contains("Update successful");
+    assertThat(response.getBody()).contains("Update accepted");
     assertThat(response.getBody()).contains("commitId");
 
     // Note: Repository updates handled by ReadModelProjector (disabled in this test)

@@ -40,7 +40,7 @@ class SparqlHeaderIT extends ITFixture {
             .header("SPARQL-VC-Author", "alice@example.org")
             .content(sparqlUpdate))
         // Then: Request is accepted and update succeeds
-        .andExpect(status().isOk());
+        .andExpect(status().isAccepted());
   }
 
   @Test

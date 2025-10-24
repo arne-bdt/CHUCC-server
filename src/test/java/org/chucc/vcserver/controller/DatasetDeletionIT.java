@@ -158,7 +158,7 @@ class DatasetDeletionIT {
     );
 
     // Then - Verify HTTP response
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
     // Wait for projection to delete all branches
     await().atMost(Duration.ofSeconds(10))

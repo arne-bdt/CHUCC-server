@@ -176,9 +176,9 @@ class SparqlUpdateNoOpIT {
         String.class
     );
 
-    // Then: should return 200 OK or 201 Created (not a no-op)
+    // Then: should return 202 Accepted (not a no-op)
     assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-    assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.NO_CONTENT);
 
     // Verify Location header exists (new commit created)
     String location = response.getHeaders().getFirst("Location");

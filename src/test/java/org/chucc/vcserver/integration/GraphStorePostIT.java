@@ -138,7 +138,7 @@ class GraphStorePostIT extends ITFixture {
     );
 
     // Then - Should return 204 No Content (no-op)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
   }
 
   @Test
@@ -447,7 +447,7 @@ class GraphStorePostIT extends ITFixture {
     );
 
     // Then - Should contain both original and added triples
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     String body = response.getBody();
     assertThat(body).isNotNull();
     assertThat(body).contains("http://example.org/subject");

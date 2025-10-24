@@ -461,7 +461,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
     );
 
     // Then - Endpoint should be accessible with valid structure
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     JsonNode refs = objectMapper.readTree(response.getBody());
     JsonNode refsArray = refs.get("refs");
 

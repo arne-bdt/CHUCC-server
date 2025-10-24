@@ -133,7 +133,7 @@ class TagOperationsIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
     // Verify tag was deleted
     ResponseEntity<String> getResponse = restTemplate.getForEntity(

@@ -99,7 +99,23 @@ git log --oneline --grep="cache\|snapshot\|deletion\|named graph\|CQRS\|event fl
 
 ## Task Categories
 
-### 1. Java APIs
+### 1. Specification Cleanup
+
+**Goal:** Apply Occam's Razor to remove redundant features from specifications and implementation.
+
+**Current State:** SPARQL-VC-Commit header exists in specs but provides no functionality beyond ?commit= parameter.
+
+**Target State:** Clean, minimal specification with no redundant features.
+
+| Task | File | Priority | Est. Time | Status |
+|------|------|----------|-----------|--------|
+| 01. Remove SPARQL-VC-Commit Header | `spec-cleanup/remove-sparql-vc-commit-header.md` | Low | 2-3 hours | 📋 Not Started |
+
+**Rationale:** Header was documented but never implemented functionally (marked "reserved for future use"). The ?commit= query parameter already provides all necessary functionality.
+
+---
+
+### 2. Java APIs
 
 **Goal:** Create plain Java APIs for SPARQL Protocol and Graph Store Protocol that can be used without HTTP overhead.
 
@@ -189,6 +205,18 @@ Current idempotent non-transactional publishing is sufficient. Each command publ
 ---
 
 ## Recommended Implementation Order
+
+### Specification Cleanup (Low Priority - Quick Win)
+
+**Goal:** Simplify specifications by removing unused features
+
+1. 📋 `spec-cleanup/remove-sparql-vc-commit-header.md` (2-3 hours)
+
+**Rationale:** Low-risk cleanup that reduces specification complexity. Quick win with minimal testing required.
+
+**Estimated Time:** 2-3 hours total
+
+---
 
 ### Java APIs (Medium Priority)
 
@@ -357,10 +385,12 @@ When adding new tasks:
 - **Total completed:** 22 tasks
 
 **Remaining:**
+- 📋 Specification Cleanup (1 task - Low priority, quick win)
 - 📋 Java APIs (2 tasks - Medium priority)
-- **Total remaining:** 2 tasks
+- **Total remaining:** 3 tasks
 
-**Progress:** ~92% complete (22 of 24 tasks)
+**Progress:** ~88% complete (22 of 25 tasks)
 
 **Next Steps:**
-1. 📋 **Optional:** Create Java APIs (java-api/01-02) - 6-8 hours (medium priority)
+1. 📋 **Optional (quick win):** Remove redundant SPARQL-VC-Commit header (spec-cleanup/01) - 2-3 hours (low priority)
+2. 📋 **Optional:** Create Java APIs (java-api/01-02) - 6-8 hours (medium priority)

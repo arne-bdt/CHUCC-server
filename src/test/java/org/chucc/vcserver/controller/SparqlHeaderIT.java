@@ -44,19 +44,6 @@ class SparqlHeaderIT extends ITFixture {
   }
 
   @Test
-  void getQuery_withVcCommitHeader_accepted() throws Exception {
-    // Given: A SPARQL query with SPARQL-VC-Commit header
-    String query = "SELECT * WHERE { ?s ?p ?o } LIMIT 10";
-
-    // When: GET with SPARQL-VC-Commit header
-    mockMvc.perform(get("/sparql")
-            .param("query", query)
-            .header("SPARQL-VC-Commit", initialCommitId.value()))
-        // Then: Query succeeds (endpoint implemented)
-        .andExpect(status().isOk());
-  }
-
-  @Test
   void postUpdate_withOnlyMessageHeader_accepted() throws Exception {
     // Given: A SPARQL update with only message header
     String sparqlUpdate = "INSERT DATA { "

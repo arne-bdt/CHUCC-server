@@ -1,11 +1,8 @@
 package org.chucc.vcserver.controller;
 
-import org.apache.jena.query.Dataset;
-import org.apache.jena.query.DatasetFactory;
 import org.chucc.vcserver.command.SparqlUpdateCommandHandler;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.CommitId;
-import org.chucc.vcserver.domain.ResultFormat;
 import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SelectorResolutionService;
@@ -18,9 +15,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -193,24 +188,4 @@ class SparqlControllerTest {
         .andExpect(header().exists("Location"));
   }
 
-  @Test
-  void getEndpoint_acceptsVcCommitHeader() throws Exception {
-    // Given: Mocked services return valid data
-    CommitId commitId = CommitId.generate();
-    Dataset dataset = DatasetFactory.create();
-    String results = "{\"head\":{},\"results\":{\"bindings\":[]}}";
-
-    when(selectorResolutionService.resolve(anyString(), any(), any(), any()))
-        .thenReturn(commitId);
-    when(datasetService.materializeAtCommit(anyString(), any(CommitId.class)))
-        .thenReturn(dataset);
-    when(sparqlQueryService.executeQuery(any(Dataset.class), anyString(), any(ResultFormat.class)))
-        .thenReturn(results);
-
-    // When & Then: SPARQL-VC-Commit header is accepted and query succeeds
-    mockMvc.perform(get("/sparql")
-            .param("query", "SELECT * WHERE { ?s ?p ?o }")
-            .header("SPARQL-VC-Commit", "01936f7e-1234-7890-abcd-ef0123456789"))
-        .andExpect(status().isOk());
-  }
 }

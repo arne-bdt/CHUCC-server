@@ -92,7 +92,6 @@ public class SparqlController {
    * @param branch target branch
    * @param commit target commit
    * @param asOf timestamp for time-travel query
-   * @param vcCommit commit ID for read consistency (header)
    * @param request the HTTP servlet request for Accept header processing
    * @return query results with ETag header containing commit ID
    * @throws BranchNotFoundException if specified branch does not exist
@@ -150,11 +149,9 @@ public class SparqlController {
       @RequestParam(required = false) String commit,
       @Parameter(description = "Query branch state at or before this timestamp (ISO8601)")
       @RequestParam(required = false) String asOf,
-      @Parameter(description = "Commit ID for read consistency")
-      @RequestHeader(name = "SPARQL-VC-Commit", required = false) String vcCommit,
       HttpServletRequest request
   ) {
-    // Note: defaultGraphUri, namedGraphUri, and vcCommit are reserved for future use
+    // Note: defaultGraphUri and namedGraphUri are reserved for future use
     return executeQueryOperation(dataset, query, branch, commit, asOf, request);
   }
 
@@ -166,18 +163,15 @@ public class SparqlController {
    * @param branch target branch (optional)
    * @param commit target commit (optional)
    * @param asOf timestamp for time-travel (optional)
-   * @param vcCommit commit ID from SPARQL-VC-Commit header (optional)
    * @param request HTTP request for Accept header
    * @return query results with ETag
    */
-  @SuppressWarnings("PMD.UnusedFormalParameter") // vcCommit reserved for future use
   private ResponseEntity<?> handleQueryViaPost(
       String dataset,
       String queryString,
       String branch,
       String commit,
       String asOf,
-      String vcCommit,
       HttpServletRequest request) {
     return executeQueryOperation(dataset, queryString, branch, commit, asOf, request);
   }
@@ -271,7 +265,6 @@ public class SparqlController {
    * @param contentType content type header
    * @param commit target commit for query
    * @param asOf time-travel timestamp for query
-   * @param vcCommit commit ID for read consistency
    * @param request HTTP servlet request
    * @return query results or update confirmation
    */
@@ -366,8 +359,6 @@ public class SparqlController {
       @RequestParam(required = false) String commit,
       @Parameter(description = "Query branch state at or before this timestamp (ISO8601)")
       @RequestParam(required = false) String asOf,
-      @Parameter(description = "Commit ID for read consistency (queries only)")
-      @RequestHeader(name = "SPARQL-VC-Commit", required = false) String vcCommit,
       HttpServletRequest request
   ) {
     // Determine operation type from Content-Type
@@ -381,7 +372,7 @@ public class SparqlController {
 
     // Handle SPARQL Query via POST
     if (isQuery) {
-      return handleQueryViaPost(dataset, body, branch, commit, asOf, vcCommit, request);
+      return handleQueryViaPost(dataset, body, branch, commit, asOf, request);
     }
 
     // If neither query nor update, return 501

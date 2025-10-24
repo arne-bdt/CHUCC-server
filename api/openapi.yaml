@@ -51,7 +51,6 @@ paths:
         - $ref: '#/components/parameters/BranchParam'
         - $ref: '#/components/parameters/CommitParam'
         - $ref: '#/components/parameters/AsOfParam'
-        - $ref: '#/components/parameters/VcCommitHeader'
       responses:
         '200':
           description: Query results
@@ -528,14 +527,6 @@ components:
       schema:
         type: string
         example: "alice@example.org"
-
-    VcCommitHeader:
-      name: SPARQL-VC-Commit
-      in: header
-      description: Commit ID for read consistency (servers MUST support)
-      required: false
-      schema:
-        $ref: '#/components/schemas/CommitId'
 
     # =========================================================================
     # Common Parameters

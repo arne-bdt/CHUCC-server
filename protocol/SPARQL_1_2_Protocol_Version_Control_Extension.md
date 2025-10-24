@@ -66,9 +66,6 @@ All endpoints are relative to a dataset base URL.
 - `SPARQL-VC-Author: <display name or URI>` (SHOULD)
 - `SPARQL-VC-Message: <commit message>` (SHOULD)
 
-**Request (reads):**
-- `SPARQL-VC-Commit: <commitId>` (MUST be supported by servers; clients MAY ignore)
-
 **Response (discovery/status):**
 - `SPARQL-Version-Control: true`
 - `ETag: "<id>"` (see §6)
@@ -150,7 +147,7 @@ When a server implements **both** this extension and the Graph Store Protocol Ve
 Align author identity with authentication; protect merge/tag operations by policy; rate-limit large diffs; sanitize commit messages; log ref mutations.
 
 ## 13. IANA Considerations (Provisional)
-- Header fields: `SPARQL-Version-Control`, `SPARQL-VC-Author`, `SPARQL-VC-Message`, `SPARQL-VC-Commit` (provisional).
+- Header fields: `SPARQL-Version-Control`, `SPARQL-VC-Author`, `SPARQL-VC-Message` (provisional).
 - Link relation: `version-control` (provisional).
 - Media type registration for optional binary RDF Patch (if standardized).
 

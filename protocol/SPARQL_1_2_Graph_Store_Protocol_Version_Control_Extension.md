@@ -32,8 +32,6 @@ Selectors apply as URL params per §D.
 ## E. Headers
 **Request (writes):** `SPARQL-VC-Author`, `SPARQL-VC-Message` (SHOULD)
 
-**Request (reads):** `SPARQL-VC-Commit` (MUST be supported by servers; clients MAY ignore)
-
 **Response:** `SPARQL-Version-Control: true`; `ETag` semantics below.
 
 ## F. Concurrency, ETag, and Conditional Requests (Option A)

@@ -417,7 +417,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     String body = response.getBody();
     assertThat(body).isNotNull();
     assertThat(body).contains("http://example.org/subject");
@@ -485,7 +485,7 @@ class GraphStorePutIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     String body = response.getBody();
     assertThat(body).isNotNull();
     assertThat(body).contains("http://example.org/subject");

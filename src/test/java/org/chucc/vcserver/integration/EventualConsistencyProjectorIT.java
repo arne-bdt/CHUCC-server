@@ -68,7 +68,7 @@ class EventualConsistencyProjectorIT extends ITFixture {
               new HttpEntity<>(getHeaders),
               String.class
           );
-          assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+          assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
           assertThat(getResponse.getBody()).contains("http://example.org/s");
         });
   }

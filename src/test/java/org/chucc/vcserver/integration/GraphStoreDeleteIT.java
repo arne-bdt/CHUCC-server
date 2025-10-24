@@ -364,7 +364,7 @@ class GraphStoreDeleteIT extends ITFixture {
     );
 
     // Then - Should return empty graph (all triples deleted)
-    assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     String body = getResponse.getBody();
     assertThat(body == null || body.trim().isEmpty()).isTrue();
   }

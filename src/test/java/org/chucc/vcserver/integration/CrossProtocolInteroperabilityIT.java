@@ -91,7 +91,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
     );
 
     // Then - Should return refs with proper structure
-    assertThat(refsResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(refsResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     JsonNode response = objectMapper.readTree(refsResponse.getBody());
 
     JsonNode refsArray = response.get("refs");
@@ -164,7 +164,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
     );
 
     // Then - Should accept commit selector (verifies selector compatibility)
-    assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(getResponse.getHeaders().getETag()).isEqualTo("\"" + initialCommitId.value() + "\"");
   }
 
@@ -187,7 +187,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
     );
 
     // Then - feature branch should be visible
-    assertThat(refsResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(refsResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     JsonNode response = objectMapper.readTree(refsResponse.getBody());
     JsonNode refsArray = response.get("refs");
 
@@ -257,7 +257,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
     );
 
     // Then - Tag should be visible via Protocol /version/refs
-    assertThat(refsResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(refsResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     JsonNode response = objectMapper.readTree(refsResponse.getBody());
     JsonNode refsArray = response.get("refs");
 
@@ -404,7 +404,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
     );
 
     // Then - Should accept asOf selector (verifies cross-protocol selector compatibility)
-    assertThat(gspResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(gspResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
   }
 
   /**

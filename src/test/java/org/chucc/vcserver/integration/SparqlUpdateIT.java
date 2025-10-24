@@ -94,7 +94,7 @@ public class SparqlUpdateIT extends ITFixture {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     assertThat(response.getBody()).isNull();
   }
 

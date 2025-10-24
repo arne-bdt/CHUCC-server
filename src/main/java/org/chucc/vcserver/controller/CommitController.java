@@ -214,9 +214,10 @@ public class CommitController {
     );
 
     return ResponseEntity
-        .status(HttpStatus.CREATED)
+        .accepted()
         .location(URI.create("/version/commits/" + event.commitId()))
         .eTag("\"" + event.commitId() + "\"")
+        .header("SPARQL-VC-Status", "pending")
         .contentType(MediaType.APPLICATION_JSON)
         .body(response);
   }

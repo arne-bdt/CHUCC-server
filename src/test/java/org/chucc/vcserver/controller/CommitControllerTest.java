@@ -70,7 +70,7 @@ class CommitControllerTest {
             .header("SPARQL-VC-Author", "Alice <mailto:alice@example.org>")
             .header("SPARQL-VC-Message", "Add new triple")
             .content(PATCH_BODY))
-        .andExpect(status().isCreated())
+        .andExpect(status().isAccepted())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(header().string("Location", "/version/commits/" + COMMIT_ID))
         .andExpect(header().string("ETag", "\"" + COMMIT_ID + "\""))
@@ -105,7 +105,7 @@ class CommitControllerTest {
             .header("SPARQL-VC-Author", "Bob")
             .header("SPARQL-VC-Message", "Experimental change")
             .content(PATCH_BODY))
-        .andExpect(status().isCreated())
+        .andExpect(status().isAccepted())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(header().string("Location", "/version/commits/" + COMMIT_ID))
         .andExpect(header().string("ETag", "\"" + COMMIT_ID + "\""))
@@ -215,7 +215,7 @@ class CommitControllerTest {
             .header("SPARQL-VC-Author", "Alice")
             .header("SPARQL-VC-Message", "Historical commit")
             .content(PATCH_BODY))
-        .andExpect(status().isCreated())
+        .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.id").value(COMMIT_ID));
   }
 
@@ -242,7 +242,7 @@ class CommitControllerTest {
             .header("SPARQL-VC-Author", "Alice")
             .header("SPARQL-VC-Message", "Add new triple")
             .content(PATCH_BODY))
-        .andExpect(status().isCreated())
+        .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.id").value(COMMIT_ID));
   }
 }

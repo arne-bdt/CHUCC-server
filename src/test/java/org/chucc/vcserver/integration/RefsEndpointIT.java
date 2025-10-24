@@ -76,7 +76,7 @@ class RefsEndpointIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getHeaders().getContentType())
         .isEqualTo(MediaType.APPLICATION_JSON);
 
@@ -104,7 +104,7 @@ class RefsEndpointIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
     JsonNode json = objectMapper.readTree(response.getBody());
     assertThat(json.get("refs").size()).isEqualTo(2);
@@ -140,7 +140,7 @@ class RefsEndpointIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
     JsonNode json = objectMapper.readTree(response.getBody());
     assertThat(json.get("refs").size()).isEqualTo(2);
@@ -179,7 +179,7 @@ class RefsEndpointIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
     JsonNode json = objectMapper.readTree(response.getBody());
     assertThat(json.get("refs").size()).isEqualTo(3);
@@ -274,7 +274,7 @@ class RefsEndpointIT {
     );
 
     // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     JsonNode json = objectMapper.readTree(response.getBody());
     assertThat(json.get("refs").size()).isEqualTo(1);
     assertThat(json.get("refs").get(0).get("name").asText()).isEqualTo("main");

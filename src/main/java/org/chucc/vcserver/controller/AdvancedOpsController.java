@@ -494,7 +494,8 @@ public class AdvancedOpsController {
       );
 
       return ResponseEntity
-          .ok()
+          .accepted()
+          .header("SPARQL-VC-Status", "pending")
           .contentType(MediaType.APPLICATION_JSON)
           .body(response);
     } catch (IllegalArgumentException e) {

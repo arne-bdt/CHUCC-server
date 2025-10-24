@@ -172,7 +172,11 @@ public class BatchGraphsController {
     BatchGraphsResponse response = new BatchGraphsResponse(commits);
     String responseJson = objectMapper.writeValueAsString(response);
 
-    return ResponseEntity.ok(responseJson);
+    return ResponseEntity
+        .accepted()
+        .header("SPARQL-VC-Status", "pending")
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(responseJson);
   }
 
   private List<String> extractOperationDescriptions(

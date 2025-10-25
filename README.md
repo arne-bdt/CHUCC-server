@@ -34,7 +34,7 @@ This server implements:
 - ⏳ **History** - Browse commit history with filtering (in progress)
 - ✅ **Time-travel** - Query dataset state at any point in time (`asOf`)
 - ⏳ **Merging** - Three-way merge with conflict detection (in progress)
-- ⏳ **Tags** - Create and list tags (partial - get/delete implemented)
+- ✅ **Tags** - Create, list, get, and delete tags with immutability enforcement
 - ⏳ **Diff** - Compare any two commits (in progress)
 - ⏳ **Blame** - Last-writer attribution per triple (in progress)
 - ⏳ **Batch operations** - Apply multiple SPARQL operations atomically (in progress)

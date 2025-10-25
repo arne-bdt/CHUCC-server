@@ -1,9 +1,10 @@
 # Task: Implement Tag List and Create Endpoints
 
-**Status:** Not Started
+**Status:** ✅ COMPLETED (2025-10-25)
 **Priority:** High
 **Category:** Version Control Protocol
 **Estimated Time:** 3-4 hours
+**Actual Time:** ~4 hours
 
 ---
 
@@ -85,12 +86,12 @@ Content-Type: application/json
 ```
 
 **Parameters:**
-- `name` (required) - Tag name (alphanumeric, dots, hyphens allowed)
+- `name` (required) - Tag name (alphanumeric, dots, hyphens, underscores allowed)
 - `target` (required) - Target commit ID (UUIDv7)
 - `message` (optional) - Annotation message
-- `author` (optional) - Author (falls back to header or "anonymous")
+- `author` (optional) - Author (falls back to `X-Author` header, then "anonymous")
 
-**Response:** 201 Created
+**Response:** 202 Accepted
 ```json
 {
   "name": "v2.0.0",
@@ -117,8 +118,13 @@ Content-Type: application/json
 
 **Tag Naming Rules:**
 - Pattern: `^[a-zA-Z0-9._-]+$`
-- Examples: `v1.0.0`, `release-2024`, `stable`, `beta.1`
+- Examples: `v1.0.0`, `release-2024`, `stable`, `beta.1`, `rc_1`
 - Invalid: spaces, special chars (`@`, `#`, `/`, etc.)
+
+**Architecture Notes:**
+- **CQRS Pragmatism:** Command handler validates using read repositories (tag/commit existence checks). This is a pragmatic trade-off accepted project-wide for preventing invalid commands before event creation.
+- **Tag Immutability:** Once created, tags cannot be updated (only deleted). This ensures tag references remain stable.
+- **Dangling References:** If a tagged commit is deleted (e.g., via garbage collection), the tag becomes a dangling reference. Tag creation does not prevent future commit deletion.
 
 ---
 
@@ -176,26 +182,6 @@ public record CreateTagRequest(
 }
 ```
 
-**File:** `src/main/java/org/chucc/vcserver/dto/CreateTagResponse.java`
-```java
-package org.chucc.vcserver.dto;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
-import java.time.Instant;
-
-/**
- * Response DTO for tag creation.
- */
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public record CreateTagResponse(
-    String name,
-    String target,
-    String message,
-    String author,
-    Instant createdAt
-) {}
-```
-
 **File:** `src/main/java/org/chucc/vcserver/dto/TagListResponse.java`
 ```java
 package org.chucc.vcserver.dto;
@@ -204,6 +190,9 @@ import java.util.List;
 
 /**
  * Response DTO for listing tags.
+ *
+ * <p>Wrapper used for consistency with Branch API and potential future pagination
+ * support (e.g., totalCount, nextPageToken).
  */
 public record TagListResponse(
     List<TagInfo> tags
@@ -375,7 +364,8 @@ public ResponseEntity<TagListResponse> listTags(
 )
 public ResponseEntity<?> createTag(
     @PathVariable String dataset,
-    @RequestBody CreateTagRequest request
+    @RequestBody CreateTagRequest request,
+    @RequestHeader(value = "X-Author", required = false) String authorHeader
 ) {
   // Validate request
   try {
@@ -386,8 +376,9 @@ public ResponseEntity<?> createTag(
         .body(new ProblemDetail(e.getMessage(), 400, "INVALID_REQUEST"));
   }
 
-  // Determine author (request body > anonymous)
-  String author = request.author() != null ? request.author() : "anonymous";
+  // Determine author (request body > header > anonymous)
+  String author = request.author() != null ? request.author()
+      : (authorHeader != null ? authorHeader : "anonymous");
 
   // Create command
   CreateTagCommand command = new CreateTagCommand(
@@ -402,8 +393,8 @@ public ResponseEntity<?> createTag(
   try {
     TagCreatedEvent event = (TagCreatedEvent) createTagCommandHandler.handle(command);
 
-    // Build response
-    CreateTagResponse response = new CreateTagResponse(
+    // Build response (reuse TagInfo DTO)
+    TagInfo response = new TagInfo(
         event.tagName(),
         event.targetCommit(),
         event.message(),
@@ -544,6 +535,76 @@ void createTag_withInvalidTarget_shouldReturn404() {
   // Assert
   assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
 }
+
+@Test
+void createTag_withInvalidTagName_shouldReturn400() {
+  String commitId = createTestCommit();
+  String requestBody = """
+      {
+        "name": "invalid tag name",
+        "target": "%s"
+      }
+      """.formatted(commitId);
+
+  // Act
+  ResponseEntity<String> response = restTemplate.exchange(
+      "/default/version/tags",
+      HttpMethod.POST,
+      new HttpEntity<>(requestBody, headers),
+      String.class
+  );
+
+  // Assert
+  assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+}
+
+@Test
+void createTag_withMissingName_shouldReturn400() {
+  String commitId = createTestCommit();
+  String requestBody = """
+      {
+        "target": "%s"
+      }
+      """.formatted(commitId);
+
+  // Act
+  ResponseEntity<String> response = restTemplate.exchange(
+      "/default/version/tags",
+      HttpMethod.POST,
+      new HttpEntity<>(requestBody, headers),
+      String.class
+  );
+
+  // Assert
+  assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+}
+
+@Test
+void createTag_withAuthorHeader_shouldUseHeader() {
+  String commitId = createTestCommit();
+  String requestBody = """
+      {
+        "name": "v1.0.0",
+        "target": "%s"
+      }
+      """.formatted(commitId);
+
+  HttpHeaders headersWithAuthor = new HttpHeaders();
+  headersWithAuthor.setContentType(MediaType.APPLICATION_JSON);
+  headersWithAuthor.set("X-Author", "Bob <bob@example.org>");
+
+  // Act
+  ResponseEntity<String> response = restTemplate.exchange(
+      "/default/version/tags",
+      HttpMethod.POST,
+      new HttpEntity<>(requestBody, headersWithAuthor),
+      String.class
+  );
+
+  // Assert
+  assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+  assertThat(response.getBody()).contains("Bob");
+}
 ```
 
 **Unit Test:** `src/test/java/org/chucc/vcserver/command/CreateTagCommandHandlerTest.java`
@@ -571,9 +632,10 @@ Test command handler logic, event creation, validation errors.
 ## Testing Strategy
 
 **API Layer Tests (projector DISABLED):**
-- Test HTTP status codes (200, 201, 400, 404, 409)
+- Test HTTP status codes (200, 202, 400, 404, 409)
 - Test response headers (Location, SPARQL-VC-Status)
-- Test tag name validation
+- Test tag name validation (invalid characters, missing name)
+- Test X-Author header fallback
 - Do NOT query repositories
 
 **Projector Tests (projector ENABLED):**
@@ -585,10 +647,9 @@ Test command handler logic, event creation, validation errors.
 ## Files to Create/Modify
 
 **New Files:**
-- `dto/TagInfo.java`
+- `dto/TagInfo.java` (used for both list and create responses)
 - `dto/CreateTagRequest.java`
-- `dto/CreateTagResponse.java`
-- `dto/TagListResponse.java`
+- `dto/TagListResponse.java` (wrapper for future pagination support)
 - `command/CreateTagCommand.java`
 - `event/TagCreatedEvent.java`
 - `command/CreateTagCommandHandler.java`

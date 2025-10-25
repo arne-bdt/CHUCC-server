@@ -1148,7 +1148,7 @@ Each component has ONE reason to change:
 **Key Components**:
 - 12 Controllers (HTTP endpoints)
 - 17 Command Handlers (write operations)
-- 15 Services (business logic)
+- 16 Services (business logic)
 - 3 Repositories + 1 Graph Repository (read model)
 - 1 Projector with 10 event handlers (async updates)
 - 13 Event types (domain events)

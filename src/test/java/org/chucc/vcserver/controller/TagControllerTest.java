@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.Optional;
+import org.chucc.vcserver.command.CreateTagCommandHandler;
 import org.chucc.vcserver.dto.TagDetailResponse;
 import org.chucc.vcserver.exception.TagDeletionForbiddenException;
 import org.chucc.vcserver.exception.TagNotFoundException;
@@ -34,6 +35,9 @@ class TagControllerTest {
 
   @MockitoBean
   private TagService tagService;
+
+  @MockitoBean
+  private CreateTagCommandHandler createTagCommandHandler;
 
   /**
    * Test GET /version/tags/{name} with existing tag.

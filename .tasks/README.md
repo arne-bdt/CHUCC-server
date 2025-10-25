@@ -20,20 +20,25 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🔴 High Priority
 
-#### 1. Tag Management API
+#### 1. Tag Management API ✅ COMPLETED
 **File:** [`.tasks/tags/01-implement-tag-list-and-create-api.md`](./tags/01-implement-tag-list-and-create-api.md)
 
 **Endpoints:**
-- `GET /version/tags` - List all tags
-- `POST /version/tags` - Create new immutable tag
+- ✅ `GET /version/tags` - List all tags
+- ✅ `POST /version/tags` - Create new immutable tag
 
-**Status:** Not Started
+**Status:** COMPLETED (2025-10-25)
 **Estimated Time:** 3-4 hours
 **Protocol Spec:** §3.5
 
-**Already Implemented:**
+**Implemented Features:**
+- ✅ `GET /version/tags` - List all tags with message and author
+- ✅ `POST /version/tags` - Create new immutable tag (202 Accepted, async CQRS)
 - ✅ `GET /version/tags/{name}` - Get tag details
 - ✅ `DELETE /version/tags/{name}` - Delete tag
+- ✅ Tag immutability enforcement (409 Conflict on duplicate)
+- ✅ X-Author header support with fallback chain
+- ✅ Validation (400 for invalid tag names, 404 for missing commits)
 
 ---
 
@@ -118,23 +123,24 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Progress Summary
 
-**Feature Tasks:** 4 tasks (4 endpoint implementations remaining)
+**Feature Tasks:** 3 tasks (3 endpoint implementations remaining)
 **Schema Evolution:** 0 tasks (all completed)
 **Architecture/Technical Debt:** 1 task (optional improvement)
 
-**Total Endpoints Remaining:** 8 endpoints to implement
-**Total Estimated Time:** 16-20 hours (features) + 8-12 hours (architecture)
+**Total Endpoints Remaining:** 6 endpoints to implement
+**Total Estimated Time:** 13-16 hours (features) + 8-12 hours (architecture)
 
 **Priority Breakdown:**
-- 🔴 High Priority: 2 tasks (Tags, Merge)
+- 🔴 High Priority: 1 task (Merge)
 - 🟡 Medium Priority: 2 tasks (History/Diff, Batch)
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
 
-**Current Status:** All schema evolution tasks completed (100%)
+**Current Status:** All schema evolution tasks and Tag Management completed (100%)
 - ✅ CommitCreatedEvent patchSize (completed 2025-01-24)
 - ✅ Revert/CherryPick patchSize (completed 2025-01-25)
 - ✅ Commit Metadata API (completed 2025-01-25)
 - ✅ Branch Management API (completed 2025-10-24)
+- ✅ Tag Management API (completed 2025-10-25)
 
 ---
 
@@ -142,7 +148,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### Feature Implementation
 
-1. **Tag Management API** (3-4 hours)
+1. ~~**Tag Management API**~~ ✅ COMPLETED (2025-10-25)
    - Similar to branches (already implemented)
    - Immutability adds slight complexity
    - Completes core version control features

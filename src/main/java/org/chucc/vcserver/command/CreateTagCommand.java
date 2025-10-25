@@ -9,12 +9,14 @@ import java.util.Objects;
  * @param tagName the name of the new tag
  * @param commitId the commit ID to tag
  * @param message optional tag message
+ * @param author tag author (falls back to "anonymous" if null)
  */
 public record CreateTagCommand(
     String dataset,
     String tagName,
     String commitId,
-    String message) implements Command {
+    String message,
+    String author) implements Command {
 
   /**
    * Creates a new CreateTagCommand with validation.

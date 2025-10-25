@@ -121,8 +121,12 @@ class TagTest {
     Tag tag = new Tag("v1.0.0", COMMIT_ID_1);
     String toString = tag.toString();
 
-    // Should contain both name and commit ID
-    assertEquals("Tag{name='v1.0.0', commitId=" + COMMIT_ID_1 + "}", toString);
+    // Should contain name, commit ID, message, author, and createdAt
+    assertTrue(toString.contains("name='v1.0.0'"));
+    assertTrue(toString.contains("commitId=" + COMMIT_ID_1));
+    assertTrue(toString.contains("message='null'"));
+    assertTrue(toString.contains("author='null'"));
+    assertTrue(toString.contains("createdAt="));
   }
 
   @Test

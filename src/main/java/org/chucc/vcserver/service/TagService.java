@@ -1,9 +1,11 @@
 package org.chucc.vcserver.service;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.List;
 import java.util.Optional;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.dto.TagDetailResponse;
+import org.chucc.vcserver.dto.TagInfo;
 import org.chucc.vcserver.exception.TagDeletionForbiddenException;
 import org.chucc.vcserver.exception.TagNotFoundException;
 import org.chucc.vcserver.repository.TagRepository;
@@ -31,6 +33,25 @@ public class TagService {
   public TagService(TagRepository tagRepository, VersionControlProperties vcProperties) {
     this.tagRepository = tagRepository;
     this.vcProperties = vcProperties;
+  }
+
+  /**
+   * Lists all tags in a dataset.
+   *
+   * @param datasetName the dataset name
+   * @return list of all tags
+   */
+  public List<TagInfo> listTags(String datasetName) {
+    return tagRepository.findAllByDataset(datasetName)
+        .stream()
+        .map(tag -> new TagInfo(
+            tag.name(),
+            tag.commitId().value(),
+            tag.message(),
+            tag.author(),
+            tag.createdAt()
+        ))
+        .toList();
   }
 
   /**

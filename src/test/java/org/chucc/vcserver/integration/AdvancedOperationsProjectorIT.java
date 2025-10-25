@@ -168,6 +168,8 @@ class AdvancedOperationsProjectorIT {
         DEFAULT_DATASET,
         "v1.0.0",
         tagCommitId.value(),
+        "Release v1.0.0",
+        "System",
         Instant.now()
     );
 

@@ -12,6 +12,7 @@ import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.repository.TagRepository;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SnapshotService;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +45,9 @@ class ReadModelProjectorTest {
   private CommitRepository commitRepository;
 
   @Mock
+  private TagRepository tagRepository;
+
+  @Mock
   private DatasetService datasetService;
 
   @Mock
@@ -61,8 +65,8 @@ class ReadModelProjectorTest {
     dedup.setEnabled(false); // Disable deduplication for unit tests
     when(projectorProperties.getDeduplication()).thenReturn(dedup);
 
-    projector = new ReadModelProjector(branchRepository, commitRepository, datasetService,
-        snapshotService, projectorProperties);
+    projector = new ReadModelProjector(branchRepository, commitRepository, tagRepository,
+        datasetService, snapshotService, projectorProperties);
   }
 
   /**
@@ -203,8 +207,8 @@ class ReadModelProjectorTest {
     when(projectorProperties.getDeduplication()).thenReturn(dedup);
 
     // Recreate projector with deduplication enabled
-    projector = new ReadModelProjector(branchRepository, commitRepository, datasetService,
-        snapshotService, projectorProperties);
+    projector = new ReadModelProjector(branchRepository, commitRepository, tagRepository,
+        datasetService, snapshotService, projectorProperties);
 
     String dataset = "test-dataset";
     String commitIdStr = "550e8400-e29b-41d4-a716-446655440000";
@@ -299,8 +303,8 @@ class ReadModelProjectorTest {
     when(projectorProperties.getDeduplication()).thenReturn(dedup);
 
     // Recreate projector with deduplication enabled
-    projector = new ReadModelProjector(branchRepository, commitRepository, datasetService,
-        snapshotService, projectorProperties);
+    projector = new ReadModelProjector(branchRepository, commitRepository, tagRepository,
+        datasetService, snapshotService, projectorProperties);
 
     String dataset = "test-dataset";
     String rdfPatchStr = "TX .";

@@ -6,6 +6,7 @@ import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.TagCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.repository.TagRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -21,25 +22,36 @@ public class CreateTagCommandHandler implements CommandHandler<CreateTagCommand>
 
   private final EventPublisher eventPublisher;
   private final CommitRepository commitRepository;
+  private final TagRepository tagRepository;
 
   /**
    * Constructs a CreateTagCommandHandler.
    *
    * @param eventPublisher the event publisher
    * @param commitRepository the commit repository
+   * @param tagRepository the tag repository
    */
   @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
-      justification = "CommitRepository is a Spring-managed bean and is intentionally shared")
+      justification = "Repositories are Spring-managed beans and are intentionally shared")
   public CreateTagCommandHandler(
       EventPublisher eventPublisher,
-      CommitRepository commitRepository) {
+      CommitRepository commitRepository,
+      TagRepository tagRepository) {
     this.eventPublisher = eventPublisher;
     this.commitRepository = commitRepository;
+    this.tagRepository = tagRepository;
   }
 
   @Override
   public VersionControlEvent handle(CreateTagCommand command) {
+    // Validate tag doesn't already exist (tags are immutable)
+    if (tagRepository.exists(command.dataset(), command.tagName())) {
+      throw new IllegalStateException(
+          "Tag already exists: " + command.tagName()
+              + " in dataset: " + command.dataset());
+    }
+
     // Validate target commit exists
     CommitId commitId = new CommitId(command.commitId());
     if (!commitRepository.exists(command.dataset(), commitId)) {
@@ -53,6 +65,8 @@ public class CreateTagCommandHandler implements CommandHandler<CreateTagCommand>
         command.dataset(),
         command.tagName(),
         command.commitId(),
+        command.message(),
+        command.author(),
         Instant.now());
 
     // Publish event to Kafka (async, with proper error logging)

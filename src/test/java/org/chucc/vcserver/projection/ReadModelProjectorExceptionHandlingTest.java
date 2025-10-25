@@ -15,6 +15,7 @@ import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.projection.ReadModelProjector.ProjectionException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.repository.TagRepository;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SnapshotService;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +36,9 @@ class ReadModelProjectorExceptionHandlingTest {
 
   @Mock
   private BranchRepository branchRepository;
+
+  @Mock
+  private TagRepository tagRepository;
 
   @Mock
   private DatasetService datasetService;
@@ -60,6 +64,7 @@ class ReadModelProjectorExceptionHandlingTest {
     projector = new ReadModelProjector(
         branchRepository,
         commitRepository,
+        tagRepository,
         datasetService,
         snapshotService,
         projectorProperties

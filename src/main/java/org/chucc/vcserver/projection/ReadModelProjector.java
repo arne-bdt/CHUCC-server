@@ -22,6 +22,7 @@ import org.chucc.vcserver.config.ProjectorProperties;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.domain.Tag;
 import org.chucc.vcserver.event.BatchGraphsCompletedEvent;
 import org.chucc.vcserver.event.BranchCreatedEvent;
 import org.chucc.vcserver.event.BranchDeletedEvent;
@@ -39,6 +40,7 @@ import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.filter.CorrelationIdFilter;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.repository.TagRepository;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SnapshotService;
 import org.slf4j.Logger;
@@ -92,6 +94,7 @@ public class ReadModelProjector {
 
   private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
+  private final TagRepository tagRepository;
   private final DatasetService datasetService;
   private final SnapshotService snapshotService;
   private final ProjectorProperties projectorProperties;
@@ -107,6 +110,7 @@ public class ReadModelProjector {
    *
    * @param branchRepository the branch repository
    * @param commitRepository the commit repository
+   * @param tagRepository the tag repository
    * @param datasetService the dataset service
    * @param snapshotService the snapshot service
    * @param projectorProperties the projector configuration properties
@@ -117,11 +121,13 @@ public class ReadModelProjector {
   public ReadModelProjector(
       BranchRepository branchRepository,
       CommitRepository commitRepository,
+      TagRepository tagRepository,
       DatasetService datasetService,
       SnapshotService snapshotService,
       ProjectorProperties projectorProperties) {
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
+    this.tagRepository = tagRepository;
     this.datasetService = datasetService;
     this.snapshotService = snapshotService;
     this.projectorProperties = projectorProperties;
@@ -442,17 +448,30 @@ public class ReadModelProjector {
   }
 
   /**
-   * Handles TagCreatedEvent (currently logs only, can be extended for tag repository).
+   * Handles TagCreatedEvent by saving the tag to the repository.
    *
    * @param event the tag created event
    */
   void handleTagCreated(TagCreatedEvent event) {
-    logger.debug("Processing TagCreatedEvent: tagName={}, commitId={}, dataset={}",
-        event.tagName(), event.commitId(), event.dataset());
+    logger.debug("Processing TagCreatedEvent: tagName={}, commitId={}, dataset={}, "
+            + "message={}, author={}",
+        event.tagName(), event.commitId(), event.dataset(),
+        event.message(), event.author());
 
-    // Tag handling can be implemented when TagRepository is available
-    logger.info("Tag created: {} -> {} in dataset: {}",
-        event.tagName(), event.commitId(), event.dataset());
+    // Create tag entity from event data
+    Tag tag = new Tag(
+        event.tagName(),
+        new CommitId(event.commitId()),
+        event.message(),
+        event.author(),
+        event.timestamp()
+    );
+
+    // Save tag to repository
+    tagRepository.save(event.dataset(), tag);
+
+    logger.info("Tag created: {} -> {} in dataset: {} (author: {})",
+        event.tagName(), event.commitId(), event.dataset(), event.author());
   }
 
   /**

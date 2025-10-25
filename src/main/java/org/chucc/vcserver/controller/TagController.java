@@ -5,7 +5,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.chucc.vcserver.command.CreateTagCommand;
+import org.chucc.vcserver.command.CreateTagCommandHandler;
+import org.chucc.vcserver.dto.CreateTagRequest;
 import org.chucc.vcserver.dto.ProblemDetail;
+import org.chucc.vcserver.dto.TagInfo;
+import org.chucc.vcserver.dto.TagListResponse;
+import org.chucc.vcserver.event.TagCreatedEvent;
 import org.chucc.vcserver.service.TagService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -16,8 +22,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
  * Tag management endpoints for version control.
@@ -28,24 +36,30 @@ import org.springframework.web.bind.annotation.RestController;
 public class TagController {
 
   private final TagService tagService;
+  private final CreateTagCommandHandler createTagCommandHandler;
 
   /**
    * Constructor for TagController.
    *
    * @param tagService the tag service
+   * @param createTagCommandHandler the create tag command handler
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
-      justification = "Spring-managed bean is intentionally a shared reference"
+      justification = "Spring-managed beans are intentionally shared references"
   )
-  public TagController(TagService tagService) {
+  public TagController(
+      TagService tagService,
+      CreateTagCommandHandler createTagCommandHandler) {
     this.tagService = tagService;
+    this.createTagCommandHandler = createTagCommandHandler;
   }
 
   /**
    * List all tags.
    *
-   * @return list of tags (501 stub)
+   * @param dataset the dataset name
+   * @return list of tags
    */
   @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
   @Operation(summary = "List tags", description = "List all tags in the repository")
@@ -54,22 +68,17 @@ public class TagController {
       description = "Tags",
       content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
   )
-  @ApiResponse(
-      responseCode = "501",
-      description = "Not Implemented",
-      content = @Content(mediaType = "application/problem+json")
-  )
-  public ResponseEntity<String> listTags() {
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-        .body("{\"title\":\"Not Implemented\",\"status\":501}");
+  public ResponseEntity<TagListResponse> listTags(@PathVariable String dataset) {
+    return ResponseEntity.ok(new TagListResponse(tagService.listTags(dataset)));
   }
 
   /**
    * Create a new immutable tag.
    *
-   * @param tagRequest tag creation request
-   * @return created tag (501 stub)
+   * @param dataset the dataset name
+   * @param request tag creation request
+   * @param authorHeader optional X-Author header
+   * @return created tag
    */
   @PostMapping(
       consumes = MediaType.APPLICATION_JSON_VALUE,
@@ -80,24 +89,90 @@ public class TagController {
       description = "Create a new immutable tag pointing to a commit"
   )
   @ApiResponse(
-      responseCode = "201",
-      description = "Tag created",
+      responseCode = "202",
+      description = "Tag accepted for creation",
       content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Invalid request (bad tag name or missing fields)",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "404",
+      description = "Target commit not found",
+      content = @Content(mediaType = "application/problem+json")
   )
   @ApiResponse(
       responseCode = "409",
       description = "Tag already exists",
       content = @Content(mediaType = "application/problem+json")
   )
-  @ApiResponse(
-      responseCode = "501",
-      description = "Not Implemented",
-      content = @Content(mediaType = "application/problem+json")
-  )
-  public ResponseEntity<String> createTag(@RequestBody String tagRequest) {
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-        .body("{\"title\":\"Not Implemented\",\"status\":501}");
+  public ResponseEntity<?> createTag(
+      @PathVariable String dataset,
+      @RequestBody CreateTagRequest request,
+      @RequestHeader(value = "X-Author", required = false) String authorHeader
+  ) {
+    // Validate request
+    try {
+      request.validate();
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest()
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(e.getMessage(),
+              HttpStatus.BAD_REQUEST.value(), "INVALID_REQUEST"));
+    }
+
+    // Determine author (request body > header > anonymous)
+    String author = request.author() != null ? request.author()
+        : (authorHeader != null ? authorHeader : "anonymous");
+
+    // Create command
+    CreateTagCommand command = new CreateTagCommand(
+        dataset,
+        request.name(),
+        request.target(),
+        request.message(),
+        author
+    );
+
+    // Handle command
+    try {
+      TagCreatedEvent event = (TagCreatedEvent) createTagCommandHandler.handle(command);
+
+      // Build response (reuse TagInfo DTO)
+      TagInfo response = new TagInfo(
+          event.tagName(),
+          event.commitId(),
+          event.message(),
+          event.author(),
+          event.timestamp()
+      );
+
+      // Build Location URI
+      String location = ServletUriComponentsBuilder
+          .fromCurrentRequest()
+          .path("/{name}")
+          .buildAndExpand(event.tagName())
+          .toUriString();
+
+      return ResponseEntity
+          .accepted()
+          .header("Location", location)
+          .header("SPARQL-VC-Status", "pending")
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(response);
+    } catch (IllegalStateException e) {
+      return ResponseEntity.status(HttpStatus.CONFLICT)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(e.getMessage(),
+              HttpStatus.CONFLICT.value(), "TAG_EXISTS"));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(e.getMessage(),
+              HttpStatus.NOT_FOUND.value(), "COMMIT_NOT_FOUND"));
+    }
   }
 
   /**

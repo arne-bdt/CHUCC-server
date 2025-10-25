@@ -13,6 +13,8 @@ public record TagCreatedEvent(
     @JsonProperty("dataset") String dataset,
     @JsonProperty("tagName") String tagName,
     @JsonProperty("commitId") String commitId,
+    @JsonProperty("message") String message,
+    @JsonProperty("author") String author,
     @JsonProperty("timestamp") Instant timestamp)
     implements VersionControlEvent {
 
@@ -24,6 +26,8 @@ public record TagCreatedEvent(
    * @param dataset the dataset name (must be non-null and non-blank)
    * @param tagName the tag name (must be non-null and non-blank)
    * @param commitId the commit ID the tag points to (must be non-null)
+   * @param message optional tag message
+   * @param author tag author
    * @param timestamp the event timestamp (must be non-null)
    * @throws IllegalArgumentException if any validation fails
    */
@@ -50,14 +54,18 @@ public record TagCreatedEvent(
    * @param dataset the dataset name
    * @param tagName the tag name
    * @param commitId the commit ID the tag points to
+   * @param message optional tag message
+   * @param author tag author
    * @param timestamp the event timestamp
    */
   public TagCreatedEvent(
       String dataset,
       String tagName,
       String commitId,
+      String message,
+      String author,
       Instant timestamp) {
-    this(null, dataset, tagName, commitId, timestamp);
+    this(null, dataset, tagName, commitId, message, author, timestamp);
   }
 
   @Override

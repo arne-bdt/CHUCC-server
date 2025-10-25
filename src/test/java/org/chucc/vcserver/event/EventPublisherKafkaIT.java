@@ -170,6 +170,8 @@ class EventPublisherKafkaIT {
         datasetId,
         "v2.0.0",
         commitId,
+        "Release v2.0.0",
+        "Bob",
         Instant.now()
     );
 

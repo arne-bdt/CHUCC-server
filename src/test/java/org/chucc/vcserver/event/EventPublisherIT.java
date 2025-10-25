@@ -170,6 +170,8 @@ class EventPublisherIT {
         "test-dataset",
         "v1.0.0",
         "commit-456",
+        "Release v1.0.0",
+        "Charlie",
         Instant.now()
     );
 

@@ -6,6 +6,7 @@ import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.TagCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.repository.TagRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +31,9 @@ class CreateTagCommandHandlerTest {
   @Mock
   private CommitRepository commitRepository;
 
+  @Mock
+  private TagRepository tagRepository;
+
   private CreateTagCommandHandler handler;
 
   @BeforeEach
@@ -37,7 +41,7 @@ class CreateTagCommandHandlerTest {
     // Mock EventPublisher.publish() to return completed future (lenient for tests that don't publish)
     lenient().when(eventPublisher.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
 
-    handler = new CreateTagCommandHandler(eventPublisher, commitRepository);
+    handler = new CreateTagCommandHandler(eventPublisher, commitRepository, tagRepository);
   }
 
   @Test
@@ -48,8 +52,10 @@ class CreateTagCommandHandlerTest {
         "test-dataset",
         "v1.0",
         validCommitId,
-        "Release 1.0");
+        "Release 1.0",
+        "Alice");
 
+    when(tagRepository.exists("test-dataset", "v1.0")).thenReturn(false);
     when(commitRepository.exists(eq("test-dataset"), any(CommitId.class))).thenReturn(true);
 
     // When
@@ -63,6 +69,8 @@ class CreateTagCommandHandlerTest {
     assertEquals("test-dataset", tagEvent.dataset());
     assertEquals("v1.0", tagEvent.tagName());
     assertEquals(validCommitId, tagEvent.commitId());
+    assertEquals("Release 1.0", tagEvent.message());
+    assertEquals("Alice", tagEvent.author());
     assertNotNull(tagEvent.timestamp());
   }
 
@@ -74,8 +82,10 @@ class CreateTagCommandHandlerTest {
         "test-dataset",
         "v1.0",
         validCommitId,
-        "Release 1.0");
+        "Release 1.0",
+        "Bob");
 
+    when(tagRepository.exists("test-dataset", "v1.0")).thenReturn(false);
     when(commitRepository.exists("test-dataset", new CommitId(validCommitId))).thenReturn(false);
 
     // When/Then

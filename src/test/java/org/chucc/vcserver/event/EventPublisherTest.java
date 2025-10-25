@@ -160,6 +160,8 @@ class EventPublisherTest {
         "prod-dataset",
         "v1.0.0",
         "commit-789",
+        "Release v1.0.0",
+        "Alice",
         Instant.now()
     );
 

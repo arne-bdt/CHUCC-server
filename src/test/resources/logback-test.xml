@@ -39,9 +39,11 @@
     <logger name="org.chucc.vcserver.projection.ReadModelProjector" level="OFF"/>
 
     <!-- Suppress INFO/WARN from command handlers in unit tests -->
+    <logger name="org.chucc.vcserver.command.CreateBranchCommandHandler" level="ERROR"/>
     <logger name="org.chucc.vcserver.command.DeleteBranchCommandHandler" level="ERROR"/>
     <logger name="org.chucc.vcserver.command.DeleteDatasetCommandHandler" level="ERROR"/>
-
+    <logger name="org.chucc.vcserver.command.SparqlUpdateCommandHandler" level="ERROR"/>
+    
     <!-- Application logs at INFO level by default (use -Dlogging.level.org.chucc=DEBUG to enable debug logs) -->
     <logger name="org.chucc" level="INFO"/>
 

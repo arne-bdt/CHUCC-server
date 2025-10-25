@@ -31,6 +31,7 @@ import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CherryPickedEvent;
 import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.event.CommitsSquashedEvent;
+import org.chucc.vcserver.event.DatasetCreatedEvent;
 import org.chucc.vcserver.event.DatasetDeletedEvent;
 import org.chucc.vcserver.event.EventHeaders;
 import org.chucc.vcserver.event.RevertCreatedEvent;
@@ -199,6 +200,7 @@ public class ReadModelProjector {
         case BranchRebasedEvent e -> handleBranchRebased(e);
         case BranchDeletedEvent e -> handleBranchDeleted(e);
         case DatasetDeletedEvent e -> handleDatasetDeleted(e);
+        case DatasetCreatedEvent e -> handleDatasetCreated(e);
         case TagCreatedEvent e -> handleTagCreated(e);
         case RevertCreatedEvent e -> handleRevertCreated(e);
         case SnapshotCreatedEvent e -> handleSnapshotCreated(e);
@@ -377,6 +379,28 @@ public class ReadModelProjector {
               + "(event from different test/dataset)",
           event.branchName(), event.dataset());
     }
+  }
+
+  /**
+   * Handles DatasetCreatedEvent.
+   * Note: The command handler already created the initial commit and main branch in repositories.
+   * This handler exists for consistency and potential future projections.
+   *
+   * @param event the dataset created event
+   */
+  void handleDatasetCreated(DatasetCreatedEvent event) {
+    logger.info("Processing DatasetCreatedEvent: dataset={}, mainBranch={}, initialCommit={}",
+        event.dataset(), event.mainBranch(), event.initialCommitId());
+
+    // Update latest commit tracking for cache optimization
+    datasetService.updateLatestCommit(
+        event.dataset(),
+        event.mainBranch(),
+        CommitId.of(event.initialCommitId())
+    );
+
+    logger.info("Dataset {} created and tracked in cache",
+        event.dataset());
   }
 
   /**

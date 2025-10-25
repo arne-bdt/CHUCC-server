@@ -177,6 +177,12 @@ public class EventPublisher {
         headers.add(new RecordHeader("commit-count",
             String.valueOf(e.deletedCommitCount()).getBytes(StandardCharsets.UTF_8)));
       }
+      case DatasetCreatedEvent e -> {
+        headers.add(new RecordHeader(EventHeaders.BRANCH,
+            e.mainBranch().getBytes(StandardCharsets.UTF_8)));
+        headers.add(new RecordHeader(EventHeaders.COMMIT_ID,
+            e.initialCommitId().getBytes(StandardCharsets.UTF_8)));
+      }
       case CommitCreatedEvent e -> {
         headers.add(new RecordHeader(EventHeaders.COMMIT_ID,
             e.commitId().getBytes(StandardCharsets.UTF_8)));

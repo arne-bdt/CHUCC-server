@@ -99,19 +99,65 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
+### 🟠 Critical (Infrastructure)
+
+#### 5. Dataset Management with Kafka Topic Integration
+**Folder:** [`.tasks/dataset-management/`](./dataset-management/)
+
+**Tasks:**
+1. **[Dataset Creation Endpoint](./dataset-management/01-dataset-creation-endpoint.md)** (Critical)
+   - `POST /version/datasets/{name}` - Create dataset with automatic Kafka topic creation
+   - Time: 4-5 hours
+
+2. **[Production Kafka Config](./dataset-management/02-production-kafka-config.md)** (Critical)
+   - Update Kafka configuration for production (RF=3, partitions=6)
+   - Time: 2-3 hours
+
+3. **[Error Handling](./dataset-management/03-error-handling.md)** (Important)
+   - Robust error handling for topic creation failures
+   - Time: 3-4 hours
+
+4. **[Monitoring & Metrics](./dataset-management/04-monitoring-metrics.md)** (Important)
+   - Comprehensive monitoring for dataset/topic lifecycle
+   - Time: 3-4 hours
+
+5. **[Per-Dataset Tuning](./dataset-management/05-per-dataset-tuning.md)** (Future)
+   - Custom Kafka configuration per dataset
+   - Time: 4-5 hours
+
+6. **[Topic Health Checks](./dataset-management/06-topic-health-checks.md)** (Future)
+   - Automated health checks and self-healing
+   - Time: 4-5 hours
+
+**Status:** Not Started
+**Total Estimated Time:** 20-26 hours (6-8 hours for MVP)
+**Priority:** Critical (tasks 1-2), Important (tasks 3-4), Future (tasks 5-6)
+
+**Problem:** Kafka topics are never created in production code. Users cannot dynamically create/delete datasets without DevOps intervention.
+
+**MVP:** Tasks 1-2 (6-8 hours) - Basic dataset creation with Kafka topic management
+
+See [Dataset Management README](./dataset-management/README.md) for detailed breakdown.
+
+---
+
 ## Progress Summary
 
 **Feature Tasks:** 3 tasks (3 endpoint implementations remaining)
 **Schema Evolution:** 0 tasks (all completed)
 **Architecture/Technical Debt:** 1 task (optional improvement)
+**Infrastructure/Operations:** 6 tasks (dataset management + Kafka integration)
 
 **Total Endpoints Remaining:** 6 endpoints to implement
-**Total Estimated Time:** 13-16 hours (features) + 8-12 hours (architecture)
+**Total Estimated Time:** 13-16 hours (features) + 8-12 hours (architecture) + 20-26 hours (infrastructure)
 
 **Priority Breakdown:**
 - 🔴 High Priority: 1 task (Merge)
 - 🟡 Medium Priority: 2 tasks (History/Diff, Batch)
+- 🟠 Critical (Infrastructure): 2 tasks (Dataset Creation, Kafka Config)
+- 🟡 Important (Infrastructure): 2 tasks (Error Handling, Monitoring)
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
+- 🔵 Future (Infrastructure): 2 tasks (Per-Dataset Tuning, Health Checks)
 
 **Current Status:** All schema evolution tasks and Tag Management completed (100%)
 - ✅ CommitCreatedEvent patchSize (completed 2025-01-24)
@@ -123,6 +169,32 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 ---
 
 ## Recommended Implementation Order
+
+### Infrastructure (Critical) - Do First
+
+**Why First:** Without dataset creation, users must manually create Kafka topics (DevOps bottleneck). Production config is unsafe (RF=1 = data loss on broker failure).
+
+1. **Dataset Creation Endpoint** (4-5 hours)
+   - Enables dynamic dataset creation without DevOps
+   - Creates Kafka topics automatically
+   - Foundation for remaining infrastructure tasks
+
+2. **Production Kafka Config** (2-3 hours)
+   - Critical for production safety (RF=3)
+   - Can be done in parallel with task 1
+   - Required before production deployment
+
+3. **Error Handling** (3-4 hours)
+   - Depends on task 1
+   - Improves user experience with clear error messages
+   - Adds retry logic and rollback
+
+4. **Monitoring & Metrics** (3-4 hours)
+   - Depends on tasks 1-3
+   - Essential for production operations
+   - Enables proactive issue detection
+
+**Total Time (Critical Path):** 12-16 hours for production-ready dataset management
 
 ### Feature Implementation
 
@@ -140,6 +212,20 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
    - Most complex task
    - Requires merge algorithm
    - Should be implemented last
+
+### Infrastructure (Future/Optional)
+
+**Recommended:** Defer until after feature implementation is complete.
+
+5. **Per-Dataset Tuning** (4-5 hours)
+   - Allows custom Kafka config per dataset
+   - Nice-to-have for advanced use cases
+   - Can be added later without breaking changes
+
+6. **Topic Health Checks** (4-5 hours)
+   - Automated health checks and self-healing
+   - Improves operational reliability
+   - Can be added incrementally
 
 ### Architecture/Technical Debt (Optional)
 

@@ -203,6 +203,50 @@ public class VcExceptionHandler {
   }
 
   /**
+   * Handle dataset already exists exceptions.
+   *
+   * @param ex the dataset already exists exception
+   * @return RFC 7807 problem+json response with 409 Conflict
+   */
+  @ExceptionHandler(DatasetAlreadyExistsException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<ProblemDetail> handleDatasetAlreadyExists(
+      DatasetAlreadyExistsException ex) {
+    ProblemDetail problem = new ProblemDetail(
+        ex.getMessage(),
+        HttpStatus.CONFLICT.value(),
+        "dataset_already_exists"
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+
+    return new ResponseEntity<>(problem, headers, HttpStatus.CONFLICT);
+  }
+
+  /**
+   * Handle branch already exists exceptions.
+   *
+   * @param ex the branch already exists exception
+   * @return RFC 7807 problem+json response with 409 Conflict
+   */
+  @ExceptionHandler(BranchAlreadyExistsException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<ProblemDetail> handleBranchAlreadyExists(
+      BranchAlreadyExistsException ex) {
+    ProblemDetail problem = new ProblemDetail(
+        ex.getMessage(),
+        HttpStatus.CONFLICT.value(),
+        "branch_already_exists"
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+
+    return new ResponseEntity<>(problem, headers, HttpStatus.CONFLICT);
+  }
+
+  /**
    * Handle IllegalArgumentException (e.g., invalid timestamp format).
    *
    * @param ex the illegal argument exception

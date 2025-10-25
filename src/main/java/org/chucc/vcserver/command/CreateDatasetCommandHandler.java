@@ -1,6 +1,8 @@
 package org.chucc.vcserver.command;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
@@ -58,6 +60,7 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
   private final EventPublisher eventPublisher;
   private final KafkaAdmin kafkaAdmin;
   private final KafkaProperties kafkaProperties;
+  private final MeterRegistry meterRegistry;
 
   /**
    * Constructs a CreateDatasetCommandHandler.
@@ -68,6 +71,7 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
    * @param eventPublisher the event publisher
    * @param kafkaAdmin the Kafka admin client
    * @param kafkaProperties the Kafka properties
+   * @param meterRegistry the meter registry for metrics
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
@@ -78,13 +82,15 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
       DatasetService datasetService,
       EventPublisher eventPublisher,
       KafkaAdmin kafkaAdmin,
-      KafkaProperties kafkaProperties) {
+      KafkaProperties kafkaProperties,
+      MeterRegistry meterRegistry) {
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
     this.datasetService = datasetService;
     this.eventPublisher = eventPublisher;
     this.kafkaAdmin = kafkaAdmin;
     this.kafkaProperties = kafkaProperties;
+    this.meterRegistry = meterRegistry;
   }
 
   @Override
@@ -94,6 +100,8 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
   public VersionControlEvent handle(CreateDatasetCommand command) {
     String dataset = command.dataset();
     logger.info("Creating dataset: {}", dataset);
+
+    Timer.Sample sample = Timer.start(meterRegistry);
 
     // 1. Check if dataset already exists (has branches)
     List<Branch> existingBranches = branchRepository.findAllByDataset(dataset);
@@ -161,9 +169,18 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
       logger.info("Dataset created: {} (topic: {}, initial commit: {})",
           dataset, kafkaProperties.getTopicName(dataset), initialCommit.id());
 
+      // Record success metrics
+      sample.stop(meterRegistry.timer("dataset.creation.time"));
+      meterRegistry.counter("dataset.created").increment();
+
       return event;
 
     } catch (Exception e) {
+      // Record failure metrics
+      meterRegistry.counter("dataset.creation.failures",
+          "reason", e.getClass().getSimpleName()
+      ).increment();
+
       // Rollback: Delete topic if it was created
       if (topicCreated) {
         logger.warn("Dataset creation failed - rolling back topic creation: {}", dataset);
@@ -200,6 +217,7 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
   )
   private void createKafkaTopic(String dataset) {
     String topicName = kafkaProperties.getTopicName(dataset);
+    Timer.Sample sample = Timer.start(meterRegistry);
 
     try (AdminClient adminClient = AdminClient.create(kafkaAdmin.getConfigurationProperties())) {
       logger.info("Creating Kafka topic: {}", topicName);
@@ -232,10 +250,20 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
       logger.info("Kafka topic created: {} (partitions={}, replication-factor={})",
           topicName, kafkaProperties.getPartitions(), kafkaProperties.getReplicationFactor());
 
+      // Record success metrics
+      sample.stop(meterRegistry.timer("kafka.topic.creation.time"));
+      meterRegistry.counter("kafka.topic.created").increment();
+
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
+      meterRegistry.counter("kafka.topic.creation.failures",
+          "reason", "InterruptedException"
+      ).increment();
       throw new KafkaUnavailableException("Kafka operation interrupted: " + topicName, e);
     } catch (ExecutionException e) {
+      meterRegistry.counter("kafka.topic.creation.failures",
+          "reason", e.getCause().getClass().getSimpleName()
+      ).increment();
       handleTopicCreationException(e, topicName, dataset);
     }
   }

@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Instant;
 import java.util.List;
 import org.chucc.vcserver.command.CreateCommitCommand;
@@ -42,6 +43,9 @@ class CommitControllerTest {
 
   @MockitoBean
   private org.chucc.vcserver.service.CommitService commitService;
+
+  @MockitoBean
+  private MeterRegistry meterRegistry;
 
   private static final String DATASET_NAME = "test-dataset";
   private static final String COMMIT_ID = "01936c81-4567-7890-abcd-ef1234567890";

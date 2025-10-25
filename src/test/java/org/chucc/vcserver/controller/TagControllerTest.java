@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Optional;
 import org.chucc.vcserver.command.CreateTagCommandHandler;
 import org.chucc.vcserver.dto.TagDetailResponse;
@@ -38,6 +39,9 @@ class TagControllerTest {
 
   @MockitoBean
   private CreateTagCommandHandler createTagCommandHandler;
+
+  @MockitoBean
+  private MeterRegistry meterRegistry;
 
   /**
    * Test GET /version/tags/{name} with existing tag.

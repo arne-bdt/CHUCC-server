@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Instant;
 import org.chucc.vcserver.command.CherryPickCommandHandler;
 import org.chucc.vcserver.command.RebaseCommandHandler;
@@ -52,6 +53,9 @@ class AdvancedOpsControllerTest {
 
   @MockitoBean
   private PreconditionService preconditionService;
+
+  @MockitoBean
+  private MeterRegistry meterRegistry;
 
   private static final String DATASET_NAME = "test-dataset";
   private static final String BRANCH_NAME = "main";

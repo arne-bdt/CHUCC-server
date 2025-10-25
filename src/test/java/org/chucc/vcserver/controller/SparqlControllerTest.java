@@ -1,5 +1,6 @@
 package org.chucc.vcserver.controller;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import org.chucc.vcserver.command.SparqlUpdateCommandHandler;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.CommitId;
@@ -44,6 +45,9 @@ class SparqlControllerTest {
 
   @MockitoBean
   private SparqlUpdateCommandHandler sparqlUpdateCommandHandler;
+
+  @MockitoBean
+  private MeterRegistry meterRegistry;
 
   @Test
   void optionsEndpoint_level2_allFeaturesEnabled() throws Exception {

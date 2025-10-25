@@ -1,5 +1,7 @@
 package org.chucc.vcserver.exception;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.chucc.vcserver.dto.ConflictItem;
 import org.chucc.vcserver.dto.ConflictProblemDetail;
 import org.chucc.vcserver.dto.ProblemDetail;
@@ -21,10 +23,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class VcExceptionHandlerTest {
 
     private VcExceptionHandler handler;
+    private MeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
-        handler = new VcExceptionHandler();
+        meterRegistry = new SimpleMeterRegistry();
+        handler = new VcExceptionHandler(meterRegistry);
     }
 
     @Test

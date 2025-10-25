@@ -1,5 +1,7 @@
 package org.chucc.vcserver.exception;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.chucc.vcserver.dto.ConflictProblemDetail;
 import org.chucc.vcserver.dto.ProblemDetail;
 import org.chucc.vcserver.exception.kafka.InvalidKafkaConfigurationException;
@@ -29,6 +31,21 @@ public class VcExceptionHandler {
 
   private static final MediaType PROBLEM_JSON =
       MediaType.parseMediaType("application/problem+json");
+
+  private final MeterRegistry meterRegistry;
+
+  /**
+   * Constructs a VcExceptionHandler.
+   *
+   * @param meterRegistry the meter registry for metrics
+   */
+  @SuppressFBWarnings(
+      value = "EI_EXPOSE_REP2",
+      justification = "MeterRegistry is a Spring-managed bean, not a mutable data structure"
+  )
+  public VcExceptionHandler(MeterRegistry meterRegistry) {
+    this.meterRegistry = meterRegistry;
+  }
 
   /**
    * Handle merge conflict exceptions.
@@ -287,6 +304,7 @@ public class VcExceptionHandler {
   @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<ProblemDetail> handleKafkaUnavailable(KafkaUnavailableException ex) {
     logger.warn("Kafka cluster unavailable: {}", ex.getMessage());
+    meterRegistry.counter("kafka.errors", "type", "unavailable").increment();
 
     ProblemDetail problem = new ProblemDetail(
         "Event store is temporarily unavailable. Please try again later.",
@@ -311,6 +329,7 @@ public class VcExceptionHandler {
   @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<ProblemDetail> handleKafkaAuthorization(KafkaAuthorizationException ex) {
     logger.error("CRITICAL: Kafka authorization failure: {}", ex.getMessage(), ex);
+    meterRegistry.counter("kafka.errors", "type", "authorization").increment();
 
     ProblemDetail problem = new ProblemDetail(
         "Server configuration error: insufficient permissions to manage event store",
@@ -334,6 +353,7 @@ public class VcExceptionHandler {
   @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<ProblemDetail> handleKafkaQuotaExceeded(KafkaQuotaExceededException ex) {
     logger.warn("Kafka quota exceeded: {}", ex.getMessage());
+    meterRegistry.counter("kafka.errors", "type", "quota_exceeded").increment();
 
     ProblemDetail problem = new ProblemDetail(
         "Dataset creation failed: Event store storage quota exceeded. "
@@ -359,6 +379,7 @@ public class VcExceptionHandler {
   public ResponseEntity<ProblemDetail> handleInvalidKafkaConfiguration(
       InvalidKafkaConfigurationException ex) {
     logger.error("Invalid Kafka configuration: {}", ex.getMessage(), ex);
+    meterRegistry.counter("kafka.errors", "type", "configuration").increment();
 
     ProblemDetail problem = new ProblemDetail(
         "Server configuration error: invalid event store configuration",
@@ -382,6 +403,7 @@ public class VcExceptionHandler {
   @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<ProblemDetail> handleTopicCreation(TopicCreationException ex) {
     logger.error("Topic creation failed: {}", ex.getMessage(), ex);
+    meterRegistry.counter("kafka.errors", "type", "topic_creation").increment();
 
     ProblemDetail problem = new ProblemDetail(
         "Failed to create dataset: event store operation failed",
@@ -405,6 +427,7 @@ public class VcExceptionHandler {
   @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
   public ResponseEntity<ProblemDetail> handleKafkaOperation(KafkaOperationException ex) {
     logger.error("Kafka operation failed: {}", ex.getMessage(), ex);
+    meterRegistry.counter("kafka.errors", "type", "operation").increment();
 
     ProblemDetail problem = new ProblemDetail(
         "Event store operation failed. Please try again later.",

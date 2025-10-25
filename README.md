@@ -56,8 +56,11 @@ This server implements:
 - ✅ **Distributed Tracing** - Correlation IDs track requests across HTTP → Kafka → Projector
 
 ### Operations
-- ✅ **Branch Deletion** - Delete branches with protection for main branch
+- ✅ **Dataset Creation** - Dynamic dataset creation with automatic Kafka topic provisioning
 - ✅ **Dataset Deletion** - Delete entire datasets with optional Kafka topic cleanup
+- ✅ **Branch Deletion** - Delete branches with protection for main branch
+- ✅ **Robust Error Handling** - Kafka errors mapped to RFC 7807 with retry logic
+- ✅ **Monitoring & Metrics** - Dataset and Kafka metrics via Micrometer
 - ✅ **Confirmation Requirements** - Safeguards against accidental deletion
 - ✅ **Audit Trail** - All operations recorded as events in Kafka
 

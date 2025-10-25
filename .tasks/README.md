@@ -73,23 +73,6 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-#### 4a. ✅ Add patchSize to Commit Entity (COMPLETED)
-**File:** [`.tasks/commits/00-add-patchsize-to-commit-entity.md`](./commits/00-add-patchsize-to-commit-entity.md)
-
-**Changes:**
-- ✅ Add `patchSize` field to `Commit` entity
-- ✅ Add `patchSize` field to `CommitCreatedEvent`
-- ✅ Update all command handlers to compute patchSize
-- ✅ Update ReadModelProjector
-
-**Status:** ✅ Completed (2025-01-24)
-**Actual Time:** ~3 hours
-**Category:** Schema Evolution
-
-**CQRS Compliance:** ✅ Excellent (verified by cqrs-compliance-checker)
-
----
-
 #### 5. Batch Operations API
 **File:** [`.tasks/batch/01-implement-batch-operations-api.md`](./batch/01-implement-batch-operations-api.md)
 
@@ -111,29 +94,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🔵 Low Priority (Technical Debt)
 
-#### 6. ✅ Add patchSize to Revert/CherryPick Events (COMPLETED)
-**File:** [`.tasks/architecture/01-add-patchsize-to-revert-cherrypick-events.md`](./architecture/01-add-patchsize-to-revert-cherrypick-events.md)
-
-**Changes:**
-- ✅ Add `patchSize` field to `RevertCreatedEvent`
-- ✅ Add `patchSize` field to `CherryPickedEvent`
-- ✅ Update command handlers to compute patchSize
-- ✅ Remove business logic from ReadModelProjector
-
-**Status:** ✅ Completed (2025-01-25)
-**Actual Time:** ~2.5 hours
-**Category:** Event Schema Evolution / CQRS Compliance
-
-**CQRS Compliance:** ✅ Excellent (verified by cqrs-compliance-checker)
-
-**Why:**
-- Consistency with CommitCreatedEvent
-- Eliminates business logic from projector (read side)
-- Events should be fully self-contained
-
----
-
-#### 7. Refactor Squash/Rebase Handlers to Pure CQRS
+#### 6. Refactor Squash/Rebase Handlers to Pure CQRS
 **File:** [`.tasks/architecture/02-refactor-squash-rebase-to-pure-cqrs.md`](./architecture/02-refactor-squash-rebase-to-pure-cqrs.md)
 
 **Problem:**
@@ -157,22 +118,22 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Progress Summary
 
-**Feature Tasks:** 5 tasks (5 endpoint implementations)
-**Schema Evolution:** 2 tasks (both completed)
+**Feature Tasks:** 4 tasks (4 endpoint implementations remaining)
+**Schema Evolution:** 0 tasks (all completed)
 **Architecture/Technical Debt:** 1 task (optional improvement)
 
-**Total Endpoints:** 11 endpoints to implement
-**Total Estimated Time:** 31-43 hours (features) + 8-12 hours (architecture)
+**Total Endpoints Remaining:** 8 endpoints to implement
+**Total Estimated Time:** 16-20 hours (features) + 8-12 hours (architecture)
 
 **Priority Breakdown:**
 - 🔴 High Priority: 2 tasks (Tags, Merge)
-- 🟡 Medium Priority: 3 tasks (History, Commits, Batch)
+- 🟡 Medium Priority: 2 tasks (History/Diff, Batch)
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
 
-**Current Status:** 3 of 6 feature/schema tasks completed (50%)
-- ✅ Task 4a: CommitCreatedEvent patchSize (completed 2025-01-24)
-- ✅ Task 6: Revert/CherryPick patchSize (completed 2025-01-25)
-- ✅ Task 4b: Commit Metadata API (completed 2025-01-25)
+**Current Status:** All schema evolution tasks completed (100%)
+- ✅ CommitCreatedEvent patchSize (completed 2025-01-24)
+- ✅ Revert/CherryPick patchSize (completed 2025-01-25)
+- ✅ Commit Metadata API (completed 2025-01-25)
 - ✅ Branch Management API (completed 2025-10-24)
 
 ---
@@ -181,45 +142,31 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### Feature Implementation
 
-1. ✅ **Add patchSize to Commit Entity** (3-4 hours) - **COMPLETED 2025-01-24**
-   - Schema evolution task
-   - Blocking task for Commit Metadata API
-   - CQRS compliance verified
-
-2. **Commit Metadata API** (1-2 hours) - **UNBLOCKED**
-   - Simplest endpoint task
-   - Read-only, no CQRS complexity
-   - Good warm-up after schema change
-   - **Depends on Task 1**
-
-3. **Tag Management API** (3-4 hours)
+1. **Tag Management API** (3-4 hours)
    - Similar to branches (already implemented)
    - Immutability adds slight complexity
+   - Completes core version control features
 
-4. **History & Diff API** (4-5 hours)
+2. **History & Diff API** (4-5 hours)
    - Read-only operations
    - Diff requires RDF Patch serialization
+   - Useful for debugging and auditing
 
-5. **Batch Operations API** (4-5 hours)
+3. **Batch Operations API** (4-5 hours)
    - Complex but modular
    - Reuses existing query/update logic
+   - Performance optimization for bulk operations
 
-6. **Merge Operations API** (5-6 hours)
+4. **Merge Operations API** (5-6 hours)
    - Most complex task
    - Requires merge algorithm
    - Should be implemented last
 
 ### Architecture/Technical Debt (Optional)
 
-These tasks improve CQRS compliance and event structure but are not required for feature completeness:
+This task improves CQRS compliance but is not required for feature completeness:
 
-**A. ✅ Add patchSize to Revert/CherryPick Events** (2-3 hours) - **COMPLETED 2025-01-25**
-   - Low complexity, similar to completed Task 4a
-   - Removes business logic from projector
-   - Improves event consistency
-   - **CQRS compliance verified**
-
-**B. Refactor Squash/Rebase to Pure CQRS** (8-12 hours)
+**Refactor Squash/Rebase to Pure CQRS** (8-12 hours)
    - High complexity, significant refactoring
    - Fixes dual-write pattern and event replay
    - Enables proper eventual consistency testing
@@ -459,7 +406,7 @@ The following major features were completed before these tasks were added:
 - Model API to Graph API migration (20-30% performance gain)
 
 ### ✅ Quality & Testing (Completed)
-- 711 tests (all passing)
+- 1078 tests (all passing)
 - Zero quality violations
 - Test isolation pattern (projector disabled by default)
 - Comprehensive integration test suite

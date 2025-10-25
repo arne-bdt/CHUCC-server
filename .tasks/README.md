@@ -20,29 +20,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🔴 High Priority
 
-#### 1. Tag Management API ✅ COMPLETED
-**File:** [`.tasks/tags/01-implement-tag-list-and-create-api.md`](./tags/01-implement-tag-list-and-create-api.md)
-
-**Endpoints:**
-- ✅ `GET /version/tags` - List all tags
-- ✅ `POST /version/tags` - Create new immutable tag
-
-**Status:** COMPLETED (2025-10-25)
-**Estimated Time:** 3-4 hours
-**Protocol Spec:** §3.5
-
-**Implemented Features:**
-- ✅ `GET /version/tags` - List all tags with message and author
-- ✅ `POST /version/tags` - Create new immutable tag (202 Accepted, async CQRS)
-- ✅ `GET /version/tags/{name}` - Get tag details
-- ✅ `DELETE /version/tags/{name}` - Delete tag
-- ✅ Tag immutability enforcement (409 Conflict on duplicate)
-- ✅ X-Author header support with fallback chain
-- ✅ Validation (400 for invalid tag names, 404 for missing commits)
-
----
-
-#### 2. Merge Operations API
+#### 1. Merge Operations API
 **File:** [`.tasks/merge/01-implement-merge-api.md`](./merge/01-implement-merge-api.md)
 
 **Endpoints:**
@@ -62,7 +40,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🟡 Medium Priority
 
-#### 3. History & Diff API
+#### 2. History & Diff API
 **File:** [`.tasks/history/01-implement-history-diff-blame-api.md`](./history/01-implement-history-diff-blame-api.md)
 
 **Endpoints:**
@@ -78,7 +56,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-#### 5. Batch Operations API
+#### 3. Batch Operations API
 **File:** [`.tasks/batch/01-implement-batch-operations-api.md`](./batch/01-implement-batch-operations-api.md)
 
 **Endpoints:**
@@ -99,7 +77,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🔵 Low Priority (Technical Debt)
 
-#### 6. Refactor Squash/Rebase Handlers to Pure CQRS
+#### 4. Refactor Squash/Rebase Handlers to Pure CQRS
 **File:** [`.tasks/architecture/02-refactor-squash-rebase-to-pure-cqrs.md`](./architecture/02-refactor-squash-rebase-to-pure-cqrs.md)
 
 **Problem:**
@@ -148,22 +126,17 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### Feature Implementation
 
-1. ~~**Tag Management API**~~ ✅ COMPLETED (2025-10-25)
-   - Similar to branches (already implemented)
-   - Immutability adds slight complexity
-   - Completes core version control features
-
-2. **History & Diff API** (4-5 hours)
+1. **History & Diff API** (4-5 hours)
    - Read-only operations
    - Diff requires RDF Patch serialization
    - Useful for debugging and auditing
 
-3. **Batch Operations API** (4-5 hours)
+2. **Batch Operations API** (4-5 hours)
    - Complex but modular
    - Reuses existing query/update logic
    - Performance optimization for bulk operations
 
-4. **Merge Operations API** (5-6 hours)
+3. **Merge Operations API** (5-6 hours)
    - Most complex task
    - Requires merge algorithm
    - Should be implemented last
@@ -201,11 +174,13 @@ The following endpoints are **already implemented** and working:
 
 **Controller:** [BranchController.java](../src/main/java/org/chucc/vcserver/controller/BranchController.java)
 
-### ✅ Tag Operations (Partial)
+### ✅ Tag Operations (All Implemented - 2025-10-25)
+- `GET /version/tags` - List all tags with message and author
+- `POST /version/tags` - Create new immutable tag
 - `GET /version/tags/{name}` - Get tag details
 - `DELETE /version/tags/{name}` - Delete tag
 
-**Note:** Tag list and create endpoints still need implementation
+**Controller:** [TagController.java](../src/main/java/org/chucc/vcserver/controller/TagController.java)
 
 ### ✅ Commit Operations (Partial)
 - `POST /version/commits` - Create commit (apply RDF Patch)
@@ -307,8 +282,8 @@ All tasks implement endpoints from:
 - ✅ Refs listing (`GET /version/refs`)
 - ✅ Branch management (`GET/POST/GET/{name} /version/branches`)
 - ✅ Commit metadata (`GET /version/commits/{id}`)
+- ✅ Tag management (`GET/POST /version/tags`)
 - ❌ History listing (`GET /version/history`)
-- ❌ Tag management (`GET/POST /version/tags`)
 - ❌ Merge operations (`POST /version/merge`)
 - ❌ Batch operations (`POST /version/batch`)
 
@@ -376,6 +351,54 @@ All tasks implement endpoints from:
 - Handlers: RevertCommitCommandHandler.java, CherryPickCommandHandler.java
 - Projector: ReadModelProjector.java
 - Tests: 10+ test files
+
+### ✅ Tag Management API (Completed 2025-10-25)
+**File:** `.tasks/tags/01-implement-tag-list-and-create-api.md` (DELETED - task completed)
+
+**Endpoints:**
+- ✅ `GET /version/tags` - List all tags with message and author
+- ✅ `POST /version/tags` - Create new immutable tag
+
+**Status:** ✅ Completed (2025-10-25)
+**Category:** Version Control Protocol
+**Protocol Spec:** §3.5
+
+**Implementation:**
+- Added TagInfo DTO (unified response for list and create)
+- Added CreateTagRequest with validation
+- Added TagListResponse with defensive copying
+- Updated Tag domain model (message, author, createdAt fields)
+- Updated CreateTagCommand and TagCreatedEvent (added message, author)
+- Enhanced CreateTagCommandHandler (tag existence validation, commit validation)
+- Updated TagService (listTags method)
+- Updated TagController (replaced 501 stubs with full implementations)
+- Added TagCreatedEvent handler to ReadModelProjector
+- Added 10 integration tests in TagOperationsIT
+
+**Design Decisions:**
+- Single TagInfo DTO instead of separate CreateTagResponse (DRY)
+- 202 Accepted for async CQRS pattern (eventual consistency)
+- X-Author header fallback chain: body → header → "anonymous"
+- Tag immutability enforcement (409 Conflict on duplicates)
+- Nullable message/author for backward compatibility
+
+**Files Created:**
+- `src/main/java/org/chucc/vcserver/dto/TagInfo.java`
+- `src/main/java/org/chucc/vcserver/dto/CreateTagRequest.java`
+- `src/main/java/org/chucc/vcserver/dto/TagListResponse.java`
+- `src/test/java/org/chucc/vcserver/integration/TagOperationsIT.java`
+
+**Files Modified:**
+- `src/main/java/org/chucc/vcserver/domain/Tag.java`
+- `src/main/java/org/chucc/vcserver/command/CreateTagCommand.java`
+- `src/main/java/org/chucc/vcserver/event/TagCreatedEvent.java`
+- `src/main/java/org/chucc/vcserver/command/CreateTagCommandHandler.java`
+- `src/main/java/org/chucc/vcserver/service/TagService.java`
+- `src/main/java/org/chucc/vcserver/controller/TagController.java`
+- `src/main/java/org/chucc/vcserver/projection/ReadModelProjector.java`
+- 12+ test files (constructor signature updates)
+
+---
 
 ### ✅ Branch Management API (Completed 2025-10-24)
 - Implemented `GET /version/branches` - List all branches
@@ -478,5 +501,5 @@ When a task is completed:
 
 ---
 
-**Last Updated:** 2025-01-25
+**Last Updated:** 2025-10-25
 **Next Review:** After next task completion

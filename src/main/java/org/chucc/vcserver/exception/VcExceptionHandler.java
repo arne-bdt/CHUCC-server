@@ -2,7 +2,15 @@ package org.chucc.vcserver.exception;
 
 import org.chucc.vcserver.dto.ConflictProblemDetail;
 import org.chucc.vcserver.dto.ProblemDetail;
+import org.chucc.vcserver.exception.kafka.InvalidKafkaConfigurationException;
+import org.chucc.vcserver.exception.kafka.KafkaAuthorizationException;
+import org.chucc.vcserver.exception.kafka.KafkaOperationException;
+import org.chucc.vcserver.exception.kafka.KafkaQuotaExceededException;
+import org.chucc.vcserver.exception.kafka.KafkaUnavailableException;
+import org.chucc.vcserver.exception.kafka.TopicCreationException;
 import org.chucc.vcserver.util.ErrorResponseBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -16,6 +24,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
  */
 @ControllerAdvice
 public class VcExceptionHandler {
+
+  private static final Logger logger = LoggerFactory.getLogger(VcExceptionHandler.class);
 
   private static final MediaType PROBLEM_JSON =
       MediaType.parseMediaType("application/problem+json");
@@ -265,5 +275,146 @@ public class VcExceptionHandler {
     headers.setContentType(PROBLEM_JSON);
 
     return new ResponseEntity<>(problem, headers, HttpStatus.BAD_REQUEST);
+  }
+
+  /**
+   * Handle Kafka unavailable exceptions (transient errors).
+   *
+   * @param ex the Kafka unavailable exception
+   * @return RFC 7807 problem+json response with 503 Service Unavailable
+   */
+  @ExceptionHandler(KafkaUnavailableException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<ProblemDetail> handleKafkaUnavailable(KafkaUnavailableException ex) {
+    logger.warn("Kafka cluster unavailable: {}", ex.getMessage());
+
+    ProblemDetail problem = new ProblemDetail(
+        "Event store is temporarily unavailable. Please try again later.",
+        HttpStatus.SERVICE_UNAVAILABLE.value(),
+        "kafka_unavailable"
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+    headers.add("Retry-After", "30");  // Retry after 30 seconds
+
+    return new ResponseEntity<>(problem, headers, HttpStatus.SERVICE_UNAVAILABLE);
+  }
+
+  /**
+   * Handle Kafka authorization exceptions (fatal configuration errors).
+   *
+   * @param ex the Kafka authorization exception
+   * @return RFC 7807 problem+json response with 500 Internal Server Error
+   */
+  @ExceptionHandler(KafkaAuthorizationException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<ProblemDetail> handleKafkaAuthorization(KafkaAuthorizationException ex) {
+    logger.error("CRITICAL: Kafka authorization failure: {}", ex.getMessage(), ex);
+
+    ProblemDetail problem = new ProblemDetail(
+        "Server configuration error: insufficient permissions to manage event store",
+        HttpStatus.INTERNAL_SERVER_ERROR.value(),
+        "kafka_authorization_failed"
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+
+    return new ResponseEntity<>(problem, headers, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  /**
+   * Handle Kafka quota exceeded exceptions.
+   *
+   * @param ex the Kafka quota exceeded exception
+   * @return RFC 7807 problem+json response with 507 Insufficient Storage
+   */
+  @ExceptionHandler(KafkaQuotaExceededException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<ProblemDetail> handleKafkaQuotaExceeded(KafkaQuotaExceededException ex) {
+    logger.warn("Kafka quota exceeded: {}", ex.getMessage());
+
+    ProblemDetail problem = new ProblemDetail(
+        "Dataset creation failed: Event store storage quota exceeded. "
+            + "Please contact your administrator.",
+        HttpStatus.INSUFFICIENT_STORAGE.value(),
+        "kafka_quota_exceeded"
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+
+    return new ResponseEntity<>(problem, headers, HttpStatus.INSUFFICIENT_STORAGE);
+  }
+
+  /**
+   * Handle invalid Kafka configuration exceptions.
+   *
+   * @param ex the invalid Kafka configuration exception
+   * @return RFC 7807 problem+json response with 500 Internal Server Error
+   */
+  @ExceptionHandler(InvalidKafkaConfigurationException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<ProblemDetail> handleInvalidKafkaConfiguration(
+      InvalidKafkaConfigurationException ex) {
+    logger.error("Invalid Kafka configuration: {}", ex.getMessage(), ex);
+
+    ProblemDetail problem = new ProblemDetail(
+        "Server configuration error: invalid event store configuration",
+        HttpStatus.INTERNAL_SERVER_ERROR.value(),
+        "kafka_configuration_invalid"
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+
+    return new ResponseEntity<>(problem, headers, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  /**
+   * Handle general topic creation exceptions.
+   *
+   * @param ex the topic creation exception
+   * @return RFC 7807 problem+json response with 500 Internal Server Error
+   */
+  @ExceptionHandler(TopicCreationException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<ProblemDetail> handleTopicCreation(TopicCreationException ex) {
+    logger.error("Topic creation failed: {}", ex.getMessage(), ex);
+
+    ProblemDetail problem = new ProblemDetail(
+        "Failed to create dataset: event store operation failed",
+        HttpStatus.INTERNAL_SERVER_ERROR.value(),
+        "topic_creation_failed"
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+
+    return new ResponseEntity<>(problem, headers, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  /**
+   * Handle generic Kafka operation exceptions (catch-all).
+   *
+   * @param ex the Kafka operation exception
+   * @return RFC 7807 problem+json response with 500 Internal Server Error
+   */
+  @ExceptionHandler(KafkaOperationException.class)
+  @SuppressWarnings("PMD.LooseCoupling") // HttpHeaders provides Spring-specific utility methods
+  public ResponseEntity<ProblemDetail> handleKafkaOperation(KafkaOperationException ex) {
+    logger.error("Kafka operation failed: {}", ex.getMessage(), ex);
+
+    ProblemDetail problem = new ProblemDetail(
+        "Event store operation failed. Please try again later.",
+        HttpStatus.INTERNAL_SERVER_ERROR.value(),
+        "kafka_operation_failed"
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(PROBLEM_JSON);
+
+    return new ResponseEntity<>(problem, headers, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 }

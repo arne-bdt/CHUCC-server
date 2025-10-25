@@ -12,6 +12,10 @@ import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.errors.InvalidReplicationFactorException;
+import org.apache.kafka.common.errors.PolicyViolationException;
+import org.apache.kafka.common.errors.TimeoutException;
+import org.apache.kafka.common.errors.TopicAuthorizationException;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.chucc.vcserver.config.KafkaProperties;
 import org.chucc.vcserver.domain.Branch;
@@ -20,19 +24,30 @@ import org.chucc.vcserver.event.DatasetCreatedEvent;
 import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.exception.DatasetAlreadyExistsException;
+import org.chucc.vcserver.exception.kafka.InvalidKafkaConfigurationException;
+import org.chucc.vcserver.exception.kafka.KafkaAuthorizationException;
+import org.chucc.vcserver.exception.kafka.KafkaQuotaExceededException;
+import org.chucc.vcserver.exception.kafka.KafkaUnavailableException;
+import org.chucc.vcserver.exception.kafka.TopicCreationException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.chucc.vcserver.service.DatasetService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaAdmin;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.EnableRetry;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 
 /**
  * Handles creation of new datasets with automatic Kafka topic creation.
  * Creates Kafka topic, initial commit, and main branch atomically.
+ * Includes retry logic for transient Kafka failures.
  */
 @Component
+@EnableRetry
 @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class CreateDatasetCommandHandler implements CommandHandler<CreateDatasetCommand> {
   private static final Logger logger = LoggerFactory.getLogger(CreateDatasetCommandHandler.class);
@@ -169,14 +184,20 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
   }
 
   /**
-   * Creates the Kafka topic for the dataset.
+   * Creates the Kafka topic for the dataset with retry logic for transient failures.
    *
    * @param dataset the dataset name
-   * @throws RuntimeException if topic creation fails
+   * @throws KafkaUnavailableException if Kafka is unavailable (retried automatically)
+   * @throws KafkaAuthorizationException if authorization fails (not retried)
+   * @throws KafkaQuotaExceededException if quota is exceeded (not retried)
+   * @throws InvalidKafkaConfigurationException if configuration is invalid (not retried)
+   * @throws TopicCreationException for other failures
    */
-  @SuppressFBWarnings(
-      value = "THROWS_METHOD_THROWS_RUNTIMEEXCEPTION",
-      justification = "RuntimeException is intentional for command handler error propagation")
+  @Retryable(
+      retryFor = {TimeoutException.class},
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 1000, multiplier = 2, maxDelay = 5000)
+  )
   private void createKafkaTopic(String dataset) {
     String topicName = kafkaProperties.getTopicName(dataset);
 
@@ -213,19 +234,83 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
 
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new RuntimeException("Failed to create Kafka topic: " + topicName, e);
+      throw new KafkaUnavailableException("Kafka operation interrupted: " + topicName, e);
     } catch (ExecutionException e) {
-      // Check if topic already exists (idempotent)
-      if (e.getCause() instanceof TopicExistsException) {
-        logger.warn("Topic already exists: {} - checking dataset consistency", topicName);
-        // Topic exists but dataset doesn't (orphaned topic) - this is handled by the
-        // dataset existence check earlier. If we get here, it means the topic exists
-        // but we don't have branches yet, which is a recoverable inconsistency.
-        logger.info("Proceeding with dataset creation (topic already exists)");
-      } else {
-        throw new RuntimeException("Failed to create Kafka topic: " + topicName, e);
-      }
+      handleTopicCreationException(e, topicName, dataset);
     }
+  }
+
+  /**
+   * Handles exceptions that occur during topic creation, mapping them to specific exception types.
+   *
+   * @param e the execution exception
+   * @param topicName the topic name
+   * @param dataset the dataset name
+   */
+  private void handleTopicCreationException(
+      ExecutionException e, String topicName, String dataset) {
+    Throwable cause = e.getCause();
+
+    // Topic already exists - idempotent operation
+    if (cause instanceof TopicExistsException) {
+      logger.warn("Topic already exists: {} - checking dataset consistency", topicName);
+      // Topic exists but dataset doesn't (orphaned topic) - this is handled by the
+      // dataset existence check earlier. If we get here, it means the topic exists
+      // but we don't have branches yet, which is a recoverable inconsistency.
+      logger.info("Proceeding with dataset creation (topic already exists)");
+      return;  // Continue with dataset creation
+    }
+
+    // Transient errors (will be retried by @Retryable)
+    if (cause instanceof TimeoutException) {
+      logger.warn("Kafka timeout when creating topic: {} (will retry)", topicName);
+      throw new KafkaUnavailableException("Kafka cluster is not responding", cause);
+    }
+
+    // Authorization failure (fatal - do not retry)
+    if (cause instanceof TopicAuthorizationException) {
+      logger.error("CRITICAL: No permission to create topic: {}", topicName);
+      throw new KafkaAuthorizationException(
+          "Insufficient permissions to create Kafka topic", cause);
+    }
+
+    // Quota exceeded (fatal - do not retry)
+    if (cause instanceof PolicyViolationException) {
+      logger.warn("Kafka quota exceeded when creating topic: {}", topicName);
+      throw new KafkaQuotaExceededException(
+          "Kafka storage quota exceeded. Please contact administrator.", cause);
+    }
+
+    // Invalid replication factor (fatal - configuration error)
+    if (cause instanceof InvalidReplicationFactorException) {
+      logger.error("Invalid replication factor {} for topic: {} (insufficient brokers?)",
+          kafkaProperties.getReplicationFactor(), topicName);
+      throw new InvalidKafkaConfigurationException(
+          "Replication factor exceeds available Kafka brokers", cause);
+    }
+
+    // Generic failure
+    logger.error("Failed to create Kafka topic: {}", topicName, e);
+    throw new TopicCreationException("Failed to create Kafka topic: " + topicName, cause);
+  }
+
+  /**
+   * Recovery method called when retry attempts are exhausted.
+   * Called automatically by Spring Retry framework.
+   *
+   * @param e the exception that caused retries to fail
+   * @param dataset the dataset name
+   */
+  @Recover
+  @SuppressFBWarnings(
+      value = "UPM_UNCALLED_PRIVATE_METHOD",
+      justification = "Called by Spring Retry framework via @Recover annotation")
+  @SuppressWarnings("PMD.UnusedPrivateMethod") // Called by Spring Retry framework
+  private void recoverFromTopicCreationFailure(TimeoutException e, String dataset) {
+    String topicName = kafkaProperties.getTopicName(dataset);
+    logger.error("Failed to create topic after 3 retry attempts: {}", topicName, e);
+    throw new KafkaUnavailableException(
+        "Kafka cluster is unavailable after multiple attempts. Please try again later.", e);
   }
 
   /**

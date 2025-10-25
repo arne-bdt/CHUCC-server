@@ -78,9 +78,22 @@ public class KafkaConfig {
     configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
         JsonSerializer.class);
     configProps.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
-    configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-    configProps.put(ProducerConfig.RETRIES_CONFIG, kafkaProperties.getProducer().getRetries());
-    configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+
+    // Production settings from configuration
+    configProps.put(ProducerConfig.ACKS_CONFIG,
+        kafkaProperties.getProducer().getAcks());
+    configProps.put(ProducerConfig.RETRIES_CONFIG,
+        kafkaProperties.getProducer().getRetries());
+    configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG,
+        kafkaProperties.getProducer().isEnableIdempotence());
+    configProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION,
+        kafkaProperties.getProducer().getMaxInFlightRequests());
+    configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG,
+        kafkaProperties.getProducer().getCompressionType());
+    configProps.put(ProducerConfig.LINGER_MS_CONFIG,
+        kafkaProperties.getProducer().getLingerMs());
+    configProps.put(ProducerConfig.BATCH_SIZE_CONFIG,
+        kafkaProperties.getProducer().getBatchSize());
 
     // Transactional producer configuration (optional)
     DefaultKafkaProducerFactory<String, VersionControlEvent> factory =
@@ -180,19 +193,26 @@ public class KafkaConfig {
     // Start from earliest offset on startup for recovery
     configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-    // Exception Handling Configuration
-    // Manual commit mode: Offsets are committed ONLY after successful event processing.
-    // Combined with ReadModelProjector's exception rethrowing, this ensures:
-    // - Failed events: offset NOT committed → Kafka retries delivery
-    // - Successful events: offset committed → event acknowledged
-    //
-    // AckMode.RECORD (configured in listener factory) commits after each event,
-    // providing exactly-once processing semantics when combined with idempotent projector.
-    configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+    // Production settings from configuration
+    configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+        kafkaProperties.getConsumer().isEnableAutoCommit());
+    configProps.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
+        kafkaProperties.getConsumer().getAutoCommitIntervalMs());
+    configProps.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG,
+        kafkaProperties.getConsumer().getIsolationLevel());
+    configProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG,
+        kafkaProperties.getConsumer().getMaxPollRecords());
 
     // Poll for topic metadata more frequently to discover new topics quickly
     // Default is 5 minutes (300000ms), reduce to 1 second for faster discovery
     configProps.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, "1000");
+
+    // Note: Exception Handling with Manual Commit (when enable-auto-commit=false)
+    // When manual commit is enabled, offsets are committed ONLY after successful processing.
+    // Combined with ReadModelProjector's exception rethrowing and AckMode.RECORD:
+    // - Failed events: offset NOT committed → Kafka retries delivery
+    // - Successful events: offset committed → event acknowledged
+    // This provides exactly-once processing semantics with idempotent projector.
 
     return new DefaultKafkaConsumerFactory<>(configProps);
   }

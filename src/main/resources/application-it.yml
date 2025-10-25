@@ -8,10 +8,28 @@ spring:
     producer:
       acks: all
 
-# Disable transactional Kafka for integration tests with Testcontainers
-# Testcontainers Kafka doesn't require transactions and simplifies testing
+# Integration test Kafka configuration (uses Testcontainers single broker)
 kafka:
+  # Testcontainers uses single broker (RF=1 is correct)
+  partitions: 3
+  replication-factor: 1
+
+  # Disable transactions (simplifies test setup)
   transactional-id-prefix: ""
+
+  # Producer: Fast for tests
+  producer:
+    acks: 1
+    enable-idempotence: false
+    compression-type: none
+    retries: 3
+
+  # Consumer: Fast for tests
+  consumer:
+    isolation-level: read_uncommitted
+    enable-auto-commit: true
+    auto-commit-interval-ms: 100  # Faster commits for tests
+    max-poll-records: 500
 
 # Disable ReadModelProjector in integration tests for test isolation
 projector:

@@ -1,6 +1,6 @@
 spring:
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-1:9092,kafka-2:9092,kafka-3:9092}
     consumer:
       group-id: vc-server-prod
       auto-offset-reset: earliest
@@ -11,6 +11,30 @@ spring:
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
       acks: all
       retries: 3
+
+# Production Kafka configuration (CRITICAL: Fault tolerance settings)
+kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-1:9092,kafka-2:9092,kafka-3:9092}
+
+  # PRODUCTION: 3 brokers for fault tolerance
+  partitions: 6
+  replication-factor: 3
+
+  # Producer: Durability over performance
+  producer:
+    acks: all  # Wait for all in-sync replicas
+    enable-idempotence: true  # Exactly-once semantics
+    compression-type: snappy  # Compression for network efficiency
+    retries: 3
+    linger-ms: 10  # Small batching for latency balance
+    batch-size: 32768  # 32KB batches
+
+  # Consumer: Read committed transactions only
+  consumer:
+    isolation-level: read_committed
+    enable-auto-commit: true
+    auto-commit-interval-ms: 1000
+    max-poll-records: 500
 
 management:
   endpoint:

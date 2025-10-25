@@ -83,14 +83,34 @@ vc:
 kafka:
   bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   topic-template: vc.{dataset}.events
-  partitions: 3
-  replication-factor: 1
-  retention-ms: -1  # -1 for infinite retention
-  compaction: false  # false for append-only (no log compaction)
+
+  # Topic configuration (overridable via environment variables)
+  partitions: ${KAFKA_PARTITIONS:3}
+  replication-factor: ${KAFKA_REPLICATION_FACTOR:1}
+  retention-ms: ${KAFKA_RETENTION_MS:-1}  # -1 for infinite retention
+  compaction: ${KAFKA_COMPACTION:false}  # false for append-only (no log compaction)
+
+  # Transactional ID prefix for producer transactions
+  transactional-id-prefix: ${KAFKA_TRANSACTIONAL_ID_PREFIX:vc-tx-}
+
+  # Producer configuration
   producer:
-    retries: 3  # Number of retries for failed sends
+    retries: ${KAFKA_PRODUCER_RETRIES:3}
+    acks: ${KAFKA_PRODUCER_ACKS:1}  # 1=leader only (dev), all=all replicas (prod)
+    enable-idempotence: ${KAFKA_PRODUCER_IDEMPOTENCE:false}
+    max-in-flight-requests: ${KAFKA_PRODUCER_MAX_IN_FLIGHT:5}
+    compression-type: ${KAFKA_PRODUCER_COMPRESSION:none}
+    linger-ms: ${KAFKA_PRODUCER_LINGER_MS:0}
+    batch-size: ${KAFKA_PRODUCER_BATCH_SIZE:16384}
+
+  # Consumer configuration
   consumer:
-    auto-commit-interval-ms: 1000  # Auto-commit interval (1 second)
+    auto-commit-interval-ms: ${KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL:1000}
+    enable-auto-commit: ${KAFKA_CONSUMER_ENABLE_AUTO_COMMIT:true}
+    isolation-level: ${KAFKA_CONSUMER_ISOLATION:read_uncommitted}  # read_committed for prod
+    max-poll-records: ${KAFKA_CONSUMER_MAX_POLL_RECORDS:500}
+
+  # Snapshot store configuration
   snapshot-store:
     metadata-cache-max-size: 100  # Max number of cached snapshot metadata entries
     poll-timeout-seconds: 5  # Kafka consumer poll timeout

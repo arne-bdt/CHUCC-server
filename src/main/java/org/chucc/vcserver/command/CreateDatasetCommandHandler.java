@@ -188,10 +188,16 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
       config.put("retention.ms", String.valueOf(kafkaProperties.getRetentionMs()));
       config.put("cleanup.policy", kafkaProperties.isCompaction() ? "compact" : "delete");
 
-      // Add min.insync.replicas only if replication-factor > 1
+      // Production settings (only if RF > 1)
       if (kafkaProperties.getReplicationFactor() > 1) {
-        config.put("min.insync.replicas", "2");
+        config.put("min.insync.replicas", "2");  // At least 2 replicas must ack
+        config.put("unclean.leader.election.enable", "false");  // Prevent data loss
       }
+
+      // Performance settings
+      config.put("compression.type", "snappy");
+      config.put("segment.ms", "604800000");  // 7 days per segment
+      config.put("max.message.bytes", "1048576");  // 1MB max message
 
       NewTopic newTopic = new NewTopic(
           topicName,

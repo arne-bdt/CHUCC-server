@@ -173,6 +173,12 @@ public class KafkaProperties {
    */
   public static class Producer {
     private int retries = 3;
+    private String acks = "1";
+    private boolean enableIdempotence = false;
+    private int maxInFlightRequests = 5;
+    private String compressionType = "none";
+    private int lingerMs = 0;
+    private int batchSize = 16384;
 
     public int getRetries() {
       return retries;
@@ -181,6 +187,54 @@ public class KafkaProperties {
     public void setRetries(int retries) {
       this.retries = retries;
     }
+
+    public String getAcks() {
+      return acks;
+    }
+
+    public void setAcks(String acks) {
+      this.acks = acks;
+    }
+
+    public boolean isEnableIdempotence() {
+      return enableIdempotence;
+    }
+
+    public void setEnableIdempotence(boolean enableIdempotence) {
+      this.enableIdempotence = enableIdempotence;
+    }
+
+    public int getMaxInFlightRequests() {
+      return maxInFlightRequests;
+    }
+
+    public void setMaxInFlightRequests(int maxInFlightRequests) {
+      this.maxInFlightRequests = maxInFlightRequests;
+    }
+
+    public String getCompressionType() {
+      return compressionType;
+    }
+
+    public void setCompressionType(String compressionType) {
+      this.compressionType = compressionType;
+    }
+
+    public int getLingerMs() {
+      return lingerMs;
+    }
+
+    public void setLingerMs(int lingerMs) {
+      this.lingerMs = lingerMs;
+    }
+
+    public int getBatchSize() {
+      return batchSize;
+    }
+
+    public void setBatchSize(int batchSize) {
+      this.batchSize = batchSize;
+    }
   }
 
   /**
@@ -188,6 +242,9 @@ public class KafkaProperties {
    */
   public static class Consumer {
     private int autoCommitIntervalMs = 1000;
+    private boolean enableAutoCommit = true;
+    private String isolationLevel = "read_uncommitted";
+    private int maxPollRecords = 500;
 
     public int getAutoCommitIntervalMs() {
       return autoCommitIntervalMs;
@@ -195,6 +252,30 @@ public class KafkaProperties {
 
     public void setAutoCommitIntervalMs(int autoCommitIntervalMs) {
       this.autoCommitIntervalMs = autoCommitIntervalMs;
+    }
+
+    public boolean isEnableAutoCommit() {
+      return enableAutoCommit;
+    }
+
+    public void setEnableAutoCommit(boolean enableAutoCommit) {
+      this.enableAutoCommit = enableAutoCommit;
+    }
+
+    public String getIsolationLevel() {
+      return isolationLevel;
+    }
+
+    public void setIsolationLevel(String isolationLevel) {
+      this.isolationLevel = isolationLevel;
+    }
+
+    public int getMaxPollRecords() {
+      return maxPollRecords;
+    }
+
+    public void setMaxPollRecords(int maxPollRecords) {
+      this.maxPollRecords = maxPollRecords;
     }
   }
 

@@ -15,6 +15,30 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
+# Development Kafka configuration (optimized for speed, single broker)
+kafka:
+  bootstrap-servers: localhost:9092
+
+  # DEVELOPMENT: Single broker (no fault tolerance needed)
+  partitions: 3
+  replication-factor: 1
+
+  # Producer: Speed over durability
+  producer:
+    acks: 1  # Leader only (faster)
+    enable-idempotence: false  # Not needed for dev
+    compression-type: none  # No compression (faster)
+    retries: 3
+    linger-ms: 0  # Send immediately
+    batch-size: 16384  # 16KB batches
+
+  # Consumer: Read uncommitted for lower latency
+  consumer:
+    isolation-level: read_uncommitted
+    enable-auto-commit: true
+    auto-commit-interval-ms: 1000
+    max-poll-records: 500
+
 management:
   endpoint:
     health:

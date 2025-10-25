@@ -12,9 +12,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import org.chucc.vcserver.command.CreateCommitCommand;
 import org.chucc.vcserver.command.CreateCommitCommandHandler;
+import org.chucc.vcserver.dto.CommitMetadataDto;
 import org.chucc.vcserver.dto.CommitResponse;
 import org.chucc.vcserver.dto.ProblemDetail;
 import org.chucc.vcserver.event.CommitCreatedEvent;
+import org.chucc.vcserver.service.CommitService;
 import org.chucc.vcserver.service.PreconditionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -39,6 +41,7 @@ public class CommitController {
   private final CreateCommitCommandHandler createCommitCommandHandler;
   private final PreconditionService preconditionService;
   private final org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService;
+  private final CommitService commitService;
 
   /**
    * Constructs a CommitController.
@@ -46,14 +49,17 @@ public class CommitController {
    * @param createCommitCommandHandler the command handler for creating commits
    * @param preconditionService the service for checking If-Match preconditions
    * @param selectorResolutionService the service for resolving selectors
+   * @param commitService the service for commit queries
    */
   public CommitController(
       CreateCommitCommandHandler createCommitCommandHandler,
       PreconditionService preconditionService,
-      org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService) {
+      org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService,
+      CommitService commitService) {
     this.createCommitCommandHandler = createCommitCommandHandler;
     this.preconditionService = preconditionService;
     this.selectorResolutionService = selectorResolutionService;
+    this.commitService = commitService;
   }
 
   /**
@@ -223,40 +229,64 @@ public class CommitController {
   }
 
   /**
-   * Get commit metadata.
+   * Gets commit metadata.
    *
-   * @param id commit id
-   * @return commit metadata (501 stub)
+   * @param id the commit ID (UUIDv7)
+   * @param dataset the dataset name (required)
+   * @return the commit metadata or 404 if not found
    */
+  @Operation(
+      summary = "Get commit metadata",
+      description = "Retrieves metadata for a specific commit including message, author, "
+          + "timestamp, parents, and patch size.",
+      responses = {
+          @ApiResponse(
+              responseCode = "200",
+              description = "Commit metadata retrieved successfully",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = CommitMetadataDto.class)
+              ),
+              headers = @Header(
+                  name = "ETag",
+                  description = "Strong ETag with commit ID",
+                  schema = @Schema(type = "string")
+              )
+          ),
+          @ApiResponse(
+              responseCode = "400",
+              description = "Bad Request - Missing dataset parameter",
+              content = @Content(mediaType = "application/problem+json")
+          ),
+          @ApiResponse(
+              responseCode = "404",
+              description = "Commit not found",
+              content = @Content(mediaType = "application/problem+json")
+          )
+      }
+  )
   @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-  @Operation(summary = "Get commit metadata", description = "Retrieve commit metadata")
-  @ApiResponse(
-      responseCode = "200",
-      description = "Commit metadata",
-      headers = @Header(
-          name = "ETag",
-          description = "Commit id (strong)",
-          schema = @Schema(type = "string")
-      ),
-      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
-  )
-  @ApiResponse(
-      responseCode = "404",
-      description = "Commit not found",
-      content = @Content(mediaType = "application/problem+json")
-  )
-  @ApiResponse(
-      responseCode = "501",
-      description = "Not Implemented",
-      content = @Content(mediaType = "application/problem+json")
-  )
-  public ResponseEntity<String> getCommit(
-      @Parameter(description = "Commit id (UUIDv7)", required = true)
-      @PathVariable String id
+  public ResponseEntity<?> getCommit(
+      @Parameter(description = "Commit ID (UUIDv7)", required = true)
+      @PathVariable String id,
+      @Parameter(description = "Dataset name", required = true)
+      @RequestParam String dataset
   ) {
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-        .body("{\"title\":\"Not Implemented\",\"status\":501}");
+    return commitService.getCommitMetadata(dataset, id)
+        .<ResponseEntity<?>>map(metadata -> ResponseEntity.ok()
+            .eTag("\"" + id + "\"")  // Strong ETag (commit is immutable)
+            .body(metadata))
+        .orElseGet(() -> {
+          ProblemDetail problem = new ProblemDetail(
+              "Commit not found",
+              HttpStatus.NOT_FOUND.value(),
+              "COMMIT_NOT_FOUND"
+          );
+          problem.setDetail("Commit not found: " + id + " in dataset: " + dataset);
+          return ResponseEntity.status(HttpStatus.NOT_FOUND)
+              .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+              .body(problem);
+        });
   }
 
 }

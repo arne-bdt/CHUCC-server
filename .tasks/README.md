@@ -90,25 +90,6 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-#### 4b. Commit Metadata API
-**File:** [`.tasks/commits/01-implement-commit-metadata-api.md`](./commits/01-implement-commit-metadata-api.md)
-
-**Endpoints:**
-- `GET /version/commits/{id}?dataset={name}` - Get commit metadata
-
-**Status:** Ready to Start (Blocker 4a removed!)
-**Estimated Time:** 1-2 hours
-**Protocol Spec:** §3.2
-
-**Design:** Minimal implementation (id, message, author, timestamp, parents, patchSize)
-- No branches/tags lists (expensive O(n) scan)
-- Read-only, no CQRS complexity
-
-**Already Implemented:**
-- ✅ `POST /version/commits` - Create commit (apply RDF Patch)
-
----
-
 #### 5. Batch Operations API
 **File:** [`.tasks/batch/01-implement-batch-operations-api.md`](./batch/01-implement-batch-operations-api.md)
 
@@ -188,9 +169,10 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 - 🟡 Medium Priority: 3 tasks (History, Commits, Batch)
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
 
-**Current Status:** 2 of 6 feature/schema tasks completed (33%)
+**Current Status:** 3 of 6 feature/schema tasks completed (50%)
 - ✅ Task 4a: CommitCreatedEvent patchSize (completed 2025-01-24)
 - ✅ Task 6: Revert/CherryPick patchSize (completed 2025-01-25)
+- ✅ Task 4b: Commit Metadata API (completed 2025-01-25)
 - ✅ Branch Management API (completed 2025-10-24)
 
 ---
@@ -371,7 +353,7 @@ All tasks implement endpoints from:
 - ✅ Commit creation (`POST /version/commits`)
 - ✅ Refs listing (`GET /version/refs`)
 - ✅ Branch management (`GET/POST/GET/{name} /version/branches`)
-- ❌ Commit metadata (`GET /version/commits/{id}`)
+- ✅ Commit metadata (`GET /version/commits/{id}`)
 - ❌ History listing (`GET /version/history`)
 - ❌ Tag management (`GET/POST /version/tags`)
 - ❌ Merge operations (`POST /version/merge`)
@@ -385,6 +367,41 @@ All tasks implement endpoints from:
 ---
 
 ## Completed Tasks (2025)
+
+### ✅ Commit Metadata API (Completed 2025-01-25)
+**File:** `.tasks/commits/01-implement-commit-metadata-api.md` (DELETED - task completed)
+
+**Endpoints:**
+- ✅ `GET /version/commits/{id}?dataset={name}` - Get commit metadata
+
+**Status:** ✅ Completed (2025-01-25)
+**Category:** Version Control Protocol
+**Protocol Spec:** §3.2
+
+**Implementation:**
+- Added CommitService (read-only service)
+- Added CommitMetadataDto with defensive copying
+- Updated CommitController (replaced 501 stub)
+- Added integration and unit tests (8 new tests)
+
+**Files Created:**
+- `src/main/java/org/chucc/vcserver/service/CommitService.java`
+- `src/main/java/org/chucc/vcserver/dto/CommitMetadataDto.java`
+- `src/test/java/org/chucc/vcserver/integration/CommitMetadataIT.java`
+- `src/test/java/org/chucc/vcserver/service/CommitServiceTest.java`
+
+**Files Modified:**
+- `src/main/java/org/chucc/vcserver/controller/CommitController.java`
+- `src/test/java/org/chucc/vcserver/controller/CommitControllerTest.java`
+- `src/test/java/org/chucc/vcserver/integration/CrossProtocolInteroperabilityIT.java`
+
+**Design Decisions:**
+- Read-only operation (no CQRS commands needed)
+- Strong ETag support (commits are immutable)
+- No branches/tags lists (expensive O(n) scan, use `/version/refs` instead)
+- Minimal metadata (id, message, author, timestamp, parents, patchSize)
+
+---
 
 ### ✅ Add patchSize to Revert/CherryPick Events (Completed 2025-01-25)
 - Added `patchSize` field to `RevertCreatedEvent`

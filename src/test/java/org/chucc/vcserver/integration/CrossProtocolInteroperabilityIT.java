@@ -140,8 +140,8 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
         String.class
     );
 
-    // Then - Endpoint exists (currently returns 501)
-    assertThat(commitResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_IMPLEMENTED);
+    // Then - Endpoint exists and returns 404 (commit not in repository, projector disabled)
+    assertThat(commitResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
   }
 
   /**
@@ -514,7 +514,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
         String.class
     );
 
-    // Then - Endpoint exists (currently returns 501)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_IMPLEMENTED);
+    // Then - Endpoint exists and returns 404 (commit not in repository, projector disabled)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
   }
 }

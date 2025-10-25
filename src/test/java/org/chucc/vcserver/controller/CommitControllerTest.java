@@ -40,6 +40,9 @@ class CommitControllerTest {
   @MockitoBean
   private org.chucc.vcserver.service.SelectorResolutionService selectorResolutionService;
 
+  @MockitoBean
+  private org.chucc.vcserver.service.CommitService commitService;
+
   private static final String DATASET_NAME = "test-dataset";
   private static final String COMMIT_ID = "01936c81-4567-7890-abcd-ef1234567890";
   private static final String PARENT_COMMIT_ID = "01936c7f-8a2e-7890-abcd-ef1234567890";

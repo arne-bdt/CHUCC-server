@@ -30,7 +30,7 @@ This server implements:
 
 ### Version Control
 - ✅ **Branches** - Create, list, get info, delete with Git-like metadata (timestamps, commit count, protection)
-- ✅ **Commits** - Atomic updates with UUIDv7 identifiers, metadata, and provenance
+- ✅ **Commits** - Create commits, query metadata (id, message, author, timestamp, parents, patchSize)
 - ⏳ **History** - Browse commit history with filtering (in progress)
 - ✅ **Time-travel** - Query dataset state at any point in time (`asOf`)
 - ⏳ **Merging** - Three-way merge with conflict detection (in progress)
@@ -219,9 +219,9 @@ To temporarily increase test logging, override in your test:
 - ✅ Performance refactoring (Model API → Graph API migration complete)
 - ✅ Consistent dataset parameter support (removed all hardcoded "default" values)
 - ✅ **Branch Management API** (GET/POST/GET/{name}/DELETE /version/branches) - Completed 2025-10-24
+- ✅ **Commit Metadata API** (GET /version/commits/{id}) - Completed 2025-01-25
 
 **In Progress:**
-- ⏳ Commit Metadata API (GET /version/commits/{id})
 - ⏳ Tag Management API (GET/POST /version/tags)
 - ⏳ History & Diff API (GET /version/history, /diff, /blame)
 - ⏳ Merge Operations API (POST /version/merge)
@@ -240,7 +240,7 @@ See [.tasks/README.md](.tasks/README.md) for detailed task roadmap.
 - ✅ Zero SpotBugs warnings
 - ✅ Zero PMD violations
 - ✅ Zero compiler warnings (enforced by `-Werror`)
-- ✅ All 711 tests passing
+- ✅ All 1078 tests passing
 
 See [Task Roadmap](./.tasks/README.md) for complete implementation history.
 

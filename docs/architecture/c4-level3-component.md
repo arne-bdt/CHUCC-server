@@ -1146,12 +1146,12 @@ Each component has ONE reason to change:
 - Controllers → Repositories → HTTP Response (fast, in-memory)
 
 **Key Components**:
-- 11 Controllers (HTTP endpoints)
-- 13 Command Handlers (write operations)
-- 12 Services (business logic)
+- 12 Controllers (HTTP endpoints)
+- 17 Command Handlers (write operations)
+- 15 Services (business logic)
 - 3 Repositories + 1 Graph Repository (read model)
 - 1 Projector with 10 event handlers (async updates)
-- 10 Event types (domain events)
+- 13 Event types (domain events)
 
 **Key Patterns**:
 - Command Handler pattern (write model)

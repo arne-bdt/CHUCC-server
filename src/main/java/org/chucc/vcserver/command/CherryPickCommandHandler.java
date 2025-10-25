@@ -16,6 +16,7 @@ import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.exception.CherryPickConflictException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.util.RdfPatchUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -108,6 +109,9 @@ public class CherryPickCommandHandler implements CommandHandler<CherryPickComman
     // Serialize source patch for the new commit
     String patchString = serializePatch(sourcePatch);
 
+    // Count operations in the source patch
+    int patchSize = RdfPatchUtil.countOperations(sourcePatch);
+
     // Produce event
     VersionControlEvent event = new CherryPickedEvent(
         command.dataset(),
@@ -117,7 +121,8 @@ public class CherryPickCommandHandler implements CommandHandler<CherryPickComman
         cherryPickMessage,
         command.author(),
         Instant.now(),
-        patchString);
+        patchString,
+        patchSize);
 
     // Publish event to Kafka (async, with proper error logging)
     eventPublisher.publish(event)

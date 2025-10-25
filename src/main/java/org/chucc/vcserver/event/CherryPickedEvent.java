@@ -18,7 +18,8 @@ public record CherryPickedEvent(
     @JsonProperty("message") String message,
     @JsonProperty("author") String author,
     @JsonProperty("timestamp") Instant timestamp,
-    @JsonProperty("rdfPatch") String rdfPatch)
+    @JsonProperty("rdfPatch") String rdfPatch,
+    @JsonProperty("patchSize") int patchSize)
     implements VersionControlEvent {
 
   /**
@@ -34,6 +35,7 @@ public record CherryPickedEvent(
    * @param author the commit author (must be non-null and non-blank)
    * @param timestamp the commit timestamp (must be non-null)
    * @param rdfPatch the RDF Patch representing the cherry-picked changes (must be non-null)
+   * @param patchSize the number of operations in the patch (must be non-negative)
    * @throws IllegalArgumentException if any validation fails
    */
   public CherryPickedEvent {
@@ -53,6 +55,10 @@ public record CherryPickedEvent(
     EventValidation.requireNonBlank(branch, "Branch");
     EventValidation.requireNonBlank(message, "Message");
     EventValidation.requireNonBlank(author, "Author");
+
+    if (patchSize < 0) {
+      throw new IllegalArgumentException("Patch size cannot be negative");
+    }
   }
 
   /**
@@ -66,6 +72,7 @@ public record CherryPickedEvent(
    * @param author the commit author
    * @param timestamp the commit timestamp
    * @param rdfPatch the RDF Patch representing the cherry-picked changes
+   * @param patchSize the number of operations in the patch
    */
   public CherryPickedEvent(
       String dataset,
@@ -75,8 +82,10 @@ public record CherryPickedEvent(
       String message,
       String author,
       Instant timestamp,
-      String rdfPatch) {
-    this(null, dataset, newCommitId, sourceCommitId, branch, message, author, timestamp, rdfPatch);
+      String rdfPatch,
+      int patchSize) {
+    this(null, dataset, newCommitId, sourceCommitId, branch, message, author, timestamp, rdfPatch,
+        patchSize);
   }
 
   @Override

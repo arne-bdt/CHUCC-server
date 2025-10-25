@@ -11,6 +11,7 @@ import org.chucc.vcserver.event.RevertCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.util.RdfPatchUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -83,6 +84,9 @@ public class RevertCommitCommandHandler implements CommandHandler<RevertCommitCo
     // Serialize reverse patch
     String reversePatchString = serializePatch(reversePatch);
 
+    // Count operations in the reverse patch
+    int patchSize = RdfPatchUtil.countOperations(reversePatch);
+
     // Produce event
     VersionControlEvent event = new RevertCreatedEvent(
         command.dataset(),
@@ -92,7 +96,8 @@ public class RevertCommitCommandHandler implements CommandHandler<RevertCommitCo
         revertMessage,
         command.author(),
         Instant.now(),
-        reversePatchString);
+        reversePatchString,
+        patchSize);
 
     // Publish event to Kafka (async, with proper error logging)
     eventPublisher.publish(event)

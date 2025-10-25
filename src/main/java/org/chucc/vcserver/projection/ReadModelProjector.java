@@ -484,8 +484,8 @@ public class ReadModelProjector {
         event.rdfPatch().getBytes(StandardCharsets.UTF_8));
     RDFPatch patch = RDFPatchOps.read(inputStream);
 
-    // Count patch operations
-    int patchSize = org.chucc.vcserver.util.RdfPatchUtil.countOperations(patch);
+    // Use patch size from event (computed by command handler)
+    int patchSize = event.patchSize();
 
     // Create Commit domain object for revert
     // The revert commit's parent is the current HEAD of the branch
@@ -602,8 +602,8 @@ public class ReadModelProjector {
         event.rdfPatch().getBytes(StandardCharsets.UTF_8));
     RDFPatch patch = RDFPatchOps.read(inputStream);
 
-    // Count patch operations
-    int patchSize = org.chucc.vcserver.util.RdfPatchUtil.countOperations(patch);
+    // Use patch size from event (computed by command handler)
+    int patchSize = event.patchSize();
 
     // Create Commit domain object for cherry-picked commit
     // The parent is the current HEAD of the target branch

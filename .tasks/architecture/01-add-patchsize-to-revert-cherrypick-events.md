@@ -1,10 +1,11 @@
 # Task: Add patchSize to RevertCreatedEvent and CherryPickedEvent
 
-**Status:** Not Started
+**Status:** ✅ Completed (2025-01-25)
 **Priority:** Medium
 **Category:** Event Schema Evolution
-**Estimated Time:** 2-3 hours
+**Actual Time:** ~2.5 hours
 **Complexity:** Low (similar to Task 00-add-patchsize-to-commit-entity)
+**CQRS Compliance:** ✅ Excellent (verified by cqrs-compliance-checker)
 
 ---
 

@@ -151,7 +151,8 @@ class EventSerializationTest {
         "Revert commit message",
         "Bob",
         Instant.parse("2025-01-15T10:00:00Z"),
-        "D <http://example.org/s> <http://example.org/p> \"value\" ."
+        "D <http://example.org/s> <http://example.org/p> \"value\" .",
+        1
     );
 
     // Act
@@ -211,7 +212,8 @@ class EventSerializationTest {
         "Cherry-picked commit",
         "Charlie",
         Instant.parse("2025-01-15T10:00:00Z"),
-        "A <http://example.org/s> <http://example.org/p> \"cherry\" ."
+        "A <http://example.org/s> <http://example.org/p> \"cherry\" .",
+        1
     );
 
     // Act
@@ -411,10 +413,10 @@ class EventSerializationTest {
         new TagCreatedEvent(null, "test", "tag", "c1", Instant.now()),
         new BranchResetEvent(null, "test", "main", "c1", "c2", Instant.now()),
         new RevertCreatedEvent(null, "test", "c1", "c2", "main", "msg", "author", Instant.now(),
-            "patch"),
+            "patch", 1),
         new SnapshotCreatedEvent(null, "test", "c1", "main", Instant.now(), "nquads"),
         new CherryPickedEvent(null, "test", "c1", "c2", "main", "msg", "author", Instant.now(),
-            "patch"),
+            "patch", 1),
         new BranchRebasedEvent(null, "test", "branch", "c1", "c2", List.of(), "author",
             Instant.now()),
         new CommitsSquashedEvent(null, "test", "main", "c1", List.of(), "author", "msg",

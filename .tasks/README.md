@@ -130,18 +130,20 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🔵 Low Priority (Technical Debt)
 
-#### 6. Add patchSize to Revert/CherryPick Events
+#### 6. ✅ Add patchSize to Revert/CherryPick Events (COMPLETED)
 **File:** [`.tasks/architecture/01-add-patchsize-to-revert-cherrypick-events.md`](./architecture/01-add-patchsize-to-revert-cherrypick-events.md)
 
 **Changes:**
-- Add `patchSize` field to `RevertCreatedEvent`
-- Add `patchSize` field to `CherryPickedEvent`
-- Update command handlers to compute patchSize
-- Remove business logic from ReadModelProjector
+- ✅ Add `patchSize` field to `RevertCreatedEvent`
+- ✅ Add `patchSize` field to `CherryPickedEvent`
+- ✅ Update command handlers to compute patchSize
+- ✅ Remove business logic from ReadModelProjector
 
-**Status:** Not Started
-**Estimated Time:** 2-3 hours
+**Status:** ✅ Completed (2025-01-25)
+**Actual Time:** ~2.5 hours
 **Category:** Event Schema Evolution / CQRS Compliance
+
+**CQRS Compliance:** ✅ Excellent (verified by cqrs-compliance-checker)
 
 **Why:**
 - Consistency with CommitCreatedEvent
@@ -175,19 +177,20 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 ## Progress Summary
 
 **Feature Tasks:** 5 tasks (5 endpoint implementations)
-**Schema Evolution:** 1 task (completed)
-**Architecture/Technical Debt:** 2 tasks (optional improvements)
+**Schema Evolution:** 2 tasks (both completed)
+**Architecture/Technical Debt:** 1 task (optional improvement)
 
 **Total Endpoints:** 11 endpoints to implement
-**Total Estimated Time:** 31-43 hours (features) + 10-15 hours (architecture)
+**Total Estimated Time:** 31-43 hours (features) + 8-12 hours (architecture)
 
 **Priority Breakdown:**
 - 🔴 High Priority: 2 tasks (Tags, Merge)
 - 🟡 Medium Priority: 3 tasks (History, Commits, Batch)
-- 🔵 Low Priority: 2 tasks (Architecture improvements - optional)
+- 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
 
-**Current Status:** 1 of 6 feature tasks completed (17%)
-- ✅ Task 4a: patchSize Schema Evolution (completed 2025-01-24)
+**Current Status:** 2 of 6 feature/schema tasks completed (33%)
+- ✅ Task 4a: CommitCreatedEvent patchSize (completed 2025-01-24)
+- ✅ Task 6: Revert/CherryPick patchSize (completed 2025-01-25)
 - ✅ Branch Management API (completed 2025-10-24)
 
 ---
@@ -228,11 +231,11 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 These tasks improve CQRS compliance and event structure but are not required for feature completeness:
 
-**A. Add patchSize to Revert/CherryPick Events** (2-3 hours)
+**A. ✅ Add patchSize to Revert/CherryPick Events** (2-3 hours) - **COMPLETED 2025-01-25**
    - Low complexity, similar to completed Task 4a
    - Removes business logic from projector
    - Improves event consistency
-   - **Recommended:** Implement after Task 2 (Commit Metadata API)
+   - **CQRS compliance verified**
 
 **B. Refactor Squash/Rebase to Pure CQRS** (8-12 hours)
    - High complexity, significant refactoring
@@ -381,7 +384,28 @@ All tasks implement endpoints from:
 
 ---
 
-## Completed Tasks (October 2025)
+## Completed Tasks (2025)
+
+### ✅ Add patchSize to Revert/CherryPick Events (Completed 2025-01-25)
+- Added `patchSize` field to `RevertCreatedEvent`
+- Added `patchSize` field to `CherryPickedEvent`
+- Updated `RevertCommitCommandHandler` to compute patchSize before event creation
+- Updated `CherryPickCommandHandler` to compute patchSize before event creation
+- Removed business logic from `ReadModelProjector` (now uses event data only)
+- Updated all affected tests (10+ test files)
+- CQRS compliance verified by specialized agent
+
+**Benefits:**
+- Consistent with CommitCreatedEvent pattern
+- Business logic properly on write side (command handlers)
+- Events fully self-contained for event replay
+- Performance: Patch parsed once instead of twice
+
+**Files Modified:**
+- Events: RevertCreatedEvent.java, CherryPickedEvent.java
+- Handlers: RevertCommitCommandHandler.java, CherryPickCommandHandler.java
+- Projector: ReadModelProjector.java
+- Tests: 10+ test files
 
 ### ✅ Branch Management API (Completed 2025-10-24)
 - Implemented `GET /version/branches` - List all branches
@@ -484,5 +508,5 @@ When a task is completed:
 
 ---
 
-**Last Updated:** 2025-10-24
+**Last Updated:** 2025-01-25
 **Next Review:** After next task completion

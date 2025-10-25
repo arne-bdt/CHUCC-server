@@ -367,7 +367,8 @@ class AdvancedOpsControllerTest {
         "Revert commit " + revertedCommitId,
         "Alice",
         Instant.parse("2025-01-15T10:30:00Z"),
-        "H id <urn:uuid:" + revertCommitId + "> ."
+        "H id <urn:uuid:" + revertCommitId + "> .",
+        0
     );
 
     when(revertCommitCommandHandler.handle(any(RevertCommitCommand.class)))
@@ -409,7 +410,8 @@ class AdvancedOpsControllerTest {
         "Revert problematic change",
         "Alice",
         Instant.parse("2025-01-15T10:30:00Z"),
-        "H id <urn:uuid:" + revertCommitId + "> ."
+        "H id <urn:uuid:" + revertCommitId + "> .",
+        0
     );
 
     when(revertCommitCommandHandler.handle(any(RevertCommitCommand.class)))
@@ -637,7 +639,8 @@ class AdvancedOpsControllerTest {
         "Revert commit " + revertedCommitId,
         "Alice",
         Instant.parse("2025-01-15T10:30:00Z"),
-        "H id <urn:uuid:" + revertCommitId + "> ."
+        "H id <urn:uuid:" + revertCommitId + "> .",
+        0
     );
 
     when(revertCommitCommandHandler.handle(any(RevertCommitCommand.class)))

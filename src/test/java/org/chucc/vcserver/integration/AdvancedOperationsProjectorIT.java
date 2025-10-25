@@ -261,7 +261,8 @@ class AdvancedOperationsProjectorIT {
         "Cherry-pick: Source commit to cherry-pick",
         "Charlie",
         Instant.now(),
-        PATCH_CONTENT
+        PATCH_CONTENT,
+        1
     );
 
     // When - Publish cherry-pick event

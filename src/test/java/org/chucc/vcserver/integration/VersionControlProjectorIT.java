@@ -282,7 +282,8 @@ class VersionControlProjectorIT {
         "Revert commit",
         "Bob",
         Instant.now(),
-        "TX .\nD <http://example.org/s> <http://example.org/p> \"value\" .\nTC ."
+        "TX .\nD <http://example.org/s> <http://example.org/p> \"value\" .\nTC .",
+        1
     );
 
     // When - Publish revert event

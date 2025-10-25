@@ -218,7 +218,8 @@ class EventPublisherTest {
         "Revert bad changes",
         "Bob <bob@example.com>",
         Instant.now(),
-        "H 1 .\n"
+        "H 1 .\n",
+        1
     );
 
     eventPublisher.publish(event);

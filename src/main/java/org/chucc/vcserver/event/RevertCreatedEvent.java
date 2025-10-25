@@ -18,7 +18,8 @@ public record RevertCreatedEvent(
     @JsonProperty("message") String message,
     @JsonProperty("author") String author,
     @JsonProperty("timestamp") Instant timestamp,
-    @JsonProperty("rdfPatch") String rdfPatch)
+    @JsonProperty("rdfPatch") String rdfPatch,
+    @JsonProperty("patchSize") int patchSize)
     implements VersionControlEvent {
 
   /**
@@ -34,6 +35,7 @@ public record RevertCreatedEvent(
    * @param author the commit author (must be non-null and non-blank)
    * @param timestamp the commit timestamp (must be non-null)
    * @param rdfPatch the RDF Patch representing the revert changes (must be non-null)
+   * @param patchSize the number of operations in the patch (must be non-negative)
    * @throws IllegalArgumentException if any validation fails
    */
   public RevertCreatedEvent {
@@ -53,6 +55,10 @@ public record RevertCreatedEvent(
     EventValidation.requireNonBlank(branch, "Branch");
     EventValidation.requireNonBlank(message, "Message");
     EventValidation.requireNonBlank(author, "Author");
+
+    if (patchSize < 0) {
+      throw new IllegalArgumentException("Patch size cannot be negative");
+    }
   }
 
   /**
@@ -66,6 +72,7 @@ public record RevertCreatedEvent(
    * @param author the commit author
    * @param timestamp the commit timestamp
    * @param rdfPatch the RDF Patch representing the revert changes
+   * @param patchSize the number of operations in the patch
    */
   public RevertCreatedEvent(
       String dataset,
@@ -75,9 +82,10 @@ public record RevertCreatedEvent(
       String message,
       String author,
       Instant timestamp,
-      String rdfPatch) {
+      String rdfPatch,
+      int patchSize) {
     this(null, dataset, revertCommitId, revertedCommitId, branch, message, author, timestamp,
-        rdfPatch);
+        rdfPatch, patchSize);
   }
 
   @Override

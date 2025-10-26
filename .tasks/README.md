@@ -21,47 +21,56 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🟠 High Priority (Architecture Enhancement)
 
-#### 0. Materialized Branch Views - Continuously Updated DatasetGraphs
+#### 0. Eager Cache Updates - Instant Branch HEAD Queries
 **Directory:** [`.tasks/materialized-views/`](./materialized-views/)
 
-**Goal:** Move from on-demand graph materialization to eager materialization for instant query performance.
+**Goal:** Transform DatasetService cache from lazy (query-time) to eager (write-time) updates for instant query performance.
 
 **Status:** Not Started
-**Estimated Time:** 13-17 hours (4 tasks)
+**Estimated Time:** 8-11 hours (4 tasks)
 **Category:** Architecture Enhancement
 
+**Approach:** Enhance existing cache infrastructure instead of creating duplicate storage.
+
 **Tasks:**
-1. [Task 01: Create MaterializedBranchRepository Infrastructure](./materialized-views/01-create-materialized-branch-repository.md) (3-4 hours)
-   - Create repository for managing continuously updated DatasetGraphs per branch
-   - Implement transactional patch application using Jena's ReadWrite interface
-   - Unit tests for graph lifecycle and cloning
+1. [Task 01: Enable Eager Cache Updates](./materialized-views/01-enable-eager-cache-updates.md) (2-3 hours)
+   - Add `applyPatchToBranchCache()` method to DatasetService
+   - Transactional patch application using Jena's ReadWrite interface
+   - Unit tests for eager update behavior
 
-2. [Task 02: Update ReadModelProjector for Eager Materialization](./materialized-views/02-update-projector-for-eager-materialization.md) (4-5 hours)
-   - Apply patches to materialized graphs when processing commit events
-   - Handle branch creation (initialize graphs) and deletion (cleanup)
-   - Integration tests with projector enabled
+2. [Task 02: Integrate Eager Updates with ReadModelProjector](./materialized-views/02-integrate-eager-updates-with-projector.md) (2-3 hours)
+   - Call eager update when processing commit events
+   - Handle CommitCreated, Revert, CherryPick events
+   - Integration tests demonstrating instant queries
 
-3. [Task 03: Update DatasetService to Use Materialized Views](./materialized-views/03-update-datasetservice-for-materialized-views.md) (3-4 hours)
-   - Use pre-materialized graphs for branch HEAD queries (instant response)
-   - Keep on-demand building for historical commits (backward compatible)
-   - Performance tests demonstrating 10-20x improvement
+3. [Task 03: Add Performance Benchmarks](./materialized-views/03-add-performance-benchmarks.md) (2-3 hours)
+   - Automated performance regression tests
+   - Manual benchmark suite
+   - Cache optimization and simplification
 
-4. [Task 04: Add Monitoring and Recovery Mechanisms](./materialized-views/04-add-monitoring-and-recovery.md) (3-4 hours)
-   - Micrometer metrics (graph count, memory, operations)
-   - Health checks for materialized views
-   - Manual rebuild endpoint for recovery
+4. [Task 04: Add Cache Monitoring and Recovery](./materialized-views/04-add-cache-monitoring-and-recovery.md) (2-3 hours)
+   - Micrometer metrics (eager updates, evictions, duration)
+   - Health checks for cache status
+   - Manual cache rebuild endpoint for recovery
 
 **Benefits:**
 - ✅ **10-20x faster** branch HEAD queries (<10ms vs 100-200ms)
-- ✅ Memory usage scales with branches, not history depth
-- ✅ CQRS compliant (projector maintains materialized views)
+- ✅ **No additional memory** - reuses existing cache infrastructure
+- ✅ **Simpler code** - enhances existing cache, no duplicate storage
+- ✅ CQRS compliant (projector maintains cache as read model)
 - ✅ Backward compatible (historical queries unchanged)
 - ✅ Production-ready monitoring and recovery
 
 **CQRS Compliance:** ✅ Full compliance
-- Projector applies patches to materialized graphs (read model updates)
-- DatasetService returns materialized graphs (query side)
+- Projector eagerly updates DatasetService cache (read model)
+- Cache is a read model optimization (like CommitRepository, BranchRepository)
 - Events remain source of truth in CommitRepository
+
+**Why This Approach:**
+- System already has branch HEAD pinning (`keepLatestPerBranch=true`)
+- Only missing feature: eager updates (write-time vs. query-time)
+- Avoids 2x memory from duplicate storage
+- Fewer classes, clearer responsibilities
 
 ---
 
@@ -188,7 +197,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Progress Summary
 
-**Architecture Enhancements:** 4 tasks (Materialized Views - 13-17 hours)
+**Architecture Enhancements:** 4 tasks (Eager Cache Updates - 8-11 hours)
 **Feature Tasks:** 3 tasks (3 endpoint implementations - 13-16 hours)
 **Schema Evolution:** 0 tasks (all completed)
 **Architecture/Technical Debt:** 1 task (optional improvement - 8-12 hours)
@@ -196,7 +205,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Total Endpoints Remaining:** 6 endpoints to implement
 **Total Estimated Time:**
-- Materialized Views: 13-17 hours (new)
+- Eager Cache Updates: 8-11 hours (simplified approach, less duplication)
 - Protocol Endpoints: 13-16 hours
 - Technical Debt: 8-12 hours (optional)
 
@@ -243,30 +252,35 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### Architecture Enhancement (Recommended First)
 
-**Materialized Branch Views** (13-17 hours total)
+**Eager Cache Updates** (8-11 hours total)
 
 **Why first:**
 - Significant performance improvement (10-20x faster queries)
 - Foundation for better user experience
 - Independent of protocol endpoints (can be done in parallel)
+- Simple, pragmatic approach (enhances existing cache)
 - Production-ready monitoring and recovery
 
 **Implementation order:**
-1. **Task 01: MaterializedBranchRepository** (3-4 hours)
+1. **Task 01: Enable Eager Cache Updates** (2-3 hours)
+   - Add eager update API to DatasetService
    - Foundation layer - no dependencies
-   - Can be tested in isolation
+   - Pure unit tests (fast)
 
-2. **Task 02: Update ReadModelProjector** (4-5 hours)
-   - Integrates with existing projector
-   - Enables eager materialization
+2. **Task 02: Integrate with ReadModelProjector** (2-3 hours)
+   - Call eager update on commit events
+   - Integration tests with projector enabled
+   - Enables instant queries
 
-3. **Task 03: Update DatasetService** (3-4 hours)
-   - Instant query performance
-   - Backward compatible
+3. **Task 03: Add Performance Benchmarks** (2-3 hours)
+   - Validate 10-20x improvement
+   - Automated regression tests
+   - Cache optimization
 
-4. **Task 04: Monitoring & Recovery** (3-4 hours)
+4. **Task 04: Add Monitoring & Recovery** (2-3 hours)
+   - Micrometer metrics for eager updates
+   - Health checks and rebuild endpoint
    - Production operational tools
-   - Completes the feature
 
 **Alternatively:** Implement in parallel with protocol endpoints if multiple developers available.
 

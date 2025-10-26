@@ -26,20 +26,23 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Goal:** Move from on-demand graph materialization to eager materialization for instant query performance.
 
-**Status:** Not Started
+**Status:** IN PROGRESS (Tasks 01-02 Completed, 03-04 Remaining)
 **Estimated Time:** 13-17 hours (4 tasks)
 **Category:** Architecture Enhancement
+**Completion:** 50% (2/4 tasks completed)
 
 **Tasks:**
-1. [Task 01: Create MaterializedBranchRepository Infrastructure](./materialized-views/01-create-materialized-branch-repository.md) (3-4 hours)
-   - Create repository for managing continuously updated DatasetGraphs per branch
-   - Implement transactional patch application using Jena's ReadWrite interface
-   - Unit tests for graph lifecycle and cloning
+1. ✅ [Task 01: Create MaterializedBranchRepository Infrastructure](./materialized-views/01-create-materialized-branch-repository.md) (3-4 hours) - COMPLETED 2025-10-26
+   - Created MaterializedBranchRepository interface
+   - Implemented InMemoryMaterializedBranchRepository with per-branch locking
+   - Custom RDFChangesApply to bypass Jena transaction management
+   - 16 unit tests (all passing)
 
-2. [Task 02: Update ReadModelProjector for Eager Materialization](./materialized-views/02-update-projector-for-eager-materialization.md) (4-5 hours)
-   - Apply patches to materialized graphs when processing commit events
-   - Handle branch creation (initialize graphs) and deletion (cleanup)
-   - Integration tests with projector enabled
+2. ✅ [Task 02: Update ReadModelProjector for Eager Materialization](./materialized-views/02-update-projector-for-eager-materialization.md) (4-5 hours) - COMPLETED 2025-10-26
+   - Updated ReadModelProjector to apply patches eagerly
+   - Handle branch creation/deletion in materialized views
+   - 4 integration tests (MaterializedGraphProjectionIT, all passing)
+   - **Note:** CQRS agent identified exception handling improvements needed (see follow-up tasks)
 
 3. [Task 03: Update DatasetService to Use Materialized Views](./materialized-views/03-update-datasetservice-for-materialized-views.md) (3-4 hours)
    - Use pre-materialized graphs for branch HEAD queries (instant response)
@@ -50,6 +53,11 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
    - Micrometer metrics (graph count, memory, operations)
    - Health checks for materialized views
    - Manual rebuild endpoint for recovery
+
+**Technical Debt Identified (from CQRS agent review):**
+- Exception handling in projector needs improvement (rethrow vs swallow)
+- Idempotency check needed for branch creation
+- Transaction management documentation needed
 
 **Benefits:**
 - ✅ **10-20x faster** branch HEAD queries (<10ms vs 100-200ms)

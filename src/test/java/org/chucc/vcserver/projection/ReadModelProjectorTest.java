@@ -12,6 +12,7 @@ import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.repository.MaterializedBranchRepository;
 import org.chucc.vcserver.repository.TagRepository;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SnapshotService;
@@ -48,6 +49,9 @@ class ReadModelProjectorTest {
   private TagRepository tagRepository;
 
   @Mock
+  private MaterializedBranchRepository materializedBranchRepo;
+
+  @Mock
   private DatasetService datasetService;
 
   @Mock
@@ -66,7 +70,7 @@ class ReadModelProjectorTest {
     when(projectorProperties.getDeduplication()).thenReturn(dedup);
 
     projector = new ReadModelProjector(branchRepository, commitRepository, tagRepository,
-        datasetService, snapshotService, projectorProperties);
+        materializedBranchRepo, datasetService, snapshotService, projectorProperties);
   }
 
   /**
@@ -208,7 +212,7 @@ class ReadModelProjectorTest {
 
     // Recreate projector with deduplication enabled
     projector = new ReadModelProjector(branchRepository, commitRepository, tagRepository,
-        datasetService, snapshotService, projectorProperties);
+        materializedBranchRepo, datasetService, snapshotService, projectorProperties);
 
     String dataset = "test-dataset";
     String commitIdStr = "550e8400-e29b-41d4-a716-446655440000";
@@ -304,7 +308,7 @@ class ReadModelProjectorTest {
 
     // Recreate projector with deduplication enabled
     projector = new ReadModelProjector(branchRepository, commitRepository, tagRepository,
-        datasetService, snapshotService, projectorProperties);
+        materializedBranchRepo, datasetService, snapshotService, projectorProperties);
 
     String dataset = "test-dataset";
     String rdfPatchStr = "TX .";

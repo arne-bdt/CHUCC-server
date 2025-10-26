@@ -15,6 +15,7 @@ import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.projection.ReadModelProjector.ProjectionException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.repository.MaterializedBranchRepository;
 import org.chucc.vcserver.repository.TagRepository;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SnapshotService;
@@ -41,6 +42,9 @@ class ReadModelProjectorExceptionHandlingTest {
   private TagRepository tagRepository;
 
   @Mock
+  private MaterializedBranchRepository materializedBranchRepo;
+
+  @Mock
   private DatasetService datasetService;
 
   @Mock
@@ -65,6 +69,7 @@ class ReadModelProjectorExceptionHandlingTest {
         branchRepository,
         commitRepository,
         tagRepository,
+        materializedBranchRepo,
         datasetService,
         snapshotService,
         projectorProperties

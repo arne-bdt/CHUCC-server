@@ -41,6 +41,7 @@ import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.filter.CorrelationIdFilter;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.repository.MaterializedBranchRepository;
 import org.chucc.vcserver.repository.TagRepository;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SnapshotService;
@@ -96,6 +97,7 @@ public class ReadModelProjector {
   private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
   private final TagRepository tagRepository;
+  private final MaterializedBranchRepository materializedBranchRepo;
   private final DatasetService datasetService;
   private final SnapshotService snapshotService;
   private final ProjectorProperties projectorProperties;
@@ -112,6 +114,7 @@ public class ReadModelProjector {
    * @param branchRepository the branch repository
    * @param commitRepository the commit repository
    * @param tagRepository the tag repository
+   * @param materializedBranchRepo the materialized branch repository
    * @param datasetService the dataset service
    * @param snapshotService the snapshot service
    * @param projectorProperties the projector configuration properties
@@ -123,12 +126,14 @@ public class ReadModelProjector {
       BranchRepository branchRepository,
       CommitRepository commitRepository,
       TagRepository tagRepository,
+      MaterializedBranchRepository materializedBranchRepo,
       DatasetService datasetService,
       SnapshotService snapshotService,
       ProjectorProperties projectorProperties) {
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
     this.tagRepository = tagRepository;
+    this.materializedBranchRepo = materializedBranchRepo;
     this.datasetService = datasetService;
     this.snapshotService = snapshotService;
     this.projectorProperties = projectorProperties;
@@ -280,6 +285,22 @@ public class ReadModelProjector {
             CommitId.of(event.commitId())
         );
 
+        // Apply patch to materialized graph
+        try {
+          materializedBranchRepo.applyPatchToBranch(
+              event.dataset(),
+              event.branch(),
+              patch
+          );
+          logger.debug("Applied patch to materialized graph {}/{}",
+              event.dataset(), event.branch());
+        } catch (Exception e) {
+          // Log error but don't fail projection
+          // Graph can be rebuilt later from commit history
+          logger.error("Failed to apply patch to materialized graph {}/{}: {}",
+              event.dataset(), event.branch(), e.getMessage(), e);
+        }
+
         // Notify DatasetService of latest commit update for cache management
         datasetService.updateLatestCommit(
             event.dataset(),
@@ -317,6 +338,26 @@ public class ReadModelProjector {
     );
 
     branchRepository.save(event.dataset(), branch);
+
+    // Initialize materialized graph
+    try {
+      // Extract parent branch from sourceRef if format is "refs/heads/branch"
+      Optional<String> parentBranch = Optional.ofNullable(event.sourceRef())
+          .filter(ref -> ref.startsWith("refs/heads/"))
+          .map(ref -> ref.substring("refs/heads/".length()));
+
+      materializedBranchRepo.createBranch(
+          event.dataset(),
+          event.branchName(),
+          parentBranch
+      );
+      logger.info("Initialized materialized graph for branch {}/{}",
+          event.dataset(), event.branchName());
+    } catch (Exception e) {
+      // Log error but don't fail projection
+      logger.error("Failed to initialize materialized graph for branch {}/{}: {}",
+          event.dataset(), event.branchName(), e.getMessage(), e);
+    }
 
     logger.debug("Created branch: {} pointing to {} (protected: {}) in dataset: {}",
         event.branchName(), event.commitId(), event.isProtected(), event.dataset());
@@ -372,6 +413,17 @@ public class ReadModelProjector {
     boolean deleted = branchRepository.delete(event.dataset(), event.branchName());
 
     if (deleted) {
+      // Delete materialized graph
+      try {
+        materializedBranchRepo.deleteBranch(event.dataset(), event.branchName());
+        logger.info("Deleted materialized graph for branch {}/{}",
+            event.dataset(), event.branchName());
+      } catch (Exception e) {
+        // Log error but don't fail projection
+        logger.error("Failed to delete materialized graph for branch {}/{}: {}",
+            event.dataset(), event.branchName(), e.getMessage(), e);
+      }
+
       logger.info("Deleted branch: {} from dataset: {} (was at commit: {})",
           event.branchName(), event.dataset(), event.lastCommitId());
     } else {
@@ -551,6 +603,21 @@ public class ReadModelProjector {
         CommitId.of(event.revertCommitId())
     );
 
+    // Apply patch to materialized graph
+    try {
+      materializedBranchRepo.applyPatchToBranch(
+          event.dataset(),
+          event.branch(),
+          patch
+      );
+      logger.debug("Applied revert patch to materialized graph {}/{}",
+          event.dataset(), event.branch());
+    } catch (Exception e) {
+      // Log error but don't fail projection
+      logger.error("Failed to apply revert patch to materialized graph {}/{}: {}",
+          event.dataset(), event.branch(), e.getMessage(), e);
+    }
+
     logger.debug("Saved revert commit: {} reverting {} on branch {} in dataset: {}",
         commit.id(), event.revertedCommitId(), event.branch(), event.dataset());
   }
@@ -668,6 +735,21 @@ public class ReadModelProjector {
         event.branch(),
         CommitId.of(event.newCommitId())
     );
+
+    // Apply patch to materialized graph
+    try {
+      materializedBranchRepo.applyPatchToBranch(
+          event.dataset(),
+          event.branch(),
+          patch
+      );
+      logger.debug("Applied cherry-pick patch to materialized graph {}/{}",
+          event.dataset(), event.branch());
+    } catch (Exception e) {
+      // Log error but don't fail projection
+      logger.error("Failed to apply cherry-pick patch to materialized graph {}/{}: {}",
+          event.dataset(), event.branch(), e.getMessage(), e);
+    }
 
     // Notify DatasetService of latest commit update for cache management
     datasetService.updateLatestCommit(

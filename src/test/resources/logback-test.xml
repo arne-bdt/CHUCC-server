@@ -15,6 +15,8 @@
     <logger name="org.springframework.test.context" level="WARN"/>
     <logger name="org.springframework.kafka" level="WARN"/>
     <logger name="org.springframework.web" level="ERROR"/>
+    <logger name="org.zalando.problem.spring.common.AdviceTraits" level="ERROR"/>
+    
 
     <!-- Reduce Kafka noise -->
     <logger name="org.apache.kafka" level="WARN"/>
@@ -33,8 +35,7 @@
     <logger name="org.apache.coyote" level="WARN"/>
     <logger name="org.apache.tomcat" level="WARN"/>
 
-    <!-- Suppress expected error messages from tests that verify error handling -->
-    <logger name="org.zalando.problem.spring.common.AdviceTraits" level="ERROR"/>
+    <!-- Suppress INFO/WARN from specific packages -->
     <logger name="org.apache.jena.riot" level="OFF"/>
     <logger name="org.chucc.vcserver.projection.ReadModelProjector" level="OFF"/>
 

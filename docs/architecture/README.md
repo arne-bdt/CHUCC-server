@@ -180,7 +180,8 @@ org.chucc.vcserver/
 ├── repository/           # Read model storage
 │   ├── CommitRepository.java
 │   ├── BranchRepository.java
-│   └── DatasetGraphRepository.java
+│   ├── DatasetGraphRepository.java
+│   └── MaterializedBranchRepository.java
 ├── service/              # Business logic
 │   ├── SelectorResolutionService.java
 │   ├── RdfDiffService.java
@@ -219,6 +220,7 @@ org.chucc.vcserver/
 - **CommitRepository**: Store/retrieve commits (in-memory)
 - **BranchRepository**: Store/retrieve branches (in-memory)
 - **DatasetGraphRepository**: Store materialized graphs (in-memory)
+- **MaterializedBranchRepository**: Store per-branch materialized views (in-memory)
 
 #### Event Processing
 - **EventPublisher**: Publish events to Kafka (async)

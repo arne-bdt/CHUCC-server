@@ -100,6 +100,7 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
 │  │  │  BranchRepository                                        │    ││
 │  │  │  TagRepository                                           │    ││
 │  │  │  DatasetGraphRepository (In-Memory Jena Graphs)          │    ││
+│  │  │  MaterializedBranchRepository (Eager Cache Updates)      │    ││
 │  │  └────────────────────▲─────────────────────────────────────┘    ││
 │  └────────────────────────┼─────────────────────────────────────────┘│
 │                           │ Queries                                  │
@@ -405,17 +406,20 @@ All handlers:
    - Handles serialization (JSON)
    - Adds event headers (eventId, eventType, timestamp)
 
-2. **Domain Events** (10 event types):
+2. **Domain Events** (13 event types):
    - `CommitCreatedEvent` - New commit with RDF patch
    - `BranchCreatedEvent` - New branch created
+   - `BranchDeletedEvent` - Branch deleted
    - `BranchResetEvent` - Branch pointer moved
    - `BranchRebasedEvent` - Branch rebased onto new base
    - `TagCreatedEvent` - Immutable tag created
+   - `TagDeletedEvent` - Tag deleted
    - `CherryPickedEvent` - Commit cherry-picked to branch
    - `CommitsSquashedEvent` - Multiple commits combined
    - `RevertCreatedEvent` - Commit reverted
    - `SnapshotCreatedEvent` - Dataset snapshot created
    - `BatchGraphsCompletedEvent` - Batch operation completed
+   - `DatasetDeletedEvent` - Dataset deleted
 
 All events extend `VersionControlEvent` interface.
 
@@ -543,6 +547,14 @@ public class ReadModelProjector {
    - Operations: applyPatch, getGraph, buildGraph
    - Used by: GraphStoreController, SparqlController
    - Implementation: In-memory Jena `DatasetGraphInMemory`
+
+5. **MaterializedBranchRepository**
+   - Stores per-branch materialized views for fast query access
+   - Structure: `ConcurrentHashMap<(Dataset, Branch), DatasetGraph>`
+   - Operations: getBranchGraph, applyPatchToBranch, createBranch, deleteBranch
+   - Uses per-branch locks for concurrency control
+   - Custom RDFChangesApply bypasses Jena's transaction management
+   - Implementation: In-memory Jena `DatasetGraph` created via `DatasetGraphFactory.create()`
 
 **Key Characteristics**:
 - **In-Memory**: All data stored in JVM heap (fast but not durable)
@@ -1164,8 +1176,8 @@ Each component has ONE reason to change:
 - 13 Controllers (HTTP endpoints)
 - 17 Command Handlers (write operations)
 - 16 Services (business logic)
-- 3 Repositories + 1 Graph Repository (read model)
-- 1 Projector with 10 event handlers (async updates)
+- 4 Repositories + 1 Graph Repository (read model)
+- 1 Projector with 13 event handlers (async updates)
 - 13 Event types (domain events)
 
 **Key Patterns**:

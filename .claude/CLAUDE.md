@@ -192,7 +192,7 @@ class MyTest {
 ### Quality Requirements
 
 **CRITICAL:** Only completely successful builds are acceptable.
-- ✅ All tests pass (currently ~1115 tests)
+- ✅ All tests pass (currently ~1138 tests)
 - ✅ Zero Checkstyle violations
 - ✅ Zero SpotBugs warnings
 - ✅ Zero PMD violations
@@ -219,7 +219,7 @@ mvn -q test -Dtest=NewTestClass,ModifiedTestClass
 ```bash
 mvn -q clean install
 ```
-- Runs all tests (~911 unit + integration tests)
+- Runs all tests (~1138 unit + integration tests)
 - All quality gates enforced
 - Required before completion
 

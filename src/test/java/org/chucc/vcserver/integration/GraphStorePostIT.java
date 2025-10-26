@@ -6,6 +6,7 @@ import static org.awaitility.Awaitility.await;
 import java.time.Duration;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.testutil.ExpectedErrorContext;
 import org.chucc.vcserver.testutil.ITFixture;
 import org.chucc.vcserver.testutil.TestConstants;
 import org.junit.jupiter.api.Test;
@@ -230,24 +231,29 @@ class GraphStorePostIT extends ITFixture {
   }
 
   @Test
+  @SuppressWarnings("try")  // Suppress "resource never referenced" - used for MDC side-effects
   void postGraph_shouldReturn400_whenRdfMalformed() {
-    // Given
-    HttpHeaders headers = new HttpHeaders();
-    headers.set("Content-Type", "text/turtle");
-    headers.set("SPARQL-VC-Author", "Alice");
-    headers.set("SPARQL-VC-Message", "POST malformed RDF");
-    HttpEntity<String> request = new HttpEntity<>(TestConstants.MALFORMED_TURTLE, headers);
+    try (var ignored = ExpectedErrorContext.suppress("Bad character in IRI (space)")) {
+      // Given
+      HttpHeaders headers = new HttpHeaders();
+      headers.set("Content-Type", "text/turtle");
+      headers.set("SPARQL-VC-Author", "Alice");
+      headers.set("SPARQL-VC-Message", "POST malformed RDF");
+      HttpEntity<String> request = new HttpEntity<>(TestConstants.MALFORMED_TURTLE, headers);
 
-    // When
-    ResponseEntity<String> response = restTemplate.exchange(
-        "/data?default=true&branch=main",
-        HttpMethod.POST,
-        request,
-        String.class
-    );
+      // When
+      ResponseEntity<String> response = restTemplate.exchange(
+          "/data?default=true&branch=main",
+          HttpMethod.POST,
+          request,
+          String.class
+      );
 
-    // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+      // Then
+      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Test

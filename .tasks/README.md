@@ -101,43 +101,41 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🟠 Critical (Infrastructure)
 
-#### 5. Dataset Management with Kafka Topic Integration
-**Folder:** [`.tasks/dataset-management/`](./dataset-management/)
+#### 5. ✅ Dataset Management with Kafka Topic Integration - COMPLETED
+**Status:** ✅ COMPLETED (2025-10-26)
 
-**Tasks:**
-1. **[Dataset Creation Endpoint](./dataset-management/01-dataset-creation-endpoint.md)** (Critical)
+**Completed Tasks:**
+1. ✅ **Dataset Creation Endpoint** (Critical)
    - `POST /version/datasets/{name}` - Create dataset with automatic Kafka topic creation
-   - Time: 4-5 hours
+   - Completed: See commit a91f9f2
 
-2. **[Production Kafka Config](./dataset-management/02-production-kafka-config.md)** (Critical)
-   - Update Kafka configuration for production (RF=3, partitions=6)
-   - Time: 2-3 hours
+2. ✅ **Production Kafka Config** (Critical)
+   - Updated Kafka configuration for production (RF=3, partitions=6)
+   - Completed: See commit 0ad6c89
 
-3. **[Error Handling](./dataset-management/03-error-handling.md)** (Important)
-   - Robust error handling for topic creation failures
-   - Time: 3-4 hours
+3. ✅ **Error Handling** (Important)
+   - Robust error handling for topic creation failures with retry logic
+   - Completed: See commit 353ee54
 
-4. **[Monitoring & Metrics](./dataset-management/04-monitoring-metrics.md)** (Important)
-   - Comprehensive monitoring for dataset/topic lifecycle
-   - Time: 3-4 hours
+4. ✅ **Monitoring & Metrics** (Important)
+   - Comprehensive monitoring for dataset/topic lifecycle via Micrometer
+   - Completed: See commit 654ba92
 
-5. **[Per-Dataset Tuning](./dataset-management/05-per-dataset-tuning.md)** (Future)
+5. ⏭️ **Per-Dataset Tuning** (Future)
    - Custom Kafka configuration per dataset
-   - Time: 4-5 hours
+   - Status: Skipped (future enhancement)
 
-6. **[Topic Health Checks](./dataset-management/06-topic-health-checks.md)** (Future)
-   - Automated health checks and self-healing
-   - Time: 4-5 hours
+6. ✅ **Topic Health Checks** (Simplified)
+   - Manual health checks and healing endpoints (no auto-healing or scheduled checks)
+   - Completed: See commit 6612682
 
-**Status:** Not Started
-**Total Estimated Time:** 20-26 hours (6-8 hours for MVP)
-**Priority:** Critical (tasks 1-2), Important (tasks 3-4), Future (tasks 5-6)
-
-**Problem:** Kafka topics are never created in production code. Users cannot dynamically create/delete datasets without DevOps intervention.
-
-**MVP:** Tasks 1-2 (6-8 hours) - Basic dataset creation with Kafka topic management
-
-See [Dataset Management README](./dataset-management/README.md) for detailed breakdown.
+**Deliverables:**
+- ✅ Dataset creation/deletion endpoints
+- ✅ Automatic Kafka topic provisioning with production settings
+- ✅ RFC 7807 error handling with retry logic
+- ✅ Health monitoring endpoints (`/actuator/kafka/health-detailed`)
+- ✅ Manual topic healing (`/actuator/kafka/topics/{dataset}/heal?confirm=true`)
+- ✅ Comprehensive metrics via Micrometer
 
 ---
 
@@ -146,55 +144,50 @@ See [Dataset Management README](./dataset-management/README.md) for detailed bre
 **Feature Tasks:** 3 tasks (3 endpoint implementations remaining)
 **Schema Evolution:** 0 tasks (all completed)
 **Architecture/Technical Debt:** 1 task (optional improvement)
-**Infrastructure/Operations:** 6 tasks (dataset management + Kafka integration)
+**Infrastructure/Operations:** 0 tasks (all completed ✅)
 
 **Total Endpoints Remaining:** 6 endpoints to implement
-**Total Estimated Time:** 13-16 hours (features) + 8-12 hours (architecture) + 20-26 hours (infrastructure)
+**Total Estimated Time:** 13-16 hours (features) + 8-12 hours (architecture)
 
 **Priority Breakdown:**
 - 🔴 High Priority: 1 task (Merge)
 - 🟡 Medium Priority: 2 tasks (History/Diff, Batch)
-- 🟠 Critical (Infrastructure): 2 tasks (Dataset Creation, Kafka Config)
-- 🟡 Important (Infrastructure): 2 tasks (Error Handling, Monitoring)
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
-- 🔵 Future (Infrastructure): 2 tasks (Per-Dataset Tuning, Health Checks)
 
-**Current Status:** All schema evolution tasks and Tag Management completed (100%)
+**Current Status:** All infrastructure and schema evolution tasks completed (100%)
 - ✅ CommitCreatedEvent patchSize (completed 2025-01-24)
 - ✅ Revert/CherryPick patchSize (completed 2025-01-25)
 - ✅ Commit Metadata API (completed 2025-01-25)
 - ✅ Branch Management API (completed 2025-10-24)
 - ✅ Tag Management API (completed 2025-10-25)
+- ✅ Dataset Management + Kafka Integration (completed 2025-10-26)
 
 ---
 
 ## Recommended Implementation Order
 
-### Infrastructure (Critical) - Do First
+### ✅ Infrastructure (Critical) - COMPLETED
 
-**Why First:** Without dataset creation, users must manually create Kafka topics (DevOps bottleneck). Production config is unsafe (RF=1 = data loss on broker failure).
+**Status:** All infrastructure tasks completed (2025-10-26)
 
-1. **Dataset Creation Endpoint** (4-5 hours)
+1. ✅ **Dataset Creation Endpoint** (completed)
    - Enables dynamic dataset creation without DevOps
    - Creates Kafka topics automatically
-   - Foundation for remaining infrastructure tasks
+   - See commit a91f9f2
 
-2. **Production Kafka Config** (2-3 hours)
-   - Critical for production safety (RF=3)
-   - Can be done in parallel with task 1
-   - Required before production deployment
+2. ✅ **Production Kafka Config** (completed)
+   - Production safety with RF=3
+   - See commit 0ad6c89
 
-3. **Error Handling** (3-4 hours)
-   - Depends on task 1
-   - Improves user experience with clear error messages
-   - Adds retry logic and rollback
+3. ✅ **Error Handling** (completed)
+   - User experience with clear error messages (RFC 7807)
+   - Retry logic and rollback mechanisms
+   - See commit 353ee54
 
-4. **Monitoring & Metrics** (3-4 hours)
-   - Depends on tasks 1-3
-   - Essential for production operations
-   - Enables proactive issue detection
-
-**Total Time (Critical Path):** 12-16 hours for production-ready dataset management
+4. ✅ **Monitoring & Metrics** (completed)
+   - Production operations monitoring
+   - Proactive issue detection via Micrometer
+   - See commits 654ba92, 6612682
 
 ### Feature Implementation
 

@@ -8,15 +8,62 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Previously:** All original tasks were completed and removed (October 24, 2025)
 
-**Now:** 5 tasks remain to implement protocol endpoints that currently return 501 "Not Implemented"
+**Now:** 8 tasks remain (3 protocol endpoints + 1 technical debt + 4 architecture enhancements)
 
 **Recent Completions:**
 - patchSize Schema Evolution (2025-01-24) - CQRS Compliant ✅
 - Branch Management API (2025-10-24)
+- Dataset Management + Kafka Integration (2025-10-26) ✅
 
 ---
 
 ## Remaining Tasks
+
+### 🟠 High Priority (Architecture Enhancement)
+
+#### 0. Materialized Branch Views - Continuously Updated DatasetGraphs
+**Directory:** [`.tasks/materialized-views/`](./materialized-views/)
+
+**Goal:** Move from on-demand graph materialization to eager materialization for instant query performance.
+
+**Status:** Not Started
+**Estimated Time:** 13-17 hours (4 tasks)
+**Category:** Architecture Enhancement
+
+**Tasks:**
+1. [Task 01: Create MaterializedBranchRepository Infrastructure](./materialized-views/01-create-materialized-branch-repository.md) (3-4 hours)
+   - Create repository for managing continuously updated DatasetGraphs per branch
+   - Implement transactional patch application using Jena's ReadWrite interface
+   - Unit tests for graph lifecycle and cloning
+
+2. [Task 02: Update ReadModelProjector for Eager Materialization](./materialized-views/02-update-projector-for-eager-materialization.md) (4-5 hours)
+   - Apply patches to materialized graphs when processing commit events
+   - Handle branch creation (initialize graphs) and deletion (cleanup)
+   - Integration tests with projector enabled
+
+3. [Task 03: Update DatasetService to Use Materialized Views](./materialized-views/03-update-datasetservice-for-materialized-views.md) (3-4 hours)
+   - Use pre-materialized graphs for branch HEAD queries (instant response)
+   - Keep on-demand building for historical commits (backward compatible)
+   - Performance tests demonstrating 10-20x improvement
+
+4. [Task 04: Add Monitoring and Recovery Mechanisms](./materialized-views/04-add-monitoring-and-recovery.md) (3-4 hours)
+   - Micrometer metrics (graph count, memory, operations)
+   - Health checks for materialized views
+   - Manual rebuild endpoint for recovery
+
+**Benefits:**
+- ✅ **10-20x faster** branch HEAD queries (<10ms vs 100-200ms)
+- ✅ Memory usage scales with branches, not history depth
+- ✅ CQRS compliant (projector maintains materialized views)
+- ✅ Backward compatible (historical queries unchanged)
+- ✅ Production-ready monitoring and recovery
+
+**CQRS Compliance:** ✅ Full compliance
+- Projector applies patches to materialized graphs (read model updates)
+- DatasetService returns materialized graphs (query side)
+- Events remain source of truth in CommitRepository
+
+---
 
 ### 🔴 High Priority
 
@@ -141,15 +188,20 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Progress Summary
 
-**Feature Tasks:** 3 tasks (3 endpoint implementations remaining)
+**Architecture Enhancements:** 4 tasks (Materialized Views - 13-17 hours)
+**Feature Tasks:** 3 tasks (3 endpoint implementations - 13-16 hours)
 **Schema Evolution:** 0 tasks (all completed)
-**Architecture/Technical Debt:** 1 task (optional improvement)
+**Architecture/Technical Debt:** 1 task (optional improvement - 8-12 hours)
 **Infrastructure/Operations:** 0 tasks (all completed ✅)
 
 **Total Endpoints Remaining:** 6 endpoints to implement
-**Total Estimated Time:** 13-16 hours (features) + 8-12 hours (architecture)
+**Total Estimated Time:**
+- Materialized Views: 13-17 hours (new)
+- Protocol Endpoints: 13-16 hours
+- Technical Debt: 8-12 hours (optional)
 
 **Priority Breakdown:**
+- 🟠 Architecture Enhancement: 4 tasks (Materialized Views)
 - 🔴 High Priority: 1 task (Merge)
 - 🟡 Medium Priority: 2 tasks (History/Diff, Batch)
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
@@ -188,6 +240,37 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
    - Production operations monitoring
    - Proactive issue detection via Micrometer
    - See commits 654ba92, 6612682
+
+### Architecture Enhancement (Recommended First)
+
+**Materialized Branch Views** (13-17 hours total)
+
+**Why first:**
+- Significant performance improvement (10-20x faster queries)
+- Foundation for better user experience
+- Independent of protocol endpoints (can be done in parallel)
+- Production-ready monitoring and recovery
+
+**Implementation order:**
+1. **Task 01: MaterializedBranchRepository** (3-4 hours)
+   - Foundation layer - no dependencies
+   - Can be tested in isolation
+
+2. **Task 02: Update ReadModelProjector** (4-5 hours)
+   - Integrates with existing projector
+   - Enables eager materialization
+
+3. **Task 03: Update DatasetService** (3-4 hours)
+   - Instant query performance
+   - Backward compatible
+
+4. **Task 04: Monitoring & Recovery** (3-4 hours)
+   - Production operational tools
+   - Completes the feature
+
+**Alternatively:** Implement in parallel with protocol endpoints if multiple developers available.
+
+---
 
 ### Feature Implementation
 

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.chucc.vcserver.testutil.ExpectedErrorContext;
 import org.chucc.vcserver.testutil.ITFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,22 +126,25 @@ class GraphStoreErrorHandlingIT extends ITFixture {
   }
 
   @Test
+  @SuppressWarnings("try")  // Suppress "resource never referenced" - used for MDC side-effects
   void invalidArgument_invalidGraphIri_shouldReturnError() throws Exception {
-    // Arrange: Request with invalid graph IRI (contains spaces)
-    String url = "/data?graph=invalid%20iri";
+    try (var ignored = ExpectedErrorContext.suppress("Bad character in IRI")) {
+      // Arrange: Request with invalid graph IRI (contains spaces)
+      String url = "/data?graph=invalid%20iri";
 
-    // Act
-    ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+      // Act
+      ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 
-    // Assert: Either 400 (validation error) or 404 (not found) are acceptable
-    assertThat(response.getStatusCode().is4xxClientError()).isTrue();
+      // Assert: Either 400 (validation error) or 404 (not found) are acceptable
+      assertThat(response.getStatusCode().is4xxClientError()).isTrue();
 
-    JsonNode problem = objectMapper.readTree(response.getBody());
-    // Should have a valid error code
-    assertThat(problem.has("code")).isTrue();
-    assertThat(problem.get("code").asText()).isIn("selector_conflict", "graph_not_found", "invalid_argument");
+      JsonNode problem = objectMapper.readTree(response.getBody());
+      // Should have a valid error code
+      assertThat(problem.has("code")).isTrue();
+      assertThat(problem.get("code").asText()).isIn("selector_conflict", "graph_not_found", "invalid_argument");
 
-    // Note: Repository updates handled by ReadModelProjector (disabled in this test)
+      // Note: Repository updates handled by ReadModelProjector (disabled in this test)
+    }
   }
 
   @Test

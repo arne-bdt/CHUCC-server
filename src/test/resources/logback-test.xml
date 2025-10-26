@@ -2,6 +2,8 @@
 <configuration>
     <!-- Console appender for test output with correlation ID support -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- Thread-local filter for suppressing expected errors in specific tests -->
+        <filter class="org.chucc.vcserver.testutil.ExpectedErrorSuppressionFilter"/>
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%X{correlationId}] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
@@ -36,8 +38,10 @@
     <logger name="org.apache.tomcat" level="WARN"/>
 
     <!-- Suppress INFO/WARN from specific packages -->
-    <logger name="org.apache.jena.riot" level="OFF"/>
-    <logger name="org.chucc.vcserver.projection.ReadModelProjector" level="OFF"/>
+    <!-- Jena RIOT: Errors from validation tests are expected and indicate proper error handling -->
+    <logger name="org.apache.jena.riot" level="WARN"/>
+    <!-- ReadModelProjector: Errors from exception handling tests are expected -->
+    <logger name="org.chucc.vcserver.projection.ReadModelProjector" level="WARN"/>
 
     <!-- Suppress INFO/WARN from command handlers in unit tests -->
     <logger name="org.chucc.vcserver.command.CreateBranchCommandHandler" level="ERROR"/>

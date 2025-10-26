@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.chucc.vcserver.exception.SelectorConflictException;
+import org.chucc.vcserver.testutil.ExpectedErrorContext;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -61,18 +62,28 @@ class GraphParameterValidatorTest {
   }
 
   @Test
+  @SuppressWarnings("try")  // Suppress "resource never referenced" - used for MDC side-effects
   void validateGraphParameter_shouldRejectInvalidGraphIri() {
-    assertThatThrownBy(() -> GraphParameterValidator.validateGraphParameter("not a valid iri", null))
-        .isInstanceOf(SelectorConflictException.class)
-        .hasMessageContaining("Invalid IRI");
+    try (var ignored = ExpectedErrorContext.suppress("Bad character in IRI")) {
+      assertThatThrownBy(() -> GraphParameterValidator.validateGraphParameter("not a valid iri", null))
+          .isInstanceOf(SelectorConflictException.class)
+          .hasMessageContaining("Invalid IRI");
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Test
+  @SuppressWarnings("try")  // Suppress "resource never referenced" - used for MDC side-effects
   void validateGraphParameter_shouldRejectIriWithSpaces() {
-    assertThatThrownBy(() ->
-            GraphParameterValidator.validateGraphParameter("http://example.org/has spaces", null))
-        .isInstanceOf(SelectorConflictException.class)
-        .hasMessageContaining("Invalid IRI");
+    try (var ignored = ExpectedErrorContext.suppress("Bad character in IRI")) {
+      assertThatThrownBy(() ->
+              GraphParameterValidator.validateGraphParameter("http://example.org/has spaces", null))
+          .isInstanceOf(SelectorConflictException.class)
+          .hasMessageContaining("Invalid IRI");
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Test
@@ -131,18 +142,28 @@ class GraphParameterValidatorTest {
   }
 
   @Test
+  @SuppressWarnings("try")  // Suppress "resource never referenced" - used for MDC side-effects
   void validateGraphIri_shouldRejectInvalidIri() {
-    assertThatThrownBy(() -> GraphParameterValidator.validateGraphIri("not a valid iri"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Invalid IRI");
+    try (var ignored = ExpectedErrorContext.suppress("Bad character in IRI")) {
+      assertThatThrownBy(() -> GraphParameterValidator.validateGraphIri("not a valid iri"))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("Invalid IRI");
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Test
+  @SuppressWarnings("try")  // Suppress "resource never referenced" - used for MDC side-effects
   void validateGraphIri_shouldRejectIriWithSpaces() {
-    assertThatThrownBy(() ->
-            GraphParameterValidator.validateGraphIri("http://example.org/has spaces"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Invalid IRI");
+    try (var ignored = ExpectedErrorContext.suppress("Bad character in IRI")) {
+      assertThatThrownBy(() ->
+              GraphParameterValidator.validateGraphIri("http://example.org/has spaces"))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("Invalid IRI");
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Test

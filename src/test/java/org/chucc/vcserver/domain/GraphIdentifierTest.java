@@ -3,6 +3,7 @@ package org.chucc.vcserver.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import org.chucc.vcserver.testutil.ExpectedErrorContext;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -57,17 +58,27 @@ class GraphIdentifierTest {
   }
 
   @Test
+  @SuppressWarnings("try")  // Suppress "resource never referenced" - used for MDC side-effects
   void named_shouldRejectInvalidIri() {
-    assertThatThrownBy(() -> GraphIdentifier.named("not a valid iri"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Invalid IRI");
+    try (var ignored = ExpectedErrorContext.suppress("Bad character in IRI")) {
+      assertThatThrownBy(() -> GraphIdentifier.named("not a valid iri"))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("Invalid IRI");
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Test
+  @SuppressWarnings("try")  // Suppress "resource never referenced" - used for MDC side-effects
   void named_shouldRejectIriWithSpaces() {
-    assertThatThrownBy(() -> GraphIdentifier.named("http://example.org/has spaces"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Invalid IRI");
+    try (var ignored = ExpectedErrorContext.suppress("Bad character in IRI")) {
+      assertThatThrownBy(() -> GraphIdentifier.named("http://example.org/has spaces"))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("Invalid IRI");
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Test

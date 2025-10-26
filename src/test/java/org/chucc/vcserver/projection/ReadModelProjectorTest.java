@@ -16,6 +16,7 @@ import org.chucc.vcserver.repository.MaterializedBranchRepository;
 import org.chucc.vcserver.repository.TagRepository;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SnapshotService;
+import org.chucc.vcserver.testutil.ExpectedErrorContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -203,55 +204,60 @@ class ReadModelProjectorTest {
   }
 
   @Test
+  @SuppressWarnings("try")  // Suppress "resource never referenced" - used for MDC side-effects
   void handleEvent_shouldSkipDuplicateEvents_whenDeduplicationEnabled() {
-    // Given
-    ProjectorProperties.Deduplication dedup = new ProjectorProperties.Deduplication();
-    dedup.setEnabled(true);
-    dedup.setCacheSize(100);
-    when(projectorProperties.getDeduplication()).thenReturn(dedup);
+    try (var ignored = ExpectedErrorContext.suppress("Skipping duplicate event")) {
+      // Given
+      ProjectorProperties.Deduplication dedup = new ProjectorProperties.Deduplication();
+      dedup.setEnabled(true);
+      dedup.setCacheSize(100);
+      when(projectorProperties.getDeduplication()).thenReturn(dedup);
 
-    // Recreate projector with deduplication enabled
-    projector = new ReadModelProjector(branchRepository, commitRepository, tagRepository,
-        materializedBranchRepo, datasetService, snapshotService, projectorProperties);
+      // Recreate projector with deduplication enabled
+      projector = new ReadModelProjector(branchRepository, commitRepository, tagRepository,
+          materializedBranchRepo, datasetService, snapshotService, projectorProperties);
 
-    String dataset = "test-dataset";
-    String commitIdStr = "550e8400-e29b-41d4-a716-446655440000";
-    String rdfPatchStr = "TX .";
-    Instant now = Instant.now();
+      String dataset = "test-dataset";
+      String commitIdStr = "550e8400-e29b-41d4-a716-446655440000";
+      String rdfPatchStr = "TX .";
+      Instant now = Instant.now();
 
-    // Create two events with the SAME eventId
-    CommitCreatedEvent event1 = new CommitCreatedEvent(
-        "duplicate-event-id",  // Same event ID
-        dataset,
-        commitIdStr,
-        List.of(),
-        "main",
-        "Test commit",
-        "Test Author",
-        now,
-        rdfPatchStr
-        , 1
-    );
+      // Create two events with the SAME eventId
+      CommitCreatedEvent event1 = new CommitCreatedEvent(
+          "duplicate-event-id",  // Same event ID
+          dataset,
+          commitIdStr,
+          List.of(),
+          "main",
+          "Test commit",
+          "Test Author",
+          now,
+          rdfPatchStr
+          , 1
+      );
 
-    CommitCreatedEvent event2 = new CommitCreatedEvent(
-        "duplicate-event-id",  // Same event ID
-        dataset,
-        "different-commit-id",  // Different commit ID
-        List.of(),
-        "main",
-        "Different commit",
-        "Test Author",
-        now,
-        rdfPatchStr
-        , 1
-    );
+      CommitCreatedEvent event2 = new CommitCreatedEvent(
+          "duplicate-event-id",  // Same event ID
+          dataset,
+          "different-commit-id",  // Different commit ID
+          List.of(),
+          "main",
+          "Different commit",
+          "Test Author",
+          now,
+          rdfPatchStr
+          , 1
+      );
 
-    // When
-    projector.handleEvent(toConsumerRecord(event1));  // First event should be processed
-    projector.handleEvent(toConsumerRecord(event2));  // Second event should be skipped (duplicate)
+      // When
+      projector.handleEvent(toConsumerRecord(event1));  // First event should be processed
+      projector.handleEvent(toConsumerRecord(event2));  // Second event should be skipped (duplicate)
 
-    // Then - commit should only be saved once
-    verify(commitRepository).save(eq(dataset), any(Commit.class), any(RDFPatch.class));
+      // Then - commit should only be saved once
+      verify(commitRepository).save(eq(dataset), any(Commit.class), any(RDFPatch.class));
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Test

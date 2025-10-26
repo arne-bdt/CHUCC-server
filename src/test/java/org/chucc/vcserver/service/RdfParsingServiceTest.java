@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.NodeFactory;
+import org.chucc.vcserver.testutil.ExpectedErrorContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
@@ -133,15 +134,20 @@ class RdfParsingServiceTest {
   }
 
   @Test
+  @SuppressWarnings("try")  // Suppress "resource never referenced" - used for MDC side-effects
   void parseRdf_shouldThrow400_whenInvalidSyntaxProvided() {
-    // Given
-    String invalidTurtle = "@prefix ex: <invalid syntax";
+    try (var ignored = ExpectedErrorContext.suppress("Bad character in IRI")) {
+      // Given
+      String invalidTurtle = "@prefix ex: <invalid syntax";
 
-    // When/Then
-    assertThatThrownBy(() -> service.parseRdf(invalidTurtle, "text/turtle"))
-        .isInstanceOf(ResponseStatusException.class)
-        .hasMessageContaining("400")
-        .hasMessageContaining("Bad Request");
+      // When/Then
+      assertThatThrownBy(() -> service.parseRdf(invalidTurtle, "text/turtle"))
+          .isInstanceOf(ResponseStatusException.class)
+          .hasMessageContaining("400")
+          .hasMessageContaining("Bad Request");
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Test

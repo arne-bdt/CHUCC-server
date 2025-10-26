@@ -1,5 +1,6 @@
 package org.chucc.vcserver.filter;
 
+import org.chucc.vcserver.testutil.ExpectedErrorContext;
 import org.chucc.vcserver.testutil.ITFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,49 +28,59 @@ class CorrelationIdFilterIT extends ITFixture {
   private TestRestTemplate restTemplate;
 
   @Test
+  @SuppressWarnings("try")  // Suppress "resource never referenced" - used for MDC side-effects
   void httpRequest_shouldGenerateCorrelationId() {
-    // Arrange
-    HttpHeaders headers = new HttpHeaders();
-    headers.set("Content-Type", "text/turtle");
-    HttpEntity<String> request = new HttpEntity<>("<urn:s> <urn:p> <urn:o> .", headers);
+    try (var ignored = ExpectedErrorContext.suppress("Bad IRI", "SCHEME_PATTERN_MATCH_FAILED")) {
+      // Arrange
+      HttpHeaders headers = new HttpHeaders();
+      headers.set("Content-Type", "text/turtle");
+      HttpEntity<String> request = new HttpEntity<>("<urn:s> <urn:p> <urn:o> .", headers);
 
-    // Act: Make HTTP request (filter should generate correlation ID)
-    ResponseEntity<String> response = restTemplate.exchange(
-        "/data?default=true&branch=main",
-        HttpMethod.PUT,
-        request,
-        String.class);
-
-    // Assert: Request succeeds (filter doesn't break HTTP flow)
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-
-    // Note: Correlation ID is in logs (verified manually during test runs)
-    // and in Kafka event headers (verified by EventPublisherTest unit tests)
-  }
-
-  @Test
-  void httpRequest_shouldWorkForMultipleRequests() {
-    // Arrange
-    HttpHeaders headers = new HttpHeaders();
-    headers.set("Content-Type", "text/turtle");
-
-    // Act: Make multiple HTTP requests
-    for (int i = 0; i < 3; i++) {
-      HttpEntity<String> request = new HttpEntity<>(
-          "<urn:s" + i + "> <urn:p> <urn:o> .",
-          headers
-      );
-
+      // Act: Make HTTP request (filter should generate correlation ID)
       ResponseEntity<String> response = restTemplate.exchange(
           "/data?default=true&branch=main",
           HttpMethod.PUT,
           request,
           String.class);
 
-      // Assert: Each request succeeds (each gets unique correlation ID)
+      // Assert: Request succeeds (filter doesn't break HTTP flow)
       assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-    }
 
-    // Note: Each request gets a unique correlation ID (verified in logs)
+      // Note: Correlation ID is in logs (verified manually during test runs)
+      // and in Kafka event headers (verified by EventPublisherTest unit tests)
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Test
+  @SuppressWarnings("try")  // Suppress "resource never referenced" - used for MDC side-effects
+  void httpRequest_shouldWorkForMultipleRequests() {
+    try (var ignored = ExpectedErrorContext.suppress("Bad IRI", "SCHEME_PATTERN_MATCH_FAILED")) {
+      // Arrange
+      HttpHeaders headers = new HttpHeaders();
+      headers.set("Content-Type", "text/turtle");
+
+      // Act: Make multiple HTTP requests
+      for (int i = 0; i < 3; i++) {
+        HttpEntity<String> request = new HttpEntity<>(
+            "<urn:s" + i + "> <urn:p> <urn:o> .",
+            headers
+        );
+
+        ResponseEntity<String> response = restTemplate.exchange(
+            "/data?default=true&branch=main",
+            HttpMethod.PUT,
+            request,
+            String.class);
+
+        // Assert: Each request succeeds (each gets unique correlation ID)
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+      }
+
+      // Note: Each request gets a unique correlation ID (verified in logs)
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }

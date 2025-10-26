@@ -12,11 +12,13 @@ import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.repository.MaterializedBranchRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 /**
  * Unit tests for DatasetService cache eviction logic.
@@ -56,12 +58,15 @@ class DatasetServiceCacheTest {
         kafkaStore
     );
 
+    MaterializedBranchRepository materializedBranchRepo = mock(MaterializedBranchRepository.class);
+
     service = new DatasetService(
         branchRepository,
         commitRepository,
         snapshotService,
         cacheProperties,
-        new SimpleMeterRegistry()
+        new SimpleMeterRegistry(),
+        materializedBranchRepo
     );
   }
 

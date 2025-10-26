@@ -12,9 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
@@ -31,6 +29,7 @@ import org.chucc.vcserver.domain.Snapshot;
 import org.chucc.vcserver.exception.CommitNotFoundException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.repository.MaterializedBranchRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -52,12 +51,11 @@ public class DatasetService {
   private final CommitRepository commitRepository;
   private final SnapshotService snapshotService;
   private final CacheProperties cacheProperties;
+  private final MaterializedBranchRepository materializedBranchRepo;
 
-  // Caffeine LRU cache for materialized dataset graphs
+  // Caffeine LRU cache for historical commit graphs
+  // Note: Branch HEADs are now served by MaterializedBranchRepository (no cache needed)
   private final Cache<CacheKey, DatasetGraphInMemory> datasetCache;
-
-  // Track latest commits per branch (dataset -> branch -> commitId)
-  private final Map<String, Map<String, CommitId>> latestCommits = new ConcurrentHashMap<>();
 
   /**
    * Cache key combining dataset name and commit ID.
@@ -75,17 +73,20 @@ public class DatasetService {
    * @param snapshotService the snapshot service (lazily initialized to avoid circular dependency)
    * @param cacheProperties the cache configuration properties
    * @param meterRegistry the meter registry for metrics
+   * @param materializedBranchRepo the materialized branch repository
    */
   @SuppressFBWarnings(value = "EI_EXPOSE_REP2",
       justification = "Repositories are Spring-managed beans and are intentionally shared")
   public DatasetService(BranchRepository branchRepository, CommitRepository commitRepository,
       @org.springframework.context.annotation.Lazy SnapshotService snapshotService,
       CacheProperties cacheProperties,
-      MeterRegistry meterRegistry) {
+      MeterRegistry meterRegistry,
+      MaterializedBranchRepository materializedBranchRepo) {
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
     this.snapshotService = snapshotService;
     this.cacheProperties = cacheProperties;
+    this.materializedBranchRepo = materializedBranchRepo;
 
     // Build Caffeine cache with LRU eviction
     Caffeine<CacheKey, DatasetGraphInMemory> cacheBuilder = Caffeine.newBuilder()
@@ -147,14 +148,15 @@ public class DatasetService {
    * Gets a Jena Dataset for a given dataset reference.
    * Resolves branch references to their current HEAD commit.
    *
+   * <p>Uses materialized graphs for branch HEAD queries (instant, O(1) lookup).
+   * Falls back to on-demand building for commit queries or when materialized graph unavailable.
+   *
    * @param datasetRef the dataset reference (dataset name + ref)
    * @return a Dataset instance materialized to the specified version
    * @throws IllegalArgumentException if the reference cannot be resolved
    */
   public Dataset getDataset(DatasetRef datasetRef) {
-    CommitId commitId = resolveRef(datasetRef);
-    DatasetGraph datasetGraph = getOrCreateDatasetGraph(datasetRef.datasetName(), commitId);
-
+    DatasetGraph datasetGraph = getDatasetGraph(datasetRef);
     // Return a read-only view for safety
     return DatasetFactory.wrap(datasetGraph);
   }
@@ -163,14 +165,50 @@ public class DatasetService {
    * Gets a mutable Dataset for a given dataset reference.
    * Used for write operations that will create new commits.
    *
+   * <p>Uses materialized graphs for branch HEAD queries (instant, O(1) lookup).
+   * Falls back to on-demand building for commit queries or when materialized graph unavailable.
+   *
    * @param datasetRef the dataset reference
    * @return a mutable Dataset instance
    * @throws IllegalArgumentException if the reference cannot be resolved
    */
   public Dataset getMutableDataset(DatasetRef datasetRef) {
-    CommitId commitId = resolveRef(datasetRef);
-    DatasetGraph datasetGraph = getOrCreateDatasetGraph(datasetRef.datasetName(), commitId);
+    DatasetGraph datasetGraph = getDatasetGraph(datasetRef);
     return DatasetFactory.wrap(datasetGraph);
+  }
+
+  /**
+   * Gets a DatasetGraph for a given dataset reference.
+   * Routes to fast path (materialized graphs) for branches or slow path (on-demand) for commits.
+   *
+   * @param datasetRef the dataset reference
+   * @return the DatasetGraph materialized to the specified version
+   * @throws IllegalArgumentException if the reference cannot be resolved
+   */
+  @SuppressWarnings("PMD.EmptyCatchBlock") // Exception used for control flow
+  private DatasetGraph getDatasetGraph(DatasetRef datasetRef) {
+    String ref = datasetRef.ref();
+    String datasetName = datasetRef.datasetName();
+
+    // Try to parse as commit ID first (historical query)
+    try {
+      CommitId commitId = CommitId.of(ref);
+      if (commitRepository.exists(datasetName, commitId)) {
+        // Commit query - use on-demand building (existing behavior)
+        return getOrCreateDatasetGraph(datasetName, commitId);
+      }
+    } catch (IllegalArgumentException e) {
+      // Not a valid commit ID, try as branch name
+    }
+
+    // Try to resolve as branch name - use materialized graph (fast path)
+    if (branchRepository.exists(datasetName, ref)) {
+      return getMaterializedBranchGraph(datasetName, ref);
+    }
+
+    // Neither commit nor branch found
+    throw new IllegalArgumentException(
+        "Cannot resolve reference: " + ref + " in dataset: " + datasetName);
   }
 
   /**
@@ -214,36 +252,52 @@ public class DatasetService {
   }
 
   /**
-   * Resolves a reference (branch name or commit ID) to a commit ID.
+   * Gets the materialized graph for a branch HEAD using the fast path.
    *
-   * @param datasetRef the dataset reference
-   * @return the resolved commit ID
-   * @throws IllegalArgumentException if the reference cannot be resolved
+   * <p>This method provides instant access to pre-materialized branch graphs
+   * maintained by the ReadModelProjector. If the materialized graph is unavailable
+   * for any reason (e.g., projector hasn't processed events yet), it falls back
+   * to on-demand building for graceful degradation.
+   *
+   * <p>Performance: O(1) instant lookup when materialized graph available,
+   * O(n) fallback to on-demand building when unavailable.
+   *
+   * @param datasetName the dataset name
+   * @param branchName the branch name
+   * @return the materialized DatasetGraph for the branch HEAD
+   * @throws IllegalArgumentException if the branch doesn't exist
    */
-  @SuppressWarnings("PMD.EmptyCatchBlock") // Exception used for control flow
-  private CommitId resolveRef(DatasetRef datasetRef) {
-    String ref = datasetRef.ref();
-
-    // Try to parse as commit ID first
-    try {
-      CommitId commitId = CommitId.of(ref);
-      if (commitRepository.exists(datasetRef.datasetName(), commitId)) {
-        return commitId;
-      }
-    } catch (IllegalArgumentException e) {
-      // Not a valid commit ID, try as branch name
-    }
-
-    // Try to resolve as branch name
-    return branchRepository.findByDatasetAndName(datasetRef.datasetName(), ref)
-        .map(Branch::getCommitId)
+  private DatasetGraphInMemory getMaterializedBranchGraph(String datasetName,
+      String branchName) {
+    // Validate branch exists and get HEAD commit
+    Branch branch = branchRepository.findByDatasetAndName(datasetName, branchName)
         .orElseThrow(() -> new IllegalArgumentException(
-            "Cannot resolve reference: " + ref + " in dataset: " + datasetRef.datasetName()));
+            "Cannot resolve reference: " + branchName + " in dataset: " + datasetName));
+
+    // Try to get materialized graph (fast path)
+    if (materializedBranchRepo.exists(datasetName, branchName)) {
+      logger.debug("Using materialized graph for branch {}/{}", datasetName, branchName);
+      DatasetGraph graph = materializedBranchRepo.getBranchGraph(datasetName, branchName);
+
+      // Return as DatasetGraphInMemory (required by interface)
+      // Note: MaterializedBranchRepository already returns DatasetGraphInMemory
+      return (DatasetGraphInMemory) graph;
+    } else {
+      // Fallback: Materialized graph not available, build on-demand
+      // This is expected during eventual consistency (projector hasn't caught up yet)
+      logger.debug("Materialized graph not available for branch {}/{}. "
+              + "Falling back to on-demand building (eventual consistency).",
+          datasetName, branchName);
+      return getOrCreateDatasetGraph(datasetName, branch.getCommitId());
+    }
   }
 
   /**
-   * Gets or creates a DatasetGraphInMemory for a specific commit.
-   * Uses Caffeine LRU cache with special handling for latest commits.
+   * Gets or creates a DatasetGraphInMemory for a specific commit (historical queries).
+   * Uses Caffeine LRU cache for frequently accessed historical commits.
+   *
+   * <p>Note: Branch HEAD queries now use MaterializedBranchRepository (instant, O(1) lookup).
+   * This method is only for historical commit queries, which are built on-demand and cached.
    *
    * @param datasetName the dataset name
    * @param commitId the commit ID
@@ -252,59 +306,37 @@ public class DatasetService {
   private DatasetGraphInMemory getOrCreateDatasetGraph(String datasetName, CommitId commitId) {
     CacheKey key = new CacheKey(datasetName, commitId);
 
-    // Check if this is a latest commit (should be pinned in cache)
-    if (cacheProperties.isKeepLatestPerBranch() && isLatestCommit(datasetName, commitId)) {
-      // For latest commits, use get() which ensures they stay in cache
-      return datasetCache.get(key, k -> buildDatasetGraph(datasetName, commitId));
-    }
-
-    // For non-latest commits, use regular get (subject to LRU eviction)
+    // Check cache first
     DatasetGraphInMemory graph = datasetCache.getIfPresent(key);
 
     if (graph == null) {
-      // Cache miss - build graph
+      // Cache miss - build graph on-demand
+      logger.debug("Cache miss for dataset={}, commit={}. Building on-demand.",
+          datasetName, commitId);
       graph = buildDatasetGraph(datasetName, commitId);
       datasetCache.put(key, graph);
+    } else {
+      logger.debug("Cache hit for dataset={}, commit={}", datasetName, commitId);
     }
 
     return graph;
   }
 
   /**
-   * Checks if a commit is the latest for any branch.
-   *
-   * @param datasetName the dataset name
-   * @param commitId the commit ID
-   * @return true if the commit is the latest for any branch
-   */
-  private boolean isLatestCommit(String datasetName, CommitId commitId) {
-    Map<String, CommitId> branches = latestCommits.get(datasetName);
-    if (branches == null) {
-      // Populate on first access
-      branches = new ConcurrentHashMap<>();
-      for (Branch branch : branchRepository.findAllByDataset(datasetName)) {
-        branches.put(branch.getName(), branch.getCommitId());
-      }
-      latestCommits.put(datasetName, branches);
-    }
-
-    return branches.containsValue(commitId);
-  }
-
-  /**
    * Updates tracking of latest commits.
    * Called by ReadModelProjector when branches are updated.
+   *
+   * <p>Note: With materialized views, branch HEADs are maintained in
+   * MaterializedBranchRepository. This method is kept for backward compatibility
+   * but no longer manages cache pinning.
    *
    * @param dataset the dataset name
    * @param branchName the branch name
    * @param commitId the new latest commit ID
    */
   public void updateLatestCommit(String dataset, String branchName, CommitId commitId) {
-    latestCommits
-        .computeIfAbsent(dataset, k -> new ConcurrentHashMap<>())
-        .put(branchName, commitId);
-
-    logger.debug("Updated latest commit tracking: {}/{} -> {}",
+    // Branch HEADs now in MaterializedBranchRepository, no cache update needed
+    logger.debug("Branch {}/{} updated to commit {} (materialized view maintained separately)",
         dataset, branchName, commitId);
   }
 
@@ -669,24 +701,26 @@ public class DatasetService {
   /**
    * Clears the dataset cache for a specific dataset.
    *
+   * <p>Note: This only clears the historical commit cache.
+   * Branch HEADs are maintained in MaterializedBranchRepository.
+   *
    * @param datasetName the dataset name
    */
   public void clearCache(String datasetName) {
     // Remove all entries for this dataset
     datasetCache.asMap().keySet().removeIf(key -> key.dataset().equals(datasetName));
 
-    // Clear latest commit tracking
-    latestCommits.remove(datasetName);
-
-    logger.info("Cleared cache for dataset: {}", datasetName);
+    logger.info("Cleared historical commit cache for dataset: {}", datasetName);
   }
 
   /**
    * Clears all dataset caches.
+   *
+   * <p>Note: This only clears the historical commit cache.
+   * Branch HEADs are maintained in MaterializedBranchRepository.
    */
   public void clearAllCaches() {
     datasetCache.invalidateAll();
-    latestCommits.clear();
-    logger.info("Cleared all caches");
+    logger.info("Cleared all historical commit caches");
   }
 }

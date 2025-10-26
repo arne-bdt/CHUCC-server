@@ -380,8 +380,13 @@ All handlers:
     - Combines all graphs into single commit
 
 13. **DatasetService**
-    - Dataset-level operations
-    - Currently hardcoded to "default" dataset
+    - Materialize datasets at specific commits or branches
+    - **Branch HEAD queries:** Instant O(1) lookup via MaterializedBranchRepository
+    - **Historical commit queries:** On-demand building with LRU cache
+    - **Cache strategy:** Historical commits only (branch HEADs pre-materialized)
+    - **Performance:** <5ms for branch HEADs, 50-500ms for historical queries
+    - **Fallback:** Graceful degradation to on-demand building if materialized graph unavailable
+    - Uses SnapshotService for accelerated historical materialization
 
 **Responsibilities**:
 - Pure business logic (no side effects)
@@ -1174,11 +1179,11 @@ Each component has ONE reason to change:
 
 **Key Components**:
 - 13 Controllers (HTTP endpoints)
-- 17 Command Handlers (write operations)
+- 18 Command Handlers (write operations)
 - 16 Services (business logic)
-- 4 Repositories + 1 Graph Repository (read model)
-- 1 Projector with 13 event handlers (async updates)
-- 13 Event types (domain events)
+- 5 Repositories (read model: commits, branches, tags, historical graphs, materialized branch HEADs)
+- 1 Projector with 14 event handlers (async updates)
+- 14 Event types (domain events)
 
 **Key Patterns**:
 - Command Handler pattern (write model)

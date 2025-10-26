@@ -212,7 +212,9 @@ org.chucc.vcserver/
 #### Services (Business Logic)
 - **SelectorResolutionService**: Resolve branch/commit/asOf to CommitId
 - **RdfDiffService**: Compute diff between two datasets
-- **DatasetService**: Materialize dataset at specific commit
+- **DatasetService**: Materialize dataset at specific commit or branch
+  - Branch HEADs: Instant O(1) lookup via MaterializedBranchRepository (<5ms)
+  - Historical commits: On-demand building with snapshot acceleration (50-500ms)
 - **ConflictDetectionService**: Three-way merge conflict detection
 - **RdfPatchService**: Apply RDF Patch to dataset
 

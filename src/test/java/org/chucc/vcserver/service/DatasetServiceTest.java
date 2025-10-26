@@ -1,9 +1,13 @@
 package org.chucc.vcserver.service;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Instant;
+import java.util.Optional;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
+import org.apache.jena.sparql.core.DatasetGraph;
+import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
 import org.chucc.vcserver.config.CacheProperties;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.Branch;
@@ -13,12 +17,17 @@ import org.chucc.vcserver.domain.DatasetRef;
 import org.chucc.vcserver.event.EventPublisher;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
+import org.chucc.vcserver.repository.MaterializedBranchRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for DatasetService.
@@ -30,6 +39,7 @@ class DatasetServiceTest {
   private BranchRepository branchRepository;
   private CommitRepository commitRepository;
   private SnapshotService snapshotService;
+  private MaterializedBranchRepository materializedBranchRepo;
 
   private static final String DATASET_NAME = "test-dataset";
   private static final String AUTHOR = "test-author";
@@ -38,6 +48,7 @@ class DatasetServiceTest {
   void setUp() {
     branchRepository = new BranchRepository();
     commitRepository = new CommitRepository();
+    materializedBranchRepo = mock(MaterializedBranchRepository.class);
 
     // Create SnapshotService with mocked dependencies
     EventPublisher eventPublisher = Mockito.mock(EventPublisher.class);
@@ -60,7 +71,7 @@ class DatasetServiceTest {
 
     // Use SimpleMeterRegistry for testing - provides metrics without external dependencies
     service = new DatasetService(branchRepository, commitRepository, snapshotService,
-        cacheProperties, new SimpleMeterRegistry());
+        cacheProperties, new SimpleMeterRegistry(), materializedBranchRepo);
   }
 
   @Test
@@ -223,5 +234,92 @@ class DatasetServiceTest {
     // Then
     assertThat(mainDataset).isNotNull();
     assertThat(developDataset).isNotNull();
+  }
+
+  @Test
+  void getDataset_forBranchRef_shouldUseMaterializedGraph() {
+    // Given: User perspective - branch HEAD queries should be instant
+    Branch mainBranch = service.createDataset(DATASET_NAME, AUTHOR);
+
+    // Mock: Materialized graph is available
+    when(materializedBranchRepo.exists(DATASET_NAME, "main")).thenReturn(true);
+    DatasetGraphInMemory materializedGraph = new DatasetGraphInMemory();
+    when(materializedBranchRepo.getBranchGraph(DATASET_NAME, "main"))
+        .thenReturn(materializedGraph);
+
+    // When: User queries branch HEAD
+    DatasetRef ref = DatasetRef.forBranch(DATASET_NAME, "main");
+    Dataset dataset = service.getDataset(ref);
+
+    // Then: Should use materialized graph (instant, O(1) lookup)
+    assertThat(dataset).isNotNull();
+    verify(materializedBranchRepo).exists(DATASET_NAME, "main");
+    verify(materializedBranchRepo).getBranchGraph(DATASET_NAME, "main");
+
+    // Should NOT build from commits (no on-demand building)
+    // Note: We can't easily verify "never" for private methods,
+    // but the materialized graph should be returned directly
+  }
+
+  @Test
+  void getDataset_forBranchRef_shouldFallbackWhenMaterializedGraphUnavailable() {
+    // Given: User perspective - graceful degradation
+    Branch mainBranch = service.createDataset(DATASET_NAME, AUTHOR);
+
+    // Mock: Materialized graph NOT available (maybe projector hasn't processed yet)
+    when(materializedBranchRepo.exists(DATASET_NAME, "main")).thenReturn(false);
+
+    // When: User queries branch HEAD
+    DatasetRef ref = DatasetRef.forBranch(DATASET_NAME, "main");
+    Dataset dataset = service.getDataset(ref);
+
+    // Then: Should fallback to on-demand building (eventual consistency)
+    assertThat(dataset).isNotNull();
+    verify(materializedBranchRepo).exists(DATASET_NAME, "main");
+    // Should NOT call getBranchGraph since exists() returned false
+    verify(materializedBranchRepo, never()).getBranchGraph(DATASET_NAME, "main");
+
+    // Fallback still works - user gets correct data (just slower)
+  }
+
+  @Test
+  void getDataset_forCommitRef_shouldBuildOnDemand() {
+    // Given: User perspective - historical queries work as before
+    Branch mainBranch = service.createDataset(DATASET_NAME, AUTHOR);
+    CommitId commitId = mainBranch.getCommitId();
+
+    // When: User queries specific commit (historical query)
+    DatasetRef ref = DatasetRef.forCommit(DATASET_NAME, commitId);
+    Dataset dataset = service.getDataset(ref);
+
+    // Then: Should build on-demand (NOT use materialized branch repo)
+    assertThat(dataset).isNotNull();
+
+    // Should NOT interact with MaterializedBranchRepository for commit queries
+    verify(materializedBranchRepo, never()).exists(DATASET_NAME, "main");
+    verify(materializedBranchRepo, never()).getBranchGraph(DATASET_NAME, "main");
+
+    // Backward compatible - commit queries unchanged
+  }
+
+  @Test
+  void getMutableDataset_forBranchRef_shouldUseMaterializedGraph() {
+    // Given: User perspective - write operations also benefit from fast lookups
+    Branch mainBranch = service.createDataset(DATASET_NAME, AUTHOR);
+
+    // Mock: Materialized graph is available
+    when(materializedBranchRepo.exists(DATASET_NAME, "main")).thenReturn(true);
+    DatasetGraphInMemory materializedGraph = new DatasetGraphInMemory();
+    when(materializedBranchRepo.getBranchGraph(DATASET_NAME, "main"))
+        .thenReturn(materializedGraph);
+
+    // When: User prepares for write operation
+    DatasetRef ref = DatasetRef.forBranch(DATASET_NAME, "main");
+    Dataset dataset = service.getMutableDataset(ref);
+
+    // Then: Should use materialized graph for fast baseline
+    assertThat(dataset).isNotNull();
+    verify(materializedBranchRepo).exists(DATASET_NAME, "main");
+    verify(materializedBranchRepo).getBranchGraph(DATASET_NAME, "main");
   }
 }

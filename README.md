@@ -61,6 +61,7 @@ This server implements:
 - ✅ **Branch Deletion** - Delete branches with protection for main branch
 - ✅ **Robust Error Handling** - Kafka errors mapped to RFC 7807 with retry logic
 - ✅ **Monitoring & Metrics** - Dataset and Kafka metrics via Micrometer
+- ✅ **Health Monitoring** - Kafka topic health checks and manual healing endpoints
 - ✅ **Confirmation Requirements** - Safeguards against accidental deletion
 - ✅ **Audit Trail** - All operations recorded as events in Kafka
 

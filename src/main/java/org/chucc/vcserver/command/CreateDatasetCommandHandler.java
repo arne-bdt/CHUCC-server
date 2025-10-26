@@ -111,8 +111,8 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
 
     boolean topicCreated = false;
     try {
-      // 2. Create Kafka topic
-      createKafkaTopic(dataset);
+      // 2. Create Kafka topic with per-dataset config
+      createKafkaTopic(dataset, command.kafkaConfig());
       topicCreated = true;
 
       // 3. Create initial empty commit
@@ -204,6 +204,7 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
    * Creates the Kafka topic for the dataset with retry logic for transient failures.
    *
    * @param dataset the dataset name
+   * @param customConfig optional custom Kafka configuration (null uses global defaults)
    * @throws KafkaUnavailableException if Kafka is unavailable (retried automatically)
    * @throws KafkaAuthorizationException if authorization fails (not retried)
    * @throws KafkaQuotaExceededException if quota is exceeded (not retried)
@@ -215,20 +216,36 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
       maxAttempts = 3,
       backoff = @Backoff(delay = 1000, multiplier = 2, maxDelay = 5000)
   )
-  private void createKafkaTopic(String dataset) {
+  private void createKafkaTopic(
+      String dataset,
+      org.chucc.vcserver.dto.CreateDatasetRequest.KafkaTopicConfig customConfig) {
     String topicName = kafkaProperties.getTopicName(dataset);
     Timer.Sample sample = Timer.start(meterRegistry);
 
+    // Determine effective configuration (custom or global defaults)
+    int partitions = customConfig != null && customConfig.partitions() != null
+        ? customConfig.partitions()
+        : kafkaProperties.getPartitions();
+
+    short replicationFactor = customConfig != null && customConfig.replicationFactor() != null
+        ? customConfig.replicationFactor()
+        : kafkaProperties.getReplicationFactor();
+
+    long retentionMs = customConfig != null && customConfig.retentionMs() != null
+        ? customConfig.retentionMs()
+        : kafkaProperties.getRetentionMs();
+
     try (AdminClient adminClient = AdminClient.create(kafkaAdmin.getConfigurationProperties())) {
-      logger.info("Creating Kafka topic: {}", topicName);
+      logger.info("Creating Kafka topic: {} (partitions={}, replication-factor={})",
+          topicName, partitions, replicationFactor);
 
       // Set topic configuration
       Map<String, String> config = new HashMap<>();
-      config.put("retention.ms", String.valueOf(kafkaProperties.getRetentionMs()));
+      config.put("retention.ms", String.valueOf(retentionMs));
       config.put("cleanup.policy", kafkaProperties.isCompaction() ? "compact" : "delete");
 
       // Production settings (only if RF > 1)
-      if (kafkaProperties.getReplicationFactor() > 1) {
+      if (replicationFactor > 1) {
         config.put("min.insync.replicas", "2");  // At least 2 replicas must ack
         config.put("unclean.leader.election.enable", "false");  // Prevent data loss
       }
@@ -240,15 +257,15 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
 
       NewTopic newTopic = new NewTopic(
           topicName,
-          kafkaProperties.getPartitions(),
-          kafkaProperties.getReplicationFactor()
+          partitions,
+          replicationFactor
       );
       newTopic.configs(config);
 
       adminClient.createTopics(Collections.singletonList(newTopic)).all().get();
 
       logger.info("Kafka topic created: {} (partitions={}, replication-factor={})",
-          topicName, kafkaProperties.getPartitions(), kafkaProperties.getReplicationFactor());
+          topicName, partitions, replicationFactor);
 
       // Record success metrics
       sample.stop(meterRegistry.timer("kafka.topic.creation.time"));
@@ -328,13 +345,17 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
    *
    * @param e the exception that caused retries to fail
    * @param dataset the dataset name
+   * @param customConfig the custom Kafka configuration (unused in recovery)
    */
   @Recover
   @SuppressFBWarnings(
       value = "UPM_UNCALLED_PRIVATE_METHOD",
       justification = "Called by Spring Retry framework via @Recover annotation")
   @SuppressWarnings("PMD.UnusedPrivateMethod") // Called by Spring Retry framework
-  private void recoverFromTopicCreationFailure(TimeoutException e, String dataset) {
+  private void recoverFromTopicCreationFailure(
+      TimeoutException e,
+      String dataset,
+      org.chucc.vcserver.dto.CreateDatasetRequest.KafkaTopicConfig customConfig) {
     String topicName = kafkaProperties.getTopicName(dataset);
     logger.error("Failed to create topic after 3 retry attempts: {}", topicName, e);
     throw new KafkaUnavailableException(

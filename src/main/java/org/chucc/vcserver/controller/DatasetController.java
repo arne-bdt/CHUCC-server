@@ -127,7 +127,8 @@ public class DatasetController {
         name,
         request != null ? Optional.ofNullable(request.description()) : Optional.empty(),
         actualAuthor,
-        request != null ? Optional.ofNullable(request.initialGraph()) : Optional.empty()
+        request != null ? Optional.ofNullable(request.initialGraph()) : Optional.empty(),
+        request != null ? request.kafka() : null
     );
 
     // Execute command (synchronous handling with async event publishing)

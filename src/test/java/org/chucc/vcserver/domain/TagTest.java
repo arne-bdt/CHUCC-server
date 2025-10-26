@@ -1,5 +1,6 @@
 package org.chucc.vcserver.domain;
 
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -96,10 +97,11 @@ class TagTest {
 
   @Test
   void testEquality() {
-    Tag tag1 = new Tag("v1.0.0", COMMIT_ID_1);
-    Tag tag2 = new Tag("v1.0.0", COMMIT_ID_1);
-    Tag tag3 = new Tag("v2.0.0", COMMIT_ID_1);
-    Tag tag4 = new Tag("v1.0.0", COMMIT_ID_2);
+    Instant now = Instant.now();
+    Tag tag1 = new Tag("v1.0.0", COMMIT_ID_1, null, null, now);
+    Tag tag2 = new Tag("v1.0.0", COMMIT_ID_1, null, null, now);
+    Tag tag3 = new Tag("v2.0.0", COMMIT_ID_1, null, null, now);
+    Tag tag4 = new Tag("v1.0.0", COMMIT_ID_2, null, null, now);
 
     assertEquals(tag1, tag2);
     assertNotEquals(tag1, tag3); // Different name
@@ -108,9 +110,10 @@ class TagTest {
 
   @Test
   void testHashCode() {
-    Tag tag1 = new Tag("v1.0.0", COMMIT_ID_1);
-    Tag tag2 = new Tag("v1.0.0", COMMIT_ID_1);
-    Tag tag3 = new Tag("v2.0.0", COMMIT_ID_1);
+    Instant now = Instant.now();
+    Tag tag1 = new Tag("v1.0.0", COMMIT_ID_1, null, null, now);
+    Tag tag2 = new Tag("v1.0.0", COMMIT_ID_1, null, null, now);
+    Tag tag3 = new Tag("v2.0.0", COMMIT_ID_1, null, null, now);
 
     assertEquals(tag1.hashCode(), tag2.hashCode());
     assertNotEquals(tag1.hashCode(), tag3.hashCode());

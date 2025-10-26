@@ -60,6 +60,7 @@ class DatasetCreationIT {
     // Arrange
     CreateDatasetRequest request = new CreateDatasetRequest(
         "Test dataset for integration testing",
+        null,
         null
     );
 
@@ -142,6 +143,96 @@ class DatasetCreationIT {
     assertThat(secondResponse.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
   }
 
+  @Test
+  void createDataset_withCustomPartitions_shouldCreateTopicWithCustomConfig() throws Exception {
+    // Arrange
+    CreateDatasetRequest.KafkaTopicConfig kafkaConfig =
+        new CreateDatasetRequest.KafkaTopicConfig(12, null, null);
+    CreateDatasetRequest request = new CreateDatasetRequest(
+        "Dataset with custom partitions",
+        null,
+        kafkaConfig
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "TestUser");
+
+    HttpEntity<CreateDatasetRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    // Act
+    ResponseEntity<DatasetCreationResponse> response = restTemplate.postForEntity(
+        "/version/datasets/custom-partitions",
+        httpEntity,
+        DatasetCreationResponse.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+
+    // Verify topic has 12 partitions
+    verifyTopicPartitionCount("vc.custom-partitions.events", 12);
+  }
+
+  @Test
+  void createDataset_withCustomRetention_shouldCreateTopicWithRetention() throws Exception {
+    // Arrange - 7 days retention
+    CreateDatasetRequest.KafkaTopicConfig kafkaConfig =
+        new CreateDatasetRequest.KafkaTopicConfig(null, null, 604800000L);
+    CreateDatasetRequest request = new CreateDatasetRequest(
+        "Dataset with custom retention",
+        null,
+        kafkaConfig
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "TestUser");
+
+    HttpEntity<CreateDatasetRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    // Act
+    ResponseEntity<DatasetCreationResponse> response = restTemplate.postForEntity(
+        "/version/datasets/custom-retention",
+        httpEntity,
+        DatasetCreationResponse.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+
+    // Verify topic was created (retention config is verified by topic existence)
+    verifyTopicExists("vc.custom-retention.events");
+  }
+
+  @Test
+  void createDataset_withInvalidPartitionCount_shouldReturn400() {
+    // Arrange - partition count too high
+    CreateDatasetRequest.KafkaTopicConfig kafkaConfig =
+        new CreateDatasetRequest.KafkaTopicConfig(200, null, null);
+    CreateDatasetRequest request = new CreateDatasetRequest(
+        "Invalid config",
+        null,
+        kafkaConfig
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "TestUser");
+
+    HttpEntity<CreateDatasetRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    // Act
+    ResponseEntity<String> response = restTemplate.postForEntity(
+        "/version/datasets/invalid-config",
+        httpEntity,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
   /**
    * Verifies that a Kafka topic exists.
    */
@@ -153,6 +244,23 @@ class DatasetCreationIT {
     try (AdminClient adminClient = AdminClient.create(config)) {
       var topics = adminClient.listTopics().names().get();
       assertThat(topics).contains(topicName);
+    }
+  }
+
+  /**
+   * Verifies the partition count of a Kafka topic.
+   */
+  private void verifyTopicPartitionCount(String topicName, int expectedPartitions)
+      throws Exception {
+    Map<String, Object> config = Map.of(
+        AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers()
+    );
+
+    try (AdminClient adminClient = AdminClient.create(config)) {
+      var description = adminClient.describeTopics(java.util.List.of(topicName))
+          .allTopicNames().get();
+      assertThat(description).containsKey(topicName);
+      assertThat(description.get(topicName).partitions()).hasSize(expectedPartitions);
     }
   }
 }

@@ -21,6 +21,7 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
 │  │  SparqlController      CommitController  AdvancedOpsController   ││
 │  │  BatchController       MergeController   HistoryController       ││
 │  │  RefsController        BatchGraphsController                     ││
+│  │  DatasetController     KafkaHealthController                     ││
 │  │                                                                  ││
 │  └────────────────────────┬─────────────────────────────────────────┘│
 │                           │ HTTP Requests                            │
@@ -192,6 +193,20 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
 11. **RefsController**
     - Endpoints: GET /version/refs
     - List all references (branches + tags)
+
+12. **DatasetController**
+    - Endpoints: POST /version/datasets, DELETE /version/datasets/{dataset}
+    - Dataset lifecycle management
+    - Automatic Kafka topic provisioning
+    - Dataset deletion with confirmation requirements
+
+13. **KafkaHealthController**
+    - Endpoints: GET /actuator/kafka/health-detailed,
+                 GET /actuator/kafka/topics/{dataset}/health,
+                 POST /actuator/kafka/topics/{dataset}/heal
+    - Kafka topic health monitoring
+    - Manual topic healing/recreation
+    - Operational diagnostics
 
 **Responsibilities**:
 - Validate HTTP requests
@@ -1146,7 +1161,7 @@ Each component has ONE reason to change:
 - Controllers → Repositories → HTTP Response (fast, in-memory)
 
 **Key Components**:
-- 12 Controllers (HTTP endpoints)
+- 13 Controllers (HTTP endpoints)
 - 17 Command Handlers (write operations)
 - 16 Services (business logic)
 - 3 Repositories + 1 Graph Repository (read model)

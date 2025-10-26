@@ -102,4 +102,13 @@ public class BranchRepository {
   public void deleteAllByDataset(String datasetName) {
     datasetBranches.remove(datasetName);
   }
+
+  /**
+   * Gets all dataset names that have at least one branch.
+   *
+   * @return list of dataset names
+   */
+  public List<String> findAllDatasetNames() {
+    return List.copyOf(datasetBranches.keySet());
+  }
 }

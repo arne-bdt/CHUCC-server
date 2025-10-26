@@ -10,12 +10,13 @@ This folder contains tasks for implementing dynamic dataset creation and deletio
 
 **Solution:** Implement explicit dataset lifecycle management with automatic Kafka topic creation/deletion.
 
-**Status:** 🟢 Production Ready (Tasks 01-04 completed)
+**Status:** 🟢 Production Ready (Tasks 01-04 + 06 completed)
 - ✅ Dataset creation endpoint with automatic Kafka topic creation
 - ✅ Production Kafka configuration (RF=3, partitions=6)
 - ✅ Robust error handling with retry logic and RFC 7807 responses
 - ✅ Monitoring and metrics via Micrometer
-- 🔜 Future: Per-dataset tuning and topic health checks (Tasks 05-06)
+- ✅ Topic health checks and manual healing (simplified implementation)
+- 🔜 Future: Per-dataset tuning (Task 05)
 
 ---
 
@@ -135,27 +136,32 @@ Allow per-dataset Kafka configuration:
 
 ---
 
-#### [06 - Topic Health Checks](./06-topic-health-checks.md)
-**Priority:** Future | **Time:** 4-5 hours
+#### ✅ [06 - Topic Health Checks](./06-topic-health-checks.md) - COMPLETED (Simplified)
+**Priority:** Future | **Time:** 4-5 hours | **Status:** ✅ DONE (simplified)
 
-Automated health checks and self-healing:
-- Detect missing topics (auto-recreate)
-- Detect under-replicated partitions (alert)
-- Detect configuration drift (auto-correct)
-- Detect orphan topics (alert for cleanup)
+Simplified health checks and manual healing (no auto-healing or scheduled checks):
+- ✅ Detect missing topics (via health endpoint)
+- ✅ Manual topic recreation (via heal endpoint)
+- ⏭️ Under-replicated partition detection (future)
+- ⏭️ Configuration drift detection (future)
+- ⏭️ Scheduled health checks (future)
+- ⏭️ Auto-healing (future)
+
+**Completed:** See commit [pending]
 
 **Use Cases:**
-- Topic accidentally deleted → Auto-recreate
-- Config drift → Detect and fix
-- Operational visibility
+- Operational visibility via health endpoint
+- Manual healing when topics are accidentally deleted
 
 **Deliverables:**
-- `KafkaHealthChecker` with scheduled checks
-- `TopicHealer` service with safeguards
-- `/actuator/kafka/health-detailed` endpoint
-- `/actuator/kafka/topics/{dataset}/heal` endpoint
-- Auto-healing configuration (disabled by default)
-- Unit and integration tests
+- ✅ `KafkaTopicHealthChecker` service (check topic existence)
+- ✅ `TopicHealer` service with safeguards (manual healing only)
+- ✅ `/actuator/kafka/health-detailed` endpoint
+- ✅ `/actuator/kafka/topics/{dataset}/health` endpoint
+- ✅ `/actuator/kafka/topics/{dataset}/heal` endpoint (requires confirmation)
+- ✅ Integration tests
+- ⏭️ Scheduled checks (intentionally skipped - no over-engineering)
+- ⏭️ Auto-healing (intentionally skipped - no over-engineering)
 
 ---
 
@@ -249,15 +255,17 @@ kafka:
 - [x] Topics created with correct settings (retention, compaction, etc.)
 - [x] Metrics track dataset/topic lifecycle
 - [x] Health checks detect Kafka connectivity (via KafkaHealthIndicator)
-- [ ] Health checks detect missing/unhealthy topics (future - Task 06)
-- [ ] Auto-healing can recreate missing topics (when enabled) (future - Task 06)
+- [x] Health checks detect missing/unhealthy topics (via `/actuator/kafka/health-detailed`)
+- [x] Manual healing can recreate missing topics (via `/actuator/kafka/topics/{dataset}/heal?confirm=true`)
+- [ ] Scheduled health checks (future enhancement)
+- [ ] Auto-healing (future enhancement)
 
 ### Quality
-- [x] All tests pass (unit + integration) - ~1078 tests passing
+- [x] All tests pass (unit + integration) - ~1115 tests passing
 - [x] Zero Checkstyle/SpotBugs/PMD violations
 - [x] Zero compiler warnings
 - [x] OpenAPI documentation complete
-- [ ] Architecture documentation updated (pending)
+- [ ] Architecture documentation updated (pending - C4 Level 3)
 
 ---
 

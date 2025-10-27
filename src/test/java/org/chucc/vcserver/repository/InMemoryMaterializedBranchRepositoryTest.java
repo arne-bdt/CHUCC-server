@@ -3,6 +3,7 @@ package org.chucc.vcserver.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
@@ -36,7 +37,8 @@ class InMemoryMaterializedBranchRepositoryTest {
    */
   @BeforeEach
   void setUp() {
-    repository = new InMemoryMaterializedBranchRepository();
+    repository = new InMemoryMaterializedBranchRepository(new SimpleMeterRegistry());
+    repository.initializeMetrics();
   }
 
   @Test

@@ -1,7 +1,12 @@
 package org.chucc.vcserver.repository;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.jena.graph.Graph;
@@ -42,6 +47,38 @@ public class InMemoryMaterializedBranchRepository implements MaterializedBranchR
   // Key: "dataset:branch" → Value: Lock
   private final ConcurrentHashMap<String, Lock> branchLocks = new ConcurrentHashMap<>();
 
+  private final MeterRegistry meterRegistry;
+
+  /**
+   * Constructs the repository.
+   *
+   * @param meterRegistry the meter registry for metrics
+   */
+  @SuppressFBWarnings(
+      value = "EI_EXPOSE_REP2",
+      justification = "MeterRegistry is a Spring-managed bean and is intentionally shared")
+  public InMemoryMaterializedBranchRepository(MeterRegistry meterRegistry) {
+    this.meterRegistry = meterRegistry;
+  }
+
+  /**
+   * Initialize metrics after construction.
+   *
+   * <p>This is called after the constructor to avoid 'this' escape warnings.
+   */
+  @PostConstruct
+  public void initializeMetrics() {
+    // Register gauges for monitoring
+    Gauge.builder("chucc.materialized_views.count", branchGraphs, ConcurrentHashMap::size)
+        .description("Number of materialized branch graphs")
+        .register(meterRegistry);
+
+    Gauge.builder("chucc.materialized_views.memory_bytes", this,
+            repo -> repo.estimateMemoryUsage())
+        .description("Estimated memory usage of materialized graphs in bytes")
+        .register(meterRegistry);
+  }
+
   @Override
   public DatasetGraph getBranchGraph(String dataset, String branch) {
     String key = toKey(dataset, branch);
@@ -63,8 +100,22 @@ public class InMemoryMaterializedBranchRepository implements MaterializedBranchR
       // Apply patch directly without transaction management
       // We use locks for concurrency control instead of transactions
       applyPatchDirect(graph, patch);
+
+      // Record success metric
+      meterRegistry.counter("chucc.materialized_views.patch_applied.total",
+          "dataset", dataset,
+          "branch", branch,
+          "status", "success"
+      ).increment();
+
       logger.debug("Applied patch to materialized graph {}/{}", dataset, branch);
     } catch (Exception e) {
+      // Record error metric
+      meterRegistry.counter("chucc.materialized_views.patch_applied.errors",
+          "dataset", dataset,
+          "branch", branch
+      ).increment();
+
       String errorMsg = String.format(
           "Failed to apply patch to materialized graph %s/%s", dataset, branch);
       logger.error(errorMsg, e);
@@ -213,5 +264,37 @@ public class InMemoryMaterializedBranchRepository implements MaterializedBranchR
    */
   private String toKey(String dataset, String branch) {
     return dataset + ":" + branch;
+  }
+
+  /**
+   * Estimate total memory usage of all materialized graphs.
+   *
+   * <p>This is a rough estimate based on Jena's in-memory storage.
+   * Assumes ~200 bytes per triple (conservative estimate including overhead).
+   *
+   * @return estimated memory usage in bytes
+   */
+  private long estimateMemoryUsage() {
+    final int bytesPerTriple = 200;  // Conservative estimate
+    AtomicLong totalTriples = new AtomicLong(0);
+
+    for (DatasetGraph graph : branchGraphs.values()) {
+      try {
+        // Count triples in all named graphs
+        graph.listGraphNodes().forEachRemaining(graphName -> {
+          Graph g = graph.getGraph(graphName);
+          totalTriples.addAndGet(g.size());
+        });
+
+        // Count default graph triples
+        totalTriples.addAndGet(graph.getDefaultGraph().size());
+      } catch (Exception e) {
+        // If we can't read the graph, skip it (may be in use)
+        logger.debug("Could not estimate size for graph during metrics collection", e);
+      }
+    }
+
+    // Estimate memory usage
+    return totalTriples.get() * bytesPerTriple;
   }
 }

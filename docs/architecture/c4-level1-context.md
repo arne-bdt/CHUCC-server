@@ -134,7 +134,7 @@ Distributed event streaming platform that serves dual roles:
 - **Compression**: GZIP for efficiency
 - **Idempotence**: Enabled for exactly-once semantics
 
-**Event Types Stored** (12 event types):
+**Event Types Stored** (13 event types):
 1. `CommitCreatedEvent` - New commit with RDF patch
 2. `BranchCreatedEvent` - New branch created
 3. `BranchDeletedEvent` - Branch deleted
@@ -145,8 +145,9 @@ Distributed event streaming platform that serves dual roles:
 8. `CommitsSquashedEvent` - Multiple commits combined
 9. `RevertCreatedEvent` - Commit reverted
 10. `SnapshotCreatedEvent` - Dataset snapshot created
-11. `DatasetDeletedEvent` - Dataset and all data deleted
-12. `BatchGraphsCompletedEvent` - Batch graph operations completed
+11. `DatasetCreatedEvent` - Dataset created with Kafka topic
+12. `DatasetDeletedEvent` - Dataset and all data deleted
+13. `BatchGraphsCompletedEvent` - Batch graph operations completed
 
 **Why Kafka?**:
 - **Durability**: Events survive server restarts

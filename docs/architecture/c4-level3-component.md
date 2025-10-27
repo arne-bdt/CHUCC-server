@@ -22,6 +22,7 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
 │  │  BatchController       MergeController   HistoryController       ││
 │  │  RefsController        BatchGraphsController                     ││
 │  │  DatasetController     KafkaHealthController                     ││
+│  │  MaterializedViewsController                                     ││
 │  │                                                                  ││
 │  └────────────────────────┬─────────────────────────────────────────┘│
 │                           │ HTTP Requests                            │
@@ -49,7 +50,7 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
 │  │  │  GraphSerializationService PreconditionService           │    ││
 │  │  │  RefService                SnapshotService               │    ││
 │  │  │  BranchService             TagService                    │    ││
-│  │  │  DatasetService                                          │    ││
+│  │  │  DatasetService            MaterializedViewRebuildService│    ││
 │  │  └────────────────────┬─────────────────────────────────────┘    ││
 │  │                       │ Creates                                  ││
 │  │                       ▼                                          ││
@@ -1178,12 +1179,12 @@ Each component has ONE reason to change:
 - Controllers → Repositories → HTTP Response (fast, in-memory)
 
 **Key Components**:
-- 13 Controllers (HTTP endpoints)
+- 14 Controllers (HTTP endpoints, including administrative/monitoring endpoints)
 - 18 Command Handlers (write operations)
-- 16 Services (business logic)
+- 17 Services (business logic, including recovery services)
 - 5 Repositories (read model: commits, branches, tags, historical graphs, materialized branch HEADs)
-- 1 Projector with 14 event handlers (async updates)
-- 14 Event types (domain events)
+- 1 Projector with 13 event handlers (async updates)
+- 13 Event types (domain events)
 
 **Key Patterns**:
 - Command Handler pattern (write model)

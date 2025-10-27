@@ -8,7 +8,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Previously:** All original tasks were completed and removed (October 24, 2025)
 
-**Now:** 8 tasks remain (3 protocol endpoints + 1 technical debt + 4 architecture enhancements)
+**Now:** 11 tasks remain (3 protocol endpoints + 1 technical debt + 2 production hardening + 1 performance optimization + 4 architecture enhancements completed)
 
 **Recent Completions:**
 - patchSize Schema Evolution (2025-01-24) - CQRS Compliant ✅
@@ -62,10 +62,11 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
    - Configuration properties for materialized views
 
 **Technical Debt Identified (from agent reviews):**
-- Exception handling in projector needs improvement (rethrow vs swallow)
+- ~~Exception handling in projector needs improvement (rethrow vs swallow)~~ → **Task 06** created
 - Idempotency check needed for branch creation
 - Transaction management documentation needed
 - ✅ MaterializedViewRebuildIT test refactored (extended ITFixture, removed duplicate setup) - COMPLETED 2025-10-27
+- ~~LRU eviction needed for memory management~~ → **Task 05** created
 
 **Benefits:**
 - ✅ **10-20x faster** branch HEAD queries (<10ms vs 100-200ms)
@@ -78,6 +79,20 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 - Projector applies patches to materialized graphs (read model updates)
 - DatasetService returns materialized graphs (query side)
 - Events remain source of truth in CommitRepository
+
+**Follow-Up Tasks (Production Hardening):**
+5. [Task 05: Add LRU Eviction for Memory Management](./materialized-views/05-add-lru-eviction-for-memory-management.md) (4-5 hours) - **HIGH PRIORITY**
+   - Replace unbounded ConcurrentHashMap with Caffeine LRU cache
+   - Configurable max-branches limit (default: 25)
+   - On-demand rebuild for evicted graphs
+   - Cache metrics (hits, misses, evictions)
+   - **Impact:** Prevents OutOfMemoryError in large deployments
+
+6. [Task 06: Implement Fail-Fast Projection Errors](./materialized-views/06-implement-fail-fast-projection-errors.md) (2-3 hours) - **HIGH PRIORITY**
+   - Re-throw exceptions on patch application failures
+   - Kafka retry with exponential backoff
+   - Dead Letter Queue (DLQ) for failed events
+   - **Impact:** Ensures data consistency (no silent corruption)
 
 ---
 
@@ -162,6 +177,56 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
+### 🟢 Medium Priority (Performance Optimization)
+
+#### 5. Parallel Event Replay
+**File:** [`.tasks/performance/01-implement-parallel-event-replay.md`](./performance/01-implement-parallel-event-replay.md)
+
+**Goal:** Reduce startup time by processing events in parallel using Kafka partitioning.
+
+**Status:** Not Started
+**Estimated Time:** 6-8 hours
+**Category:** Performance & Scalability
+**Complexity:** High
+
+**Problem:**
+- Current: Single consumer processes ALL events sequentially
+- Result: 10,000 events = 10 seconds startup (1ms/event)
+- Bottleneck: Only one CPU core utilized
+
+**Solution:**
+- Partition topics by dataset (dataset = partition key)
+- Multiple consumer instances (one per partition)
+- Events for different datasets processed in parallel
+- Startup time reduced by factor of N (partition count)
+
+**Benefits:**
+- ✅ **10x faster startup** (with 10 partitions)
+- ✅ Better CPU utilization (all cores used)
+- ✅ Horizontal scalability
+- ✅ Dataset isolation
+
+**Trade-offs:**
+- ⚠️ Increased complexity (partition management)
+- ⚠️ No cross-dataset ordering guarantees
+- ⚠️ Cross-dataset operations become more complex
+
+**When to Implement:**
+- Large deployments (>100 datasets)
+- Startup time critical (high availability requirements)
+- Multiple CPU cores available
+
+**Configuration:**
+```yaml
+chucc:
+  kafka:
+    partitions: 6  # Default
+    consumer:
+      concurrency: 6  # Match partition count
+```
+
+---
+
 ### 🟠 Critical (Infrastructure)
 
 #### 5. ✅ Dataset Management with Kafka Topic Integration - COMPLETED
@@ -204,20 +269,26 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Progress Summary
 
-**Architecture Enhancements:** 4 tasks (Materialized Views - 13-17 hours)
+**Architecture Enhancements:** 4 tasks completed (Materialized Views - 13-17 hours) ✅
+**Production Hardening:** 2 tasks (LRU Eviction, Fail-Fast - 6-8 hours) - **HIGH PRIORITY**
+**Performance Optimization:** 1 task (Parallel Replay - 6-8 hours) - **MEDIUM PRIORITY**
 **Feature Tasks:** 3 tasks (3 endpoint implementations - 13-16 hours)
-**Schema Evolution:** 0 tasks (all completed)
+**Schema Evolution:** 0 tasks (all completed) ✅
 **Architecture/Technical Debt:** 1 task (optional improvement - 8-12 hours)
-**Infrastructure/Operations:** 0 tasks (all completed ✅)
+**Infrastructure/Operations:** 0 tasks (all completed) ✅
 
 **Total Endpoints Remaining:** 6 endpoints to implement
 **Total Estimated Time:**
-- Materialized Views: 13-17 hours (new)
+- ✅ Materialized Views: 13-17 hours (completed)
+- 🔴 Production Hardening: 6-8 hours (high priority)
+- 🟢 Performance: 6-8 hours (medium priority)
 - Protocol Endpoints: 13-16 hours
 - Technical Debt: 8-12 hours (optional)
 
 **Priority Breakdown:**
-- 🟠 Architecture Enhancement: 4 tasks (Materialized Views)
+- ✅ Architecture Enhancement: 4 tasks (Materialized Views) - COMPLETED
+- 🔴 Production Hardening: 2 tasks (Memory, Consistency) - **CRITICAL**
+- 🟢 Performance: 1 task (Parallel Replay)
 - 🔴 High Priority: 1 task (Merge)
 - 🟡 Medium Priority: 2 tasks (History/Diff, Batch)
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)

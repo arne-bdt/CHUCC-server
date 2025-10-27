@@ -50,7 +50,6 @@ public class DatasetService {
   private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
   private final SnapshotService snapshotService;
-  private final CacheProperties cacheProperties;
   private final MaterializedBranchRepository materializedBranchRepo;
 
   // Caffeine LRU cache for historical commit graphs
@@ -85,7 +84,6 @@ public class DatasetService {
     this.branchRepository = branchRepository;
     this.commitRepository = commitRepository;
     this.snapshotService = snapshotService;
-    this.cacheProperties = cacheProperties;
     this.materializedBranchRepo = materializedBranchRepo;
 
     // Build Caffeine cache with LRU eviction

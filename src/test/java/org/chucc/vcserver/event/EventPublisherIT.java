@@ -138,7 +138,7 @@ class EventPublisherIT {
         "Test commit message",
         "Alice <alice@example.com>",
         Instant.now(),
-        "H 1 .\nA <urn:s> <urn:p> <urn:o> .\n",
+        "H 1 .\nA <http://example.org/s> <http://example.org/p> <http://example.org/o> .\n",
         1
     );
 

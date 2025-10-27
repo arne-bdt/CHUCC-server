@@ -1,12 +1,9 @@
 package org.chucc.vcserver.service;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import java.time.Instant;
-import java.util.Optional;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
-import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
 import org.chucc.vcserver.config.CacheProperties;
 import org.chucc.vcserver.config.VersionControlProperties;
@@ -239,7 +236,7 @@ class DatasetServiceTest {
   @Test
   void getDataset_forBranchRef_shouldUseMaterializedGraph() {
     // Given: User perspective - branch HEAD queries should be instant
-    Branch mainBranch = service.createDataset(DATASET_NAME, AUTHOR);
+    service.createDataset(DATASET_NAME, AUTHOR);
 
     // Mock: Materialized graph is available
     when(materializedBranchRepo.exists(DATASET_NAME, "main")).thenReturn(true);
@@ -264,7 +261,7 @@ class DatasetServiceTest {
   @Test
   void getDataset_forBranchRef_shouldFallbackWhenMaterializedGraphUnavailable() {
     // Given: User perspective - graceful degradation
-    Branch mainBranch = service.createDataset(DATASET_NAME, AUTHOR);
+    service.createDataset(DATASET_NAME, AUTHOR);
 
     // Mock: Materialized graph NOT available (maybe projector hasn't processed yet)
     when(materializedBranchRepo.exists(DATASET_NAME, "main")).thenReturn(false);
@@ -305,7 +302,7 @@ class DatasetServiceTest {
   @Test
   void getMutableDataset_forBranchRef_shouldUseMaterializedGraph() {
     // Given: User perspective - write operations also benefit from fast lookups
-    Branch mainBranch = service.createDataset(DATASET_NAME, AUTHOR);
+    service.createDataset(DATASET_NAME, AUTHOR);
 
     // Mock: Materialized graph is available
     when(materializedBranchRepo.exists(DATASET_NAME, "main")).thenReturn(true);

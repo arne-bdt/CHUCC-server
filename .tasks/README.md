@@ -65,7 +65,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 - Exception handling in projector needs improvement (rethrow vs swallow)
 - Idempotency check needed for branch creation
 - Transaction management documentation needed
-- MaterializedViewRebuildIT test needs refactoring (extend ITFixture, remove duplicate setup)
+- ✅ MaterializedViewRebuildIT test refactored (extended ITFixture, removed duplicate setup) - COMPLETED 2025-10-27
 
 **Benefits:**
 - ✅ **10-20x faster** branch HEAD queries (<10ms vs 100-200ms)

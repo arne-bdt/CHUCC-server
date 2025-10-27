@@ -16,9 +16,7 @@ import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.event.EventPublisher;
-import org.chucc.vcserver.repository.BranchRepository;
-import org.chucc.vcserver.repository.CommitRepository;
-import org.chucc.vcserver.testutil.KafkaTestContainers;
+import org.chucc.vcserver.testutil.ITFixture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,12 +25,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.kafka.KafkaContainer;
 
 /**
  * Integration tests for materialized view rebuild functionality.
@@ -43,20 +36,10 @@ import org.testcontainers.kafka.KafkaContainer;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
-@Testcontainers
 @TestPropertySource(properties = "projector.kafka-listener.enabled=true")
-class MaterializedViewRebuildIT {
+class MaterializedViewRebuildIT extends ITFixture {
 
-  private static final String DEFAULT_DATASET = "rebuild-test-dataset";
-
-  @Container
-  private static KafkaContainer kafka = KafkaTestContainers.createKafkaContainerNoReuse();
-
-  @DynamicPropertySource
-  static void kafkaProperties(DynamicPropertyRegistry registry) {
-    registry.add("kafka.bootstrap-servers", kafka::getBootstrapServers);
-    registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
-  }
+  private static final String REBUILD_DATASET = "rebuild-test-dataset";
 
   @Autowired
   private TestRestTemplate restTemplate;
@@ -65,51 +48,21 @@ class MaterializedViewRebuildIT {
   private EventPublisher eventPublisher;
 
   @Autowired
-  private BranchRepository branchRepository;
-
-  @Autowired
-  private CommitRepository commitRepository;
-
-  @Autowired
   private KafkaProperties kafkaProperties;
 
-  private CommitId initialCommitId;
+  @Override
+  protected String getDatasetName() {
+    return REBUILD_DATASET;
+  }
 
   /**
-   * Set up test environment with Kafka topic and initial branch.
+   * Set up test environment with Kafka topic.
+   * Repository cleanup and initial commit creation are handled by ITFixture.
    */
   @BeforeEach
   void setUp() throws Exception {
-    // Clean up repositories
-    branchRepository.deleteAllByDataset(DEFAULT_DATASET);
-    commitRepository.deleteAllByDataset(DEFAULT_DATASET);
-
     // Ensure Kafka topic exists
-    ensureTopicExists(DEFAULT_DATASET);
-
-    // Create initial commit and branch for testing
-    initialCommitId = CommitId.generate();
-    Branch mainBranch = new Branch("main", initialCommitId);
-    branchRepository.save(DEFAULT_DATASET, mainBranch);
-
-    // Save initial commit to repository (needed for rebuild)
-    // Note: In real system this would be done by projector, but we manually create it here
-    org.chucc.vcserver.domain.Commit initialCommit =
-        new org.chucc.vcserver.domain.Commit(
-            initialCommitId,
-            List.of(),  // No parents (root commit)
-            "Initial commit",
-            "test-author",
-            Instant.now(),
-            1
-        );
-    // Empty patch for initial commit
-    String initialPatchContent = "TX .\nTC .";
-    org.apache.jena.rdfpatch.RDFPatch initialPatch =
-        org.apache.jena.rdfpatch.RDFPatchOps.read(
-            new java.io.ByteArrayInputStream(initialPatchContent.getBytes(
-                java.nio.charset.StandardCharsets.UTF_8)));
-    commitRepository.save(DEFAULT_DATASET, initialCommit, initialPatch);
+    ensureTopicExists(REBUILD_DATASET);
   }
 
   /**
@@ -122,7 +75,7 @@ class MaterializedViewRebuildIT {
     String topicName = kafkaProperties.getTopicName(dataset);
 
     Map<String, Object> config = Map.of(
-        AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers()
+        AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers()
     );
 
     try (AdminClient adminClient = AdminClient.create(config)) {
@@ -166,7 +119,7 @@ class MaterializedViewRebuildIT {
         "/actuator/materialized-views/rebuild?dataset={dataset}&branch={branch}",
         null,
         String.class,
-        DEFAULT_DATASET, "main"
+        REBUILD_DATASET, "main"
     );
 
     // Then
@@ -190,7 +143,7 @@ class MaterializedViewRebuildIT {
       );
 
       CommitCreatedEvent event = new CommitCreatedEvent(
-          DEFAULT_DATASET,
+          REBUILD_DATASET,
           commitIds[i].value(),
           i == 0 ? List.of(initialCommitId.value()) : List.of(commitIds[i - 1].value()),
           "main",
@@ -205,14 +158,14 @@ class MaterializedViewRebuildIT {
 
       // Update branch to point to new commit
       Branch updatedBranch = new Branch("main", commitIds[i]);
-      branchRepository.save(DEFAULT_DATASET, updatedBranch);
+      branchRepository.save(REBUILD_DATASET, updatedBranch);
     }
 
     // Wait for all commits to be saved by projector
     final CommitId lastCommitId = commitIds[4];
     await().atMost(Duration.ofSeconds(15))
         .untilAsserted(() -> {
-          assertThat(commitRepository.findByDatasetAndId(DEFAULT_DATASET, lastCommitId))
+          assertThat(commitRepository.findByDatasetAndId(REBUILD_DATASET, lastCommitId))
               .isPresent();
         });
 
@@ -221,7 +174,7 @@ class MaterializedViewRebuildIT {
         "/actuator/materialized-views/rebuild?dataset={dataset}&branch={branch}&confirm=true",
         null,
         String.class,
-        DEFAULT_DATASET, "main"
+        REBUILD_DATASET, "main"
     );
 
     // Assert
@@ -247,9 +200,9 @@ class MaterializedViewRebuildIT {
         "nonexistent-dataset", "main"
     );
 
-    // Then - Should return error (either 404 or 500 depending on error handling)
-    assertThat(response.getStatusCode().is4xxClientError()
-        || response.getStatusCode().is5xxServerError()).isTrue();
+    // Then - Should return 404 Not Found
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(response.getBody()).contains("Dataset not found");
   }
 
   @Test
@@ -259,12 +212,12 @@ class MaterializedViewRebuildIT {
         "/actuator/materialized-views/rebuild?dataset={dataset}&branch={branch}&confirm=true",
         null,
         String.class,
-        DEFAULT_DATASET, "nonexistent-branch"
+        REBUILD_DATASET, "nonexistent-branch"
     );
 
-    // Then - Should return error
-    assertThat(response.getStatusCode().is4xxClientError()
-        || response.getStatusCode().is5xxServerError()).isTrue();
+    // Then - Should return 404 Not Found
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(response.getBody()).contains("Branch not found");
   }
 
   @Test
@@ -274,7 +227,7 @@ class MaterializedViewRebuildIT {
     String patchContent = "TX .\nA <http://example.org/s> <http://example.org/p> \"value\" .\nTC .";
 
     CommitCreatedEvent event = new CommitCreatedEvent(
-        DEFAULT_DATASET,
+        REBUILD_DATASET,
         commitId.value(),
         List.of(initialCommitId.value()),
         "main",
@@ -287,10 +240,12 @@ class MaterializedViewRebuildIT {
 
     eventPublisher.publish(event).get();
 
-    // Wait for projection
+    // Wait for projection - verify commit is saved
     await().atMost(Duration.ofSeconds(10))
-        .pollDelay(Duration.ofMillis(500))
-        .until(() -> true);
+        .untilAsserted(() -> {
+          assertThat(commitRepository.findByDatasetAndId(REBUILD_DATASET, commitId))
+              .isPresent();
+        });
 
     // When
     ResponseEntity<String> response = restTemplate.getForEntity(

@@ -8,12 +8,13 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Previously:** All original tasks were completed and removed (October 24, 2025)
 
-**Now:** 11 tasks remain (3 protocol endpoints + 1 technical debt + 2 production hardening + 1 performance optimization + 4 architecture enhancements completed)
+**Now:** 10 tasks remain (3 protocol endpoints + 1 technical debt + 1 production hardening + 1 performance optimization + 5 architecture enhancements completed)
 
 **Recent Completions:**
 - patchSize Schema Evolution (2025-01-24) - CQRS Compliant ✅
 - Branch Management API (2025-10-24)
 - Dataset Management + Kafka Integration (2025-10-26) ✅
+- LRU Eviction for Materialized Views (2025-10-27) ✅
 
 ---
 
@@ -26,10 +27,10 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Goal:** Move from on-demand graph materialization to eager materialization for instant query performance.
 
-**Status:** ✅ COMPLETED (All 4 tasks completed)
-**Estimated Time:** 13-17 hours (4 tasks)
+**Status:** ✅ COMPLETED (All 5 tasks completed)
+**Estimated Time:** 17-22 hours (5 tasks)
 **Category:** Architecture Enhancement
-**Completion:** 100% (4/4 tasks completed)
+**Completion:** 100% (5/5 tasks completed)
 
 **Tasks:**
 1. ✅ [Task 01: Create MaterializedBranchRepository Infrastructure](./materialized-views/01-create-materialized-branch-repository.md) (3-4 hours) - COMPLETED 2025-10-26
@@ -81,12 +82,17 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 - Events remain source of truth in CommitRepository
 
 **Follow-Up Tasks (Production Hardening):**
-5. [Task 05: Add LRU Eviction for Memory Management](./materialized-views/05-add-lru-eviction-for-memory-management.md) (4-5 hours) - **HIGH PRIORITY**
-   - Replace unbounded ConcurrentHashMap with Caffeine LRU cache
-   - Configurable max-branches limit (default: 25)
-   - On-demand rebuild for evicted graphs
-   - Cache metrics (hits, misses, evictions)
+5. ✅ [Task 05: Add LRU Eviction for Memory Management](./materialized-views/05-add-lru-eviction-for-memory-management.md) (4-5 hours) - COMPLETED 2025-10-27
+   - ✅ Replaced ConcurrentHashMap with Caffeine LoadingCache with LRU eviction
+   - ✅ Configurable max-branches limit (default: 25, minimum: 1)
+   - ✅ On-demand rebuild for evicted graphs via MaterializedGraphBuilder utility
+   - ✅ CaffeineCacheMetrics integration for automatic metrics export
+   - ✅ Cache statistics logging via MaterializedViewsMonitor
+   - ✅ 3 integration tests (MaterializedViewEvictionIT, all passing)
    - **Impact:** Prevents OutOfMemoryError in large deployments
+   - **CQRS Agent Verification:** ✅ 100% compliant, APPROVED
+   - **Test Isolation:** ✅ Corrected to API layer test (projector disabled)
+   - **Code Quality:** 5x code reduction (LoadingCache vs manual handling)
 
 6. [Task 06: Implement Fail-Fast Projection Errors](./materialized-views/06-implement-fail-fast-projection-errors.md) (2-3 hours) - **HIGH PRIORITY**
    - Re-throw exceptions on patch application failures
@@ -269,8 +275,8 @@ chucc:
 
 ## Progress Summary
 
-**Architecture Enhancements:** 4 tasks completed (Materialized Views - 13-17 hours) ✅
-**Production Hardening:** 2 tasks (LRU Eviction, Fail-Fast - 6-8 hours) - **HIGH PRIORITY**
+**Architecture Enhancements:** 5 tasks completed (Materialized Views - 17-22 hours) ✅
+**Production Hardening:** 1 task (Fail-Fast - 2-3 hours) - **HIGH PRIORITY**
 **Performance Optimization:** 1 task (Parallel Replay - 6-8 hours) - **MEDIUM PRIORITY**
 **Feature Tasks:** 3 tasks (3 endpoint implementations - 13-16 hours)
 **Schema Evolution:** 0 tasks (all completed) ✅
@@ -279,15 +285,15 @@ chucc:
 
 **Total Endpoints Remaining:** 6 endpoints to implement
 **Total Estimated Time:**
-- ✅ Materialized Views: 13-17 hours (completed)
-- 🔴 Production Hardening: 6-8 hours (high priority)
+- ✅ Materialized Views: 17-22 hours (completed)
+- 🔴 Production Hardening: 2-3 hours (high priority, 1 task remaining)
 - 🟢 Performance: 6-8 hours (medium priority)
 - Protocol Endpoints: 13-16 hours
 - Technical Debt: 8-12 hours (optional)
 
 **Priority Breakdown:**
-- ✅ Architecture Enhancement: 4 tasks (Materialized Views) - COMPLETED
-- 🔴 Production Hardening: 2 tasks (Memory, Consistency) - **CRITICAL**
+- ✅ Architecture Enhancement: 5 tasks (Materialized Views) - COMPLETED
+- 🔴 Production Hardening: 1 task (Fail-Fast Errors) - **CRITICAL**
 - 🟢 Performance: 1 task (Parallel Replay)
 - 🔴 High Priority: 1 task (Merge)
 - 🟡 Medium Priority: 2 tasks (History/Diff, Batch)

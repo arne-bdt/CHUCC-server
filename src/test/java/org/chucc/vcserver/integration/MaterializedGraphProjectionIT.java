@@ -11,12 +11,15 @@ import java.util.Map;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.query.ReadWrite;
+import org.apache.jena.rdfpatch.RDFPatch;
+import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.chucc.vcserver.config.KafkaProperties;
 import org.chucc.vcserver.domain.Branch;
+import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.event.BranchCreatedEvent;
 import org.chucc.vcserver.event.BranchDeletedEvent;
@@ -97,6 +100,24 @@ class MaterializedGraphProjectionIT {
 
     // Create initial commit and branch for testing
     initialCommitId = CommitId.generate();
+
+    // Save initial commit to repository (required for cache rebuild)
+    // Empty patch for initial commit
+    String emptyPatch = "TX .\nTC .";
+    RDFPatch patch = RDFPatchOps.read(
+        new java.io.ByteArrayInputStream(emptyPatch.getBytes()));
+
+    Commit initialCommit = new Commit(
+        initialCommitId,
+        Collections.emptyList(),
+        "test-system",
+        "Initial commit",
+        Instant.now(),
+        0  // patchSize for empty patch
+    );
+    commitRepository.save(DEFAULT_DATASET, initialCommit, patch);
+
+    // Create and save main branch
     Branch mainBranch = new Branch("main", initialCommitId);
     branchRepository.save(DEFAULT_DATASET, mainBranch);
   }

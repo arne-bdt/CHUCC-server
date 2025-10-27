@@ -3,22 +3,15 @@ package org.chucc.vcserver.service;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import org.apache.jena.query.ReadWrite;
-import org.apache.jena.rdfpatch.RDFPatch;
-import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.sparql.core.DatasetGraph;
-import org.apache.jena.sparql.core.DatasetGraphFactory;
-import org.chucc.vcserver.domain.Branch;
-import org.chucc.vcserver.domain.Commit;
-import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.exception.BranchNotFoundException;
 import org.chucc.vcserver.exception.DatasetNotFoundException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.chucc.vcserver.repository.MaterializedBranchRepository;
+import org.chucc.vcserver.util.MaterializedGraphBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -103,8 +96,7 @@ public class MaterializedViewRebuildService {
    * <p>This operation:
    * <ol>
    *   <li>Validates dataset and branch exist</li>
-   *   <li>Creates new empty graph</li>
-   *   <li>Applies all patches from commit history in order</li>
+   *   <li>Uses MaterializedGraphBuilder to rebuild from commit history</li>
    *   <li>Replaces existing materialized graph atomically</li>
    * </ol>
    *
@@ -115,8 +107,8 @@ public class MaterializedViewRebuildService {
    * @throws BranchNotFoundException if branch doesn't exist
    */
   @SuppressFBWarnings(
-      value = {"REC_CATCH_EXCEPTION", "THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"},
-      justification = "Catch all exceptions to record metrics; RuntimeException wraps Jena errors")
+      value = "REC_CATCH_EXCEPTION",
+      justification = "Catch all exceptions to record metrics")
   public RebuildResult rebuildBranch(String dataset, String branch) {
     logger.info("Starting rebuild of materialized graph for {}/{}", dataset, branch);
 
@@ -128,42 +120,16 @@ public class MaterializedViewRebuildService {
         throw new DatasetNotFoundException("Dataset not found: " + dataset);
       }
 
-      // 2. Get branch and HEAD commit
-      Branch branchObj = branchRepository.findByDatasetAndName(dataset, branch)
-          .orElseThrow(() -> new BranchNotFoundException(branch));
-
-      CommitId headCommitId = branchObj.getCommitId();
-
-      // 3. Build commit chain from root to HEAD
-      List<Commit> commitChain = buildCommitChain(dataset, headCommitId);
-
-      logger.info("Rebuilding {} commits for {}/{}", commitChain.size(), dataset, branch);
-
-      // 4. Create new graph and apply all patches
-      DatasetGraph newGraph = DatasetGraphFactory.createTxnMem();
-
-      for (Commit commit : commitChain) {
-        Optional<RDFPatch> patchOpt = commitRepository.findPatchByDatasetAndId(
-            dataset, commit.id());
-
-        if (patchOpt.isEmpty()) {
-          String errorMsg = String.format(
-              "Missing patch for commit %s in dataset %s", commit.id(), dataset);
-          logger.error(errorMsg);
-          throw new IllegalStateException(errorMsg);
-        }
-
-        RDFPatch patch = patchOpt.get();
-
-        // RDFPatchOps.applyChange manages its own transactions
-        try {
-          RDFPatchOps.applyChange(newGraph, patch);
-        } catch (Exception e) {
-          throw new RuntimeException("Failed to apply patch for commit " + commit.id(), e);
-        }
+      // 2. Validate branch exists
+      if (!branchRepository.exists(dataset, branch)) {
+        throw new BranchNotFoundException(branch);
       }
 
-      // 5. Replace existing graph atomically
+      // 3. Use MaterializedGraphBuilder to rebuild from commit history
+      DatasetGraph newGraph = MaterializedGraphBuilder.rebuildFromCommitHistory(
+          commitRepository, branchRepository, dataset, branch);
+
+      // 4. Replace existing graph atomically
       // (In current implementation, we can't truly atomic replace, but we minimize the window)
       materializedBranchRepo.deleteBranch(dataset, branch);
       materializedBranchRepo.createBranch(dataset, branch, Optional.empty());
@@ -175,7 +141,7 @@ public class MaterializedViewRebuildService {
       // Close temporary graph
       newGraph.close();
 
-      // 6. Record metrics
+      // 5. Record metrics
       long durationMs = sample.stop(meterRegistry.timer("chucc.materialized_views.rebuild.duration",
           "dataset", dataset,
           "branch", branch,
@@ -188,10 +154,12 @@ public class MaterializedViewRebuildService {
           "status", "success"
       ).increment();
 
+      // Count commits for logging
+      final int commitCount = countCommitsInBranch(dataset, branch);
       logger.info("Successfully rebuilt materialized graph for {}/{} ({} commits)",
-          dataset, branch, commitChain.size());
+          dataset, branch, commitCount);
 
-      return new RebuildResult(commitChain.size(), durationMs);
+      return new RebuildResult(commitCount, durationMs);
 
     } catch (Exception e) {
       sample.stop(meterRegistry.timer("chucc.materialized_views.rebuild.duration",
@@ -212,32 +180,16 @@ public class MaterializedViewRebuildService {
   }
 
   /**
-   * Build commit chain from root to target commit.
-   *
-   * <p>Walks backward from the target commit to the root (commit with no parents),
-   * then reverses the list to get chronological order.
+   * Count commits in a branch for metrics.
    *
    * @param dataset the dataset name
-   * @param targetCommitId the target commit ID
-   * @return list of commits from root to target (in chronological order)
+   * @param branch the branch name
+   * @return number of commits in the branch
    */
-  private List<Commit> buildCommitChain(String dataset, CommitId targetCommitId) {
-    List<Commit> chain = new ArrayList<>();
-    CommitId currentId = targetCommitId;
-
-    // Walk backward from HEAD to root
-    while (currentId != null) {
-      final CommitId commitIdForLambda = currentId;
-      Commit commit = commitRepository.findByDatasetAndId(dataset, currentId)
-          .orElseThrow(() -> new IllegalStateException("Missing commit: " + commitIdForLambda));
-
-      chain.add(0, commit);  // Add at beginning (reverse order)
-
-      // Move to parent (assume single parent for now, multi-parent handled in merge)
-      currentId = commit.parents().isEmpty() ? null : commit.parents().get(0);
-    }
-
-    return chain;
+  private int countCommitsInBranch(String dataset, String branch) {
+    return branchRepository.findByDatasetAndName(dataset, branch)
+        .map(b -> b.getCommitCount())
+        .orElse(0);
   }
 
   /**

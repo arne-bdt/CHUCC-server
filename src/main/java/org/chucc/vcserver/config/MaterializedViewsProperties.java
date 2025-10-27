@@ -16,6 +16,8 @@ import org.springframework.context.annotation.Configuration;
  * chucc:
  *   materialized-views:
  *     enabled: true
+ *     max-branches: 25
+ *     cache-stats-enabled: true
  *     memory-warning-threshold-mb: 1000
  *     periodic-logging-enabled: true
  * </pre>
@@ -25,6 +27,8 @@ import org.springframework.context.annotation.Configuration;
 public class MaterializedViewsProperties {
 
   private boolean enabled = true;
+  private int maxBranches = 25;
+  private boolean cacheStatsEnabled = true;
   private long memoryWarningThresholdMb = 1000;
   private boolean periodicLoggingEnabled = true;
 
@@ -82,5 +86,53 @@ public class MaterializedViewsProperties {
    */
   public void setPeriodicLoggingEnabled(boolean periodicLoggingEnabled) {
     this.periodicLoggingEnabled = periodicLoggingEnabled;
+  }
+
+  /**
+   * Get the maximum number of branches to keep in cache.
+   *
+   * <p>When this limit is exceeded, least recently used branches are evicted.
+   * Evicted branches are rebuilt on-demand when accessed.
+   *
+   * @return maximum number of branches (default: 25)
+   */
+  public int getMaxBranches() {
+    return maxBranches;
+  }
+
+  /**
+   * Set the maximum number of branches to keep in cache.
+   *
+   * @param maxBranches maximum branches (must be >= 1)
+   * @throws IllegalArgumentException if maxBranches &lt; 1
+   */
+  public void setMaxBranches(int maxBranches) {
+    final int minMaxBranches = 1;
+    if (maxBranches < minMaxBranches) {
+      throw new IllegalArgumentException(
+          "maxBranches must be >= " + minMaxBranches + " (got: " + maxBranches + ")");
+    }
+    this.maxBranches = maxBranches;
+  }
+
+  /**
+   * Check if cache statistics are enabled.
+   *
+   * <p>When enabled, Caffeine cache records detailed statistics
+   * (hits, misses, evictions, load times) for monitoring.
+   *
+   * @return true if cache stats enabled (default: true)
+   */
+  public boolean isCacheStatsEnabled() {
+    return cacheStatsEnabled;
+  }
+
+  /**
+   * Set whether cache statistics are enabled.
+   *
+   * @param cacheStatsEnabled true to enable cache stats
+   */
+  public void setCacheStatsEnabled(boolean cacheStatsEnabled) {
+    this.cacheStatsEnabled = cacheStatsEnabled;
   }
 }

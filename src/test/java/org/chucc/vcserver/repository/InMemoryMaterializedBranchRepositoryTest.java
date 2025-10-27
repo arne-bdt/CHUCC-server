@@ -2,6 +2,7 @@ package org.chucc.vcserver.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.ByteArrayInputStream;
@@ -13,6 +14,7 @@ import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.sparql.core.DatasetGraph;
+import org.chucc.vcserver.config.MaterializedViewsProperties;
 import org.chucc.vcserver.exception.BranchNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,12 +39,23 @@ class InMemoryMaterializedBranchRepositoryTest {
    */
   @BeforeEach
   void setUp() {
-    repository = new InMemoryMaterializedBranchRepository(new SimpleMeterRegistry());
+    MaterializedViewsProperties properties = new MaterializedViewsProperties();
+    properties.setMaxBranches(10);  // Small limit for unit tests
+    properties.setCacheStatsEnabled(true);
+
+    CommitRepository commitRepository = mock(CommitRepository.class);
+    BranchRepository branchRepository = mock(BranchRepository.class);
+
+    repository = new InMemoryMaterializedBranchRepository(
+        new SimpleMeterRegistry(), properties, commitRepository, branchRepository);
     repository.initializeMetrics();
   }
 
   @Test
-  void getBranchGraph_shouldCreateNewGraphIfNotExists() {
+  void getBranchGraph_shouldReturnCreatedGraph() {
+    // Arrange
+    repository.createBranch("dataset1", "main", Optional.empty());
+
     // Act
     DatasetGraph graph = repository.getBranchGraph("dataset1", "main");
 
@@ -54,6 +67,9 @@ class InMemoryMaterializedBranchRepositoryTest {
 
   @Test
   void getBranchGraph_shouldReturnSameGraphOnMultipleCalls() {
+    // Arrange
+    repository.createBranch("dataset1", "main", Optional.empty());
+
     // Act
     DatasetGraph graph1 = repository.getBranchGraph("dataset1", "main");
     DatasetGraph graph2 = repository.getBranchGraph("dataset1", "main");
@@ -66,6 +82,7 @@ class InMemoryMaterializedBranchRepositoryTest {
   @Test
   void applyPatchToBranch_shouldApplyPatchSuccessfully() {
     // Arrange
+    repository.createBranch("dataset1", "main", Optional.empty());
     String patchStr = """
         TX .
         A <http://example.org/s> <http://example.org/p> "value" .
@@ -95,6 +112,7 @@ class InMemoryMaterializedBranchRepositoryTest {
   @Test
   void applyPatchToBranch_shouldApplyMultiplePatches() {
     // Arrange
+    repository.createBranch("dataset1", "main", Optional.empty());
     String patch1Str = """
         TX .
         A <http://example.org/s1> <http://example.org/p> "value1" .
@@ -163,6 +181,7 @@ class InMemoryMaterializedBranchRepositoryTest {
   @Test
   void createBranch_shouldCloneParentBranch() {
     // Arrange: Create main branch with data
+    repository.createBranch("dataset1", "main", Optional.empty());
     String patchStr = """
         TX .
         A <http://example.org/s> <http://example.org/p> "value" .
@@ -194,6 +213,7 @@ class InMemoryMaterializedBranchRepositoryTest {
   @Test
   void createBranch_shouldMaintainIndependenceAfterCloning() {
     // Arrange: Create and populate main branch
+    repository.createBranch("dataset1", "main", Optional.empty());
     String patch1Str = """
         TX .
         A <http://example.org/s1> <http://example.org/p> "main-value" .
@@ -264,7 +284,7 @@ class InMemoryMaterializedBranchRepositoryTest {
   @Test
   void deleteBranch_shouldRemoveGraph() {
     // Arrange
-    repository.getBranchGraph("dataset1", "main");
+    repository.createBranch("dataset1", "main", Optional.empty());
     assertThat(repository.exists("dataset1", "main")).isTrue();
 
     // Act
@@ -291,9 +311,9 @@ class InMemoryMaterializedBranchRepositoryTest {
   }
 
   @Test
-  void exists_shouldReturnTrueAfterGraphCreation() {
+  void exists_shouldReturnTrueAfterBranchCreation() {
     // Arrange
-    repository.getBranchGraph("dataset1", "main");
+    repository.createBranch("dataset1", "main", Optional.empty());
 
     // Act & Assert
     assertThat(repository.exists("dataset1", "main")).isTrue();
@@ -308,9 +328,9 @@ class InMemoryMaterializedBranchRepositoryTest {
   @Test
   void getGraphCount_shouldReturnCorrectCount() {
     // Arrange
-    repository.getBranchGraph("dataset1", "main");
-    repository.getBranchGraph("dataset1", "feature");
-    repository.getBranchGraph("dataset2", "main");
+    repository.createBranch("dataset1", "main", Optional.empty());
+    repository.createBranch("dataset1", "feature", Optional.empty());
+    repository.createBranch("dataset2", "main", Optional.empty());
 
     // Assert
     assertThat(repository.getGraphCount()).isEqualTo(3);
@@ -319,8 +339,8 @@ class InMemoryMaterializedBranchRepositoryTest {
   @Test
   void getGraphCount_shouldDecrementAfterDeletion() {
     // Arrange
-    repository.getBranchGraph("dataset1", "main");
-    repository.getBranchGraph("dataset1", "feature");
+    repository.createBranch("dataset1", "main", Optional.empty());
+    repository.createBranch("dataset1", "feature", Optional.empty());
     assertThat(repository.getGraphCount()).isEqualTo(2);
 
     // Act

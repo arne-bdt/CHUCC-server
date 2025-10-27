@@ -130,3 +130,12 @@ async:
     max-pool-size: 4
     queue-capacity: 100
     await-termination-seconds: 60
+
+# Materialized Views configuration
+chucc:
+  materialized-views:
+    enabled: true
+    max-branches: 25  # Maximum branches to keep in cache (LRU eviction)
+    cache-stats-enabled: true  # Enable Caffeine cache statistics recording
+    memory-warning-threshold-mb: 1000  # Warn when memory usage exceeds this threshold
+    periodic-logging-enabled: true  # Enable periodic logging of cache statistics

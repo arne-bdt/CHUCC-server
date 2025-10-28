@@ -11,6 +11,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 **Now:** 4 tasks remain (3 protocol endpoints + 1 technical debt)
 
 **Recent Completions:**
+- Merge Operations Phase 1 (Core merge functionality - 2025-10-28) ✅
 - Materialized Views (All 6 tasks - 2025-10-26 to 2025-10-28) ✅
 - Parallel Event Replay (Simplified approach - 2025-10-28) ✅
 - patchSize Schema Evolution (2025-01-24) ✅
@@ -23,21 +24,36 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🔴 High Priority
 
-#### 1. Merge Operations API
-**File:** [`.tasks/merge/01-implement-merge-api.md`](./merge/01-implement-merge-api.md)
+#### 1. Merge Operations API (Phased Implementation)
 
-**Endpoints:**
+**Phased Approach:** This complex feature is broken into 3 phases (9-12 hours total)
+
+**Phase 1: Core Merge (4-5 hours)** - [`.tasks/merge/01-implement-merge-core.md`](./merge/01-implement-merge-core.md)
+- Fast-forward detection and execution
+- Three-way merge algorithm
+- Common ancestor finding (LCA algorithm)
+- Graph diffing utilities
+- Conflict detection (return 409 Conflict)
+- **Status:** ✅ Completed (2025-10-28)
+
+**Phase 2: Conflict Resolution Strategies (2-3 hours)** - [`.tasks/merge/02-implement-merge-strategies.md`](./merge/02-implement-merge-strategies.md)
+- "ours" strategy (keep target branch changes)
+- "theirs" strategy (keep source branch changes)
+- Auto-resolve conflicts based on strategy
+- **Status:** Not Started (requires Phase 1)
+
+**Phase 3: Manual Resolution (3-4 hours)** - [`.tasks/merge/03-implement-manual-resolution.md`](./merge/03-implement-manual-resolution.md)
+- "manual" strategy with resolution array
+- User-provided conflict resolutions
+- Validation and error handling
+- **Status:** Not Started (requires Phase 2) - **Optional Feature**
+
+**Endpoint:**
 - `POST /version/merge` - Merge two refs/commits
 
-**Status:** Not Started
-**Estimated Time:** 5-6 hours (most complex)
 **Protocol Spec:** §3.3
 
-**Complexity:**
-- Three-way merge algorithm
-- Conflict detection
-- Multiple merge strategies (three-way, ours, theirs, manual)
-- Fast-forward detection
+**Recommended Order:** Implement Phase 1 first, assess complexity, then decide on Phase 2/3
 
 ---
 
@@ -144,16 +160,20 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Progress Summary
 
-**Feature Tasks:** 3 tasks (3 endpoint implementations - 13-16 hours)
+**Feature Tasks:** 6 phases across 3 endpoint implementations (17-21 hours)
+- Merge API: 3 phases (9-12 hours, Phase 3 optional)
+- History & Diff API: 1 task (4-5 hours)
+- Batch Operations API: 1 task (4-5 hours)
+
 **Architecture/Technical Debt:** 1 task (optional improvement - 8-12 hours)
 
 **Total Endpoints Remaining:** 6 endpoints to implement
 **Total Estimated Time:**
-- Protocol Endpoints: 13-16 hours
+- Protocol Endpoints: 17-21 hours (13-17 hours if Phase 3 skipped)
 - Technical Debt: 8-12 hours (optional)
 
 **Priority Breakdown:**
-- 🔴 High Priority: 1 task (Merge)
+- 🔴 High Priority: 3 phases (Merge Phases 1-3)
 - 🟡 Medium Priority: 2 tasks (History/Diff, Batch)
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
 
@@ -198,20 +218,34 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### Feature Implementation
 
+**Recommended Order (Start Simple, Build Up):**
+
 1. **History & Diff API** (4-5 hours)
    - Read-only operations
    - Diff requires RDF Patch serialization
    - Useful for debugging and auditing
+   - **Simplest task - good starting point**
 
 2. **Batch Operations API** (4-5 hours)
    - Complex but modular
    - Reuses existing query/update logic
    - Performance optimization for bulk operations
 
-3. **Merge Operations API** (5-6 hours)
-   - Most complex task
-   - Requires merge algorithm
-   - Should be implemented last
+3. **Merge Operations API - Phase 1** (4-5 hours)
+   - Fast-forward detection and execution
+   - Three-way merge with conflict detection
+   - Common ancestor finding
+   - **Core functionality - stop here if time limited**
+
+4. **Merge Operations API - Phase 2** (2-3 hours)
+   - "ours" and "theirs" strategies
+   - Auto-resolve conflicts
+   - **Recommended for production use**
+
+5. **Merge Operations API - Phase 3** (3-4 hours) - **Optional**
+   - Manual conflict resolution
+   - Advanced feature for power users
+   - **Can be deferred to later release**
 
 ### Infrastructure (Future/Optional)
 

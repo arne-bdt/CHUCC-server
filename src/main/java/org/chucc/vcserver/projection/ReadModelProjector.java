@@ -27,6 +27,7 @@ import org.chucc.vcserver.domain.Tag;
 import org.chucc.vcserver.event.BatchGraphsCompletedEvent;
 import org.chucc.vcserver.event.BranchCreatedEvent;
 import org.chucc.vcserver.event.BranchDeletedEvent;
+import org.chucc.vcserver.event.BranchMergedEvent;
 import org.chucc.vcserver.event.BranchRebasedEvent;
 import org.chucc.vcserver.event.BranchResetEvent;
 import org.chucc.vcserver.event.CherryPickedEvent;
@@ -213,6 +214,7 @@ public class ReadModelProjector {
         case CommitCreatedEvent e -> handleCommitCreated(e);
         case BranchCreatedEvent e -> handleBranchCreated(e);
         case BranchResetEvent e -> handleBranchReset(e);
+        case BranchMergedEvent e -> handleBranchMerged(e);
         case BranchRebasedEvent e -> handleBranchRebased(e);
         case BranchDeletedEvent e -> handleBranchDeleted(e);
         case DatasetDeletedEvent e -> handleDatasetDeleted(e);
@@ -430,6 +432,76 @@ public class ReadModelProjector {
     // Trigger snapshot check after branch update
     snapshotService.recordCommit(event.dataset(), event.branchName(),
         CommitId.of(event.toCommitId()));
+  }
+
+  /**
+   * Handles BranchMergedEvent by creating a merge commit and updating the branch head.
+   *
+   * @param event the branch merged event
+   */
+  void handleBranchMerged(BranchMergedEvent event) {
+    logger.debug(
+        "Processing BranchMergedEvent: branchName={}, sourceRef={}, commitId={}, parents={}, "
+            + "dataset={}",
+        event.branchName(), event.sourceRef(), event.commitId(), event.parents(),
+        event.dataset());
+
+    // Parse RDF Patch
+    RDFPatch patch = RDFPatchOps.read(
+        new ByteArrayInputStream(event.rdfPatch().getBytes(StandardCharsets.UTF_8)));
+
+    // Create merge Commit domain object (2 parents)
+    Commit commit = new Commit(
+        CommitId.of(event.commitId()),
+        event.parents().stream()
+            .map(CommitId::of)
+            .toList(),
+        event.author(),
+        event.message(),
+        event.timestamp(),
+        event.patchSize()
+    );
+
+    // Save merge commit and patch
+    commitRepository.save(event.dataset(), commit, patch);
+
+    logger.debug("Saved merge commit: {} with {} parent(s) in dataset: {}",
+        commit.id(), commit.parents().size(), event.dataset());
+
+    // Update branch HEAD
+    Optional<Branch> existingBranch = branchRepository.findByDatasetAndName(
+        event.dataset(), event.branchName());
+
+    if (existingBranch.isPresent()) {
+      branchRepository.updateBranchHead(
+          event.dataset(),
+          event.branchName(),
+          CommitId.of(event.commitId())
+      );
+
+      // Apply patch to materialized graph (fail-fast)
+      materializedBranchRepo.applyPatchToBranch(
+          event.dataset(),
+          event.branchName(),
+          patch
+      );
+      logger.debug("Applied merge patch to materialized graph {}/{}",
+          event.dataset(), event.branchName());
+
+      // Notify DatasetService of latest commit update for cache management
+      datasetService.updateLatestCommit(
+          event.dataset(),
+          event.branchName(),
+          CommitId.of(event.commitId())
+      );
+
+      logger.info("Merge completed: {} merged into {} (commit: {}) in dataset: {}",
+          event.sourceRef(), event.branchName(), event.commitId(), event.dataset());
+    } else {
+      logger.debug("Skipping branch update for non-existent branch: {} in dataset: {} "
+              + "(event from different test/dataset)",
+          event.branchName(), event.dataset());
+    }
   }
 
   /**

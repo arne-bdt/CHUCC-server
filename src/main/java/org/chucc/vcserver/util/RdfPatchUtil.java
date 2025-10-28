@@ -45,7 +45,7 @@ public final class RdfPatchUtil {
    * A simple RDFChanges implementation that counts add and delete operations.
    * This is used internally to count operations in an RDF Patch.
    */
-  private static class OperationCounter implements RDFChanges {
+  private static class OperationCounter extends RdfChangesAdapter {
     private int count = 0;
 
     @Override
@@ -61,34 +61,6 @@ public final class RdfPatchUtil {
     public int getCount() {
       return count;
     }
-
-    // Other RDFChanges methods - no-ops for counting
-    @Override
-    public void start() {}
-
-    @Override
-    public void finish() {}
-
-    @Override
-    public void header(String field, Node value) {}
-
-    @Override
-    public void addPrefix(Node gn, String prefix, String uriStr) {}
-
-    @Override
-    public void deletePrefix(Node gn, String prefix) {}
-
-    @Override
-    public void txnBegin() {}
-
-    @Override
-    public void txnCommit() {}
-
-    @Override
-    public void txnAbort() {}
-
-    @Override
-    public void segment() {}
   }
 
   /**

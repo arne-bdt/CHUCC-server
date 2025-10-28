@@ -26,7 +26,8 @@ import java.time.Instant;
     @JsonSubTypes.Type(value = BatchGraphsCompletedEvent.class, name = "BatchGraphsCompleted"),
     @JsonSubTypes.Type(value = BranchDeletedEvent.class, name = "BranchDeleted"),
     @JsonSubTypes.Type(value = DatasetDeletedEvent.class, name = "DatasetDeleted"),
-    @JsonSubTypes.Type(value = DatasetCreatedEvent.class, name = "DatasetCreated")
+    @JsonSubTypes.Type(value = DatasetCreatedEvent.class, name = "DatasetCreated"),
+    @JsonSubTypes.Type(value = BranchMergedEvent.class, name = "BranchMerged")
 })
 public sealed interface VersionControlEvent
     permits BranchCreatedEvent,
@@ -41,7 +42,8 @@ public sealed interface VersionControlEvent
         BatchGraphsCompletedEvent,
         BranchDeletedEvent,
         DatasetDeletedEvent,
-        DatasetCreatedEvent {
+        DatasetCreatedEvent,
+        BranchMergedEvent {
 
   /**
    * Returns the globally unique event ID.

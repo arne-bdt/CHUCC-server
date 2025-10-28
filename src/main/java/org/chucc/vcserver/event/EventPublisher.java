@@ -221,6 +221,14 @@ public class EventPublisher {
         headers.add(new RecordHeader(EventHeaders.CONTENT_TYPE,
             EventHeaders.RDF_PATCH_CONTENT_TYPE.getBytes(StandardCharsets.UTF_8)));
       }
+      case BranchMergedEvent e -> {
+        headers.add(new RecordHeader(EventHeaders.BRANCH,
+            e.branchName().getBytes(StandardCharsets.UTF_8)));
+        headers.add(new RecordHeader(EventHeaders.COMMIT_ID,
+            e.commitId().getBytes(StandardCharsets.UTF_8)));
+        headers.add(new RecordHeader(EventHeaders.CONTENT_TYPE,
+            EventHeaders.RDF_PATCH_CONTENT_TYPE.getBytes(StandardCharsets.UTF_8)));
+      }
       case BatchGraphsCompletedEvent e -> {
         // Add header with number of commits created
         headers.add(new RecordHeader("commit-count",

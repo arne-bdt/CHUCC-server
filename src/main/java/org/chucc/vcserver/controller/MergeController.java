@@ -101,7 +101,7 @@ public class MergeController {
       return ResponseEntity.badRequest()
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(e.getMessage(), HttpStatus.BAD_REQUEST.value(),
-              "INVALID_REQUEST"));
+              "invalid_request"));
     }
 
     // Create command
@@ -156,14 +156,14 @@ public class MergeController {
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(e.getMessage(), HttpStatus.NOT_FOUND.value(),
-              "REF_NOT_FOUND"));
+              "ref_not_found"));
     } catch (IllegalStateException e) {
       // Fast-forward-only mode failure
       return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
           .body(new ProblemDetail(e.getMessage(),
               HttpStatus.UNPROCESSABLE_ENTITY.value(),
-              "FAST_FORWARD_REQUIRED"));
+              "fast_forward_required"));
     }
     // Note: MergeConflictException is handled by VcExceptionHandler (409 Conflict)
   }

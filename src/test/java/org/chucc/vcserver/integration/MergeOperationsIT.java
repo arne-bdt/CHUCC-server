@@ -17,7 +17,6 @@ import org.chucc.vcserver.repository.CommitRepository;
 import org.chucc.vcserver.testutil.KafkaTestContainers;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -264,7 +263,6 @@ class MergeOperationsIT {
    * Test merge conflict detection when branches modify same quad.
    */
   @Test
-  @Disabled("TODO: Fix conflict detection - conservative approach may need refinement")
   void threeWayMerge_withConflicts_shouldReturn409() {
     // Arrange: Diverge branches with conflicting changes
     // Main: add triple
@@ -330,7 +328,7 @@ class MergeOperationsIT {
 
     JsonNode body = parseJson(response.getBody());
     assertThat(body.get("status").asInt()).isEqualTo(409);
-    assertThat(body.get("errorCode").asText()).isEqualTo("MERGE_CONFLICT");
+    assertThat(body.get("code").asText()).isEqualTo("merge_conflict");
     assertThat(body.has("conflicts")).isTrue();
     assertThat(body.get("conflicts").isArray()).isTrue();
     assertThat(body.get("conflicts").size()).isGreaterThan(0);
@@ -389,7 +387,6 @@ class MergeOperationsIT {
    * Test fast-forward only mode fails when branches have diverged.
    */
   @Test
-  @Disabled("TODO: Fix error response format - using 'code' not 'errorCode'")
   void fastForwardOnlyMode_whenNotPossible_shouldReturn422() {
     // Arrange: Diverge branches
     mainCommit2Id = CommitId.generate();
@@ -454,7 +451,7 @@ class MergeOperationsIT {
 
     JsonNode body = parseJson(response.getBody());
     assertThat(body.get("status").asInt()).isEqualTo(422);
-    assertThat(body.get("errorCode").asText()).isEqualTo("FAST_FORWARD_REQUIRED");
+    assertThat(body.get("code").asText()).isEqualTo("fast_forward_required");
   }
 
   /**
@@ -512,7 +509,6 @@ class MergeOperationsIT {
    * Test merge with invalid branch name returns 404.
    */
   @Test
-  @Disabled("TODO: Fix error response format - using 'code' not 'errorCode'")
   void merge_withInvalidBranch_shouldReturn404() {
     // Act: Merge from non-existent branch
     String requestBody = """
@@ -539,14 +535,13 @@ class MergeOperationsIT {
 
     JsonNode body = parseJson(response.getBody());
     assertThat(body.get("status").asInt()).isEqualTo(404);
-    assertThat(body.get("errorCode").asText()).isEqualTo("REF_NOT_FOUND");
+    assertThat(body.get("code").asText()).isEqualTo("ref_not_found");
   }
 
   /**
    * Test merge with invalid request body returns 400.
    */
   @Test
-  @Disabled("TODO: Fix error response format - using 'code' not 'errorCode'")
   void merge_withInvalidRequest_shouldReturn400() {
     // Act: Missing required field
     String requestBody = """
@@ -572,7 +567,7 @@ class MergeOperationsIT {
 
     JsonNode body = parseJson(response.getBody());
     assertThat(body.get("status").asInt()).isEqualTo(400);
-    assertThat(body.get("errorCode").asText()).isEqualTo("INVALID_REQUEST");
+    assertThat(body.get("code").asText()).isEqualTo("invalid_request");
   }
 
   // Helper methods

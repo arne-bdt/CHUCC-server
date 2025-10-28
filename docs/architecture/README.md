@@ -227,6 +227,9 @@ org.chucc.vcserver/
 #### Event Processing
 - **EventPublisher**: Publish events to Kafka (async)
 - **ReadModelProjector**: Consume events from Kafka, update repositories
+  - **Error handling:** Exponential backoff retry (1s → 60s max, 10 attempts)
+  - **DLQ support:** Poison events routed to `{topic}.dlq` after max retries
+  - **Monitoring:** Micrometer metrics for success/error/retry tracking
 
 ---
 

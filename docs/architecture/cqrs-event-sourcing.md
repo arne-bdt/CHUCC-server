@@ -1353,7 +1353,71 @@ projector:
   deduplication:
     enabled: true
     cache-size: 10000  # LRU cache for retried events
+
+chucc:
+  projection:
+    retry:
+      max-attempts: 10           # Total retry attempts
+      initial-interval: 1000     # 1 second initial backoff
+      multiplier: 2.0            # Exponential multiplier
+      max-interval: 60000        # 60 second cap
 ```
+
+#### Retry Strategy
+
+**Exponential Backoff:** (Added 2025-10-28)
+
+When projection fails, Spring Kafka `DefaultErrorHandler` retries with exponential backoff:
+
+```
+Attempt 1: 1s
+Attempt 2: 2s
+Attempt 3: 4s
+Attempt 4: 8s
+Attempt 5: 16s
+Attempt 6: 32s
+Attempt 7-10: 60s (capped)
+```
+
+**Backoff calculation:**
+```
+interval(attempt) = min(initial-interval × (multiplier ^ (attempt - 1)), max-interval)
+```
+
+#### Dead Letter Queue (DLQ)
+
+**Added:** 2025-10-28
+
+After max retry attempts (default: 10), poison events are sent to Dead Letter Queue:
+
+**Topic Naming:**
+- Source topic: `vc.{dataset}.events`
+- DLQ topic: `vc.{dataset}.events.dlq`
+
+**DLQ Configuration:**
+```yaml
+Partitions: Same as source topic (3)
+Replication Factor: Same as source topic (1 dev, 3 prod)
+Retention: 7 days (604800000 ms)
+Cleanup Policy: delete (append-only)
+```
+
+**DLQ Operations:**
+1. **Monitor:** Check health endpoint (`GET /actuator/health`)
+2. **Investigate:** Inspect DLQ messages with `kafka-console-consumer.sh`
+3. **Recover:** Fix bug, restart app (replays events including DLQ)
+
+See [Operational Runbook](../../operations/runbook.md#projection-failure-recovery) for detailed recovery procedures.
+
+**Monitoring:**
+- Metrics: `chucc.projection.events.total{status="error"}` (error rate)
+- Metrics: `chucc.projection.retries.total{topic, attempt}` (retry frequency)
+- Health: `MaterializedViewsHealthIndicator` shows error count (informational)
+
+**Related Classes:**
+- **ProjectionRetryProperties:** Retry policy configuration
+- **KafkaConfig:** DefaultErrorHandler with exponential backoff
+- **ReadModelProjector:** Fail-fast exception propagation
 
 #### Deduplication
 

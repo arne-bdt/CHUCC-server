@@ -74,6 +74,53 @@ Each topic is created with these settings:
 | **Compression** | `snappy` | Reduce storage & network |
 | **Min In-Sync Replicas** | 1 | Write availability |
 
+### Dead Letter Queue (DLQ) Configuration
+
+**Added:** 2025-10-28
+
+CHUCC automatically creates DLQ topics for error handling:
+
+| Topic Type | Naming Pattern | Retention | Purpose |
+|------------|---------------|-----------|---------|
+| **Event Topic** | `vc.{dataset}.events` | Infinite | Primary event stream |
+| **DLQ Topic** | `vc.{dataset}.events.dlq` | 7 days | Failed/poison events |
+
+**DLQ Topic Settings:**
+```yaml
+Partitions: Same as source topic (3)
+Replication Factor: Same as source topic (1 dev, 3 prod)
+Retention: 7 days (604800000 ms)
+Cleanup Policy: delete (append-only)
+```
+
+**When Events Go to DLQ:**
+1. Projection fails (e.g., malformed RDF patch, repository error)
+2. Retry with exponential backoff (10 attempts over ~3 minutes)
+3. After max retries, event sent to DLQ
+4. Original topic processing continues (consumer not blocked)
+
+**DLQ Operations:**
+
+```bash
+# List DLQ topics
+kafka-topics.sh --list --bootstrap-server localhost:9092 | grep dlq
+
+# Check DLQ messages
+kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic vc.default.events.dlq \
+  --from-beginning
+
+# Replay DLQ message (after fixing issue)
+# 1. Fix application bug
+# 2. Republish event to main topic (manual tooling required)
+```
+
+**Monitoring DLQ:**
+- Health endpoint: `GET /actuator/health` (shows DLQ message count)
+- Metrics: `chucc.projection.events.total{status="error"}` (error event rate)
+- Alert when DLQ receives messages (operational issue)
+
 ### Configuration Files
 
 **application.yml** (base settings):

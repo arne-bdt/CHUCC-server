@@ -134,6 +134,14 @@ Distributed event streaming platform that serves dual roles:
 - **Compression**: GZIP for efficiency
 - **Idempotence**: Enabled for exactly-once semantics
 
+**Error Handling & DLQ Configuration** (Added 2025-10-28):
+- **Retry Strategy**: Exponential backoff (1s → 2s → 4s → 8s → 16s → 32s → 60s max)
+- **Max Attempts**: 10 retries before DLQ
+- **DLQ Topics**: `{topic}.dlq` (e.g., `vc.default.events.dlq`)
+- **DLQ Retention**: 7 days (configurable)
+- **Commit Mode**: Manual (AckMode.RECORD) for retry support
+- **Failure Isolation**: Poison events don't block consumer after DLQ routing
+
 **Event Types Stored** (13 event types):
 1. `CommitCreatedEvent` - New commit with RDF patch
 2. `BranchCreatedEvent` - New branch created

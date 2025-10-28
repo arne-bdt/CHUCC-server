@@ -471,6 +471,11 @@ return ResponseEntity.ok().eTag(commitId.value()).build();
    - Consumes from `<dataset>-events` topic
    - Consumer group: `chucc-server-projector`
    - Processes events in order (per partition)
+   - **Error handling:** Fail-fast with exponential backoff retry
+   - **Retry policy:** 1s → 2s → 4s → 8s → 16s → 32s → 60s (max 10 attempts)
+   - **Dead Letter Queue:** Poison events sent to `{topic}.dlq` after max retries
+   - **Manual offset commit:** AckMode.RECORD ensures failed events trigger retry
+   - **Metrics:** Micrometer metrics track success/error/retry counts
 
 **Event Handlers**:
 ```java
@@ -513,6 +518,8 @@ public class ReadModelProjector {
 - **Ordered**: Events processed in commit order (per partition)
 - **Async**: Updates repositories asynchronously (eventual consistency)
 - **Rebuilds State**: On startup, replays all events to rebuild state
+- **Fail-fast**: Retries transient failures, DLQ for poison events (Added 2025-10-28)
+- **Observable**: Metrics exported for monitoring projection health (Added 2025-10-28)
 
 **Test Isolation**:
 - **Disabled by default** in integration tests (`projector.kafka-listener.enabled: false`)

@@ -349,6 +349,26 @@ User intentionally uses "maybe" to invite alternative suggestions. Feel free to 
 - **Test config**: `src/test/resources/test.properties`
 - **Test utilities**: `IntegrationTestFixture`, `TestConstants`, `KafkaTestContainers`
 
+### Error Handling Configuration
+
+**Projection Retry Policy:**
+- **Location:** `src/main/java/org/chucc/vcserver/config/ProjectionRetryProperties.java`
+- **Pattern:** Exponential backoff with DLQ
+- **Strategy:** 1s → 2s → 4s → 8s → 16s → 32s → 60s (max 10 attempts)
+- **Config:** `chucc.projection.retry.*` properties in `application.yml`
+
+**Dead Letter Queue:**
+- **Naming:** `{source-topic}.dlq` (e.g., `vc.default.events.dlq`)
+- **Retention:** 7 days
+- **Creation:** Automatic via `CreateDatasetCommandHandler`
+- **Monitoring:** Health indicator shows DLQ message counts
+
+**Key Implementation Files:**
+- `KafkaConfig.java` - DefaultErrorHandler configuration
+- `ProjectionRetryProperties.java` - Retry policy properties
+- `ReadModelProjector.java` - Fail-fast exception propagation
+- `MaterializedViewsHealthIndicator.java` - DLQ monitoring
+
 ---
 
 ## Additional Resources

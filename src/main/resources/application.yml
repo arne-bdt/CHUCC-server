@@ -139,3 +139,11 @@ chucc:
     cache-stats-enabled: true  # Enable Caffeine cache statistics recording
     memory-warning-threshold-mb: 1000  # Warn when memory usage exceeds this threshold
     periodic-logging-enabled: true  # Enable periodic logging of cache statistics
+
+  # Projection Retry configuration (fail-fast with exponential backoff)
+  projection:
+    retry:
+      max-attempts: 10  # Total retry attempts before sending to DLQ
+      initial-interval: 1000  # Initial backoff in ms (1 second)
+      multiplier: 2.0  # Exponential multiplier (doubles each retry)
+      max-interval: 60000  # Max backoff in ms (60 seconds cap)

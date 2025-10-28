@@ -1,16 +1,20 @@
 package org.chucc.vcserver.config;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.chucc.vcserver.event.VersionControlEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
@@ -21,6 +25,9 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
@@ -31,19 +38,30 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 @Configuration
 public class KafkaConfig {
 
+  private static final Logger logger = LoggerFactory.getLogger(KafkaConfig.class);
+
   private final KafkaProperties kafkaProperties;
+  private final ProjectionRetryProperties retryProperties;
+  private final MeterRegistry meterRegistry;
 
   /**
    * Constructs a KafkaConfig with the specified properties.
    *
    * @param kafkaProperties the Kafka configuration properties
+   * @param retryProperties the projection retry configuration
+   * @param meterRegistry the meter registry for metrics
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
-      justification = "KafkaProperties is a Spring configuration bean, "
+      justification = "All properties are Spring configuration beans, "
           + "immutable after initialization")
-  public KafkaConfig(KafkaProperties kafkaProperties) {
+  public KafkaConfig(
+      KafkaProperties kafkaProperties,
+      ProjectionRetryProperties retryProperties,
+      MeterRegistry meterRegistry) {
     this.kafkaProperties = kafkaProperties;
+    this.retryProperties = retryProperties;
+    this.meterRegistry = meterRegistry;
   }
 
   /**
@@ -219,6 +237,7 @@ public class KafkaConfig {
 
   /**
    * Kafka listener container factory for event consumers.
+   * Configures error handling with exponential backoff retry and DLQ.
    *
    * @return ConcurrentKafkaListenerContainerFactory instance
    */
@@ -235,6 +254,69 @@ public class KafkaConfig {
     factory.getContainerProperties()
         .setAckMode(org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
 
+    // Configure error handler with exponential backoff and DLQ
+    factory.setCommonErrorHandler(createErrorHandler());
+
     return factory;
+  }
+
+  /**
+   * Creates error handler with exponential backoff and Dead Letter Queue.
+   *
+   * <p>Retry strategy:
+   * <ul>
+   *   <li>Initial backoff: configured via {@code chucc.projection.retry.initial-interval}</li>
+   *   <li>Multiplier: configured via {@code chucc.projection.retry.multiplier}</li>
+   *   <li>Max backoff: configured via {@code chucc.projection.retry.max-interval}</li>
+   *   <li>Max attempts: configured via {@code chucc.projection.retry.max-attempts}</li>
+   *   <li>After max retries: event sent to DLQ topic (original-topic.dlq)</li>
+   * </ul>
+   *
+   * @return configured DefaultErrorHandler
+   */
+  private DefaultErrorHandler createErrorHandler() {
+    // Configure exponential backoff
+    ExponentialBackOffWithMaxRetries backOff = new ExponentialBackOffWithMaxRetries(
+        retryProperties.getMaxAttempts());
+    backOff.setInitialInterval(retryProperties.getInitialInterval());
+    backOff.setMultiplier(retryProperties.getMultiplier());
+    backOff.setMaxInterval(retryProperties.getMaxInterval());
+
+    // Configure DLQ recoverer
+    DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
+        kafkaTemplate(),
+        (record, ex) -> {
+          // Send to DLQ topic: original-topic.dlq
+          String dlqTopic = record.topic() + ".dlq";
+          logger.warn("Sending failed event to DLQ: topic={}, partition={}, offset={}",
+              dlqTopic, record.partition(), record.offset());
+          return new TopicPartition(dlqTopic, record.partition());
+        }
+    );
+
+    // Create error handler
+    DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, backOff);
+
+    // Add retry listener for logging and metrics
+    errorHandler.setRetryListeners((record, ex, deliveryAttempt) -> {
+      logger.warn("Retrying event projection (attempt {}/{}): topic={}, partition={}, offset={}",
+          deliveryAttempt, retryProperties.getMaxAttempts(),
+          record.topic(), record.partition(), record.offset());
+
+      // Record retry metric
+      meterRegistry.counter("chucc.projection.retries.total",
+          "topic", record.topic(),
+          "attempt", String.valueOf(deliveryAttempt)
+      ).increment();
+    });
+
+    logger.info("Configured projection error handler: maxAttempts={}, initialInterval={}ms, "
+            + "multiplier={}, maxInterval={}ms",
+        retryProperties.getMaxAttempts(),
+        retryProperties.getInitialInterval(),
+        retryProperties.getMultiplier(),
+        retryProperties.getMaxInterval());
+
+    return errorHandler;
   }
 }

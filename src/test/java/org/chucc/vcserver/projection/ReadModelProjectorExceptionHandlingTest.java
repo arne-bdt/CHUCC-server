@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Instant;
 import java.util.List;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -54,6 +57,12 @@ class ReadModelProjectorExceptionHandlingTest {
   @Mock
   private ProjectorProperties projectorProperties;
 
+  @Mock
+  private MeterRegistry meterRegistry;
+
+  @Mock
+  private Counter mockCounter;
+
   private ReadModelProjector projector;
 
   /**
@@ -66,6 +75,10 @@ class ReadModelProjectorExceptionHandlingTest {
     dedup.setEnabled(false); // Disable for simpler testing
     when(projectorProperties.getDeduplication()).thenReturn(dedup);
 
+    // Stub MeterRegistry to return mock Counter (lenient = optional stubbing)
+    lenient().when(meterRegistry.counter(any(String.class), any(String[].class)))
+        .thenReturn(mockCounter);
+
     projector = new ReadModelProjector(
         branchRepository,
         commitRepository,
@@ -73,7 +86,8 @@ class ReadModelProjectorExceptionHandlingTest {
         materializedBranchRepo,
         datasetService,
         snapshotService,
-        projectorProperties
+        projectorProperties,
+        meterRegistry
     );
   }
 

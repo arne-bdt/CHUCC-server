@@ -48,6 +48,9 @@ public abstract class ITFixture {
   @Autowired(required = false)
   protected TagRepository tagRepository;
 
+  @Autowired(required = false)
+  protected org.chucc.vcserver.repository.MaterializedBranchRepository materializedBranchRepo;
+
   protected static final String DEFAULT_DATASET = "default";
   protected static final String TEST_DATASET = "test-dataset";
   protected static final String DEFAULT_BRANCH = "main";
@@ -108,6 +111,16 @@ public abstract class ITFixture {
   void setUpIntegrationTestFixture() {
     String dataset = getDatasetName();
 
+    // Clean up materialized graph cache BEFORE deleting branches from repository
+    // (we need branch list to know which graphs to delete)
+    if (materializedBranchRepo != null && branchRepository != null) {
+      List<org.chucc.vcserver.domain.Branch> branches =
+          branchRepository.findAllByDataset(dataset);
+      for (org.chucc.vcserver.domain.Branch branch : branches) {
+        materializedBranchRepo.deleteBranch(dataset, branch.getName());
+      }
+    }
+
     // Clean up repositories
     if (branchRepository != null) {
       branchRepository.deleteAllByDataset(dataset);
@@ -122,6 +135,12 @@ public abstract class ITFixture {
     // Create initial setup if requested
     if (shouldCreateInitialSetup() && commitRepository != null && branchRepository != null) {
       createInitialCommitAndBranch(dataset);
+
+      // Create empty materialized graph for initial branch
+      if (materializedBranchRepo != null) {
+        materializedBranchRepo.createBranch(dataset, getInitialBranchName(),
+            java.util.Optional.empty());
+      }
     }
   }
 

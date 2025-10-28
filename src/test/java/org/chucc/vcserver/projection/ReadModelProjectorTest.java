@@ -1,5 +1,7 @@
 package org.chucc.vcserver.projection;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.chucc.vcserver.config.ProjectorProperties;
@@ -30,6 +32,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -61,6 +64,12 @@ class ReadModelProjectorTest {
   @Mock
   private ProjectorProperties projectorProperties;
 
+  @Mock
+  private MeterRegistry meterRegistry;
+
+  @Mock
+  private Counter mockCounter;
+
   private ReadModelProjector projector;
 
   @BeforeEach
@@ -70,8 +79,12 @@ class ReadModelProjectorTest {
     dedup.setEnabled(false); // Disable deduplication for unit tests
     when(projectorProperties.getDeduplication()).thenReturn(dedup);
 
+    // Stub MeterRegistry to return mock Counter (lenient = optional stubbing)
+    lenient().when(meterRegistry.counter(any(String.class), any(String[].class)))
+        .thenReturn(mockCounter);
+
     projector = new ReadModelProjector(branchRepository, commitRepository, tagRepository,
-        materializedBranchRepo, datasetService, snapshotService, projectorProperties);
+        materializedBranchRepo, datasetService, snapshotService, projectorProperties, meterRegistry);
   }
 
   /**
@@ -215,7 +228,7 @@ class ReadModelProjectorTest {
 
       // Recreate projector with deduplication enabled
       projector = new ReadModelProjector(branchRepository, commitRepository, tagRepository,
-          materializedBranchRepo, datasetService, snapshotService, projectorProperties);
+          materializedBranchRepo, datasetService, snapshotService, projectorProperties, meterRegistry);
 
       String dataset = "test-dataset";
       String commitIdStr = "550e8400-e29b-41d4-a716-446655440000";
@@ -314,7 +327,7 @@ class ReadModelProjectorTest {
 
     // Recreate projector with deduplication enabled
     projector = new ReadModelProjector(branchRepository, commitRepository, tagRepository,
-        materializedBranchRepo, datasetService, snapshotService, projectorProperties);
+        materializedBranchRepo, datasetService, snapshotService, projectorProperties, meterRegistry);
 
     String dataset = "test-dataset";
     String rdfPatchStr = "TX .";

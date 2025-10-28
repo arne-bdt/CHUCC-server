@@ -53,6 +53,7 @@ import org.springframework.stereotype.Component;
 @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
 public class CreateDatasetCommandHandler implements CommandHandler<CreateDatasetCommand> {
   private static final Logger logger = LoggerFactory.getLogger(CreateDatasetCommandHandler.class);
+  private static final long DLQ_RETENTION_MS = 604800000L;  // 7 days in milliseconds
 
   private final BranchRepository branchRepository;
   private final CommitRepository commitRepository;
@@ -110,10 +111,15 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
     }
 
     boolean topicCreated = false;
+    boolean dlqTopicCreated = false;
     try {
       // 2. Create Kafka topic with per-dataset config
       createKafkaTopic(dataset, command.kafkaConfig());
       topicCreated = true;
+
+      // 3. Create DLQ topic for failed projection events
+      createDlqTopic(dataset, command.kafkaConfig());
+      dlqTopicCreated = true;
 
       // 3. Create initial empty commit
       Commit initialCommit = Commit.create(
@@ -181,7 +187,16 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
           "reason", e.getClass().getSimpleName()
       ).increment();
 
-      // Rollback: Delete topic if it was created
+      // Rollback: Delete topics if they were created
+      if (dlqTopicCreated) {
+        logger.warn("Dataset creation failed - rolling back DLQ topic creation: {}", dataset);
+        try {
+          deleteDlqTopic(dataset);
+        } catch (Exception rollbackEx) {
+          logger.error("Failed to rollback DLQ topic deletion: {}", dataset, rollbackEx);
+          // Manual cleanup may be required - log for ops
+        }
+      }
       if (topicCreated) {
         logger.warn("Dataset creation failed - rolling back topic creation: {}", dataset);
         try {
@@ -363,6 +378,81 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
   }
 
   /**
+   * Creates a Dead Letter Queue (DLQ) topic for failed projection events.
+   *
+   * <p>DLQ topics receive events that failed projection after max retry attempts.
+   * Configuration is simplified compared to main topic (lower replication, shorter retention).
+   *
+   * @param dataset the dataset name
+   * @param customConfig optional custom Kafka configuration
+   */
+  private void createDlqTopic(
+      String dataset,
+      org.chucc.vcserver.dto.CreateDatasetRequest.KafkaTopicConfig customConfig) {
+    String dlqTopicName = kafkaProperties.getTopicName(dataset) + ".dlq";
+    Timer.Sample sample = Timer.start(meterRegistry);
+
+    // DLQ uses simpler configuration (lower replication, shorter retention)
+    int partitions = customConfig != null && customConfig.partitions() != null
+        ? customConfig.partitions()
+        : kafkaProperties.getPartitions();
+
+    // DLQ typically needs lower replication factor (can tolerate data loss)
+    short replicationFactor = (short) Math.min(
+        customConfig != null && customConfig.replicationFactor() != null
+            ? customConfig.replicationFactor()
+            : kafkaProperties.getReplicationFactor(),
+        2  // Max RF=2 for DLQ (reduce resource usage)
+    );
+
+    // DLQ has shorter retention (7 days default, poisoned events don't need long retention)
+    long retentionMs = DLQ_RETENTION_MS;
+
+    try (AdminClient adminClient = AdminClient.create(kafkaAdmin.getConfigurationProperties())) {
+      logger.info("Creating DLQ topic: {} (partitions={}, replication-factor={})",
+          dlqTopicName, partitions, replicationFactor);
+
+      Map<String, String> config = new HashMap<>();
+      config.put("retention.ms", String.valueOf(retentionMs));
+      config.put("cleanup.policy", "delete");  // DLQ always uses delete policy
+      config.put("compression.type", "snappy");
+
+      NewTopic dlqTopic = new NewTopic(dlqTopicName, partitions, replicationFactor);
+      dlqTopic.configs(config);
+
+      adminClient.createTopics(Collections.singletonList(dlqTopic)).all().get();
+
+      logger.info("DLQ topic created: {} (retention={}ms)", dlqTopicName, retentionMs);
+
+      // Record success metrics
+      sample.stop(meterRegistry.timer("kafka.dlq.topic.creation.time"));
+      meterRegistry.counter("kafka.dlq.topic.created").increment();
+
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      meterRegistry.counter("kafka.dlq.topic.creation.failures",
+          "reason", "InterruptedException"
+      ).increment();
+      throw new KafkaUnavailableException("Kafka operation interrupted: " + dlqTopicName, e);
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+
+      // DLQ topic already exists - this is OK (idempotent)
+      if (cause instanceof TopicExistsException) {
+        logger.info("DLQ topic already exists: {}", dlqTopicName);
+        return;  // Continue normally
+      }
+
+      meterRegistry.counter("kafka.dlq.topic.creation.failures",
+          "reason", e.getCause().getClass().getSimpleName()
+      ).increment();
+
+      logger.error("Failed to create DLQ topic: {}", dlqTopicName, e);
+      throw new TopicCreationException("Failed to create DLQ topic: " + dlqTopicName, cause);
+    }
+  }
+
+  /**
    * Deletes the Kafka topic for rollback purposes.
    *
    * @param dataset the dataset name
@@ -379,6 +469,27 @@ public class CreateDatasetCommandHandler implements CommandHandler<CreateDataset
       logger.info("Rollback successful - Kafka topic deleted: {}", topicName);
     } catch (Exception e) {
       logger.error("Rollback failed - could not delete Kafka topic: {}", topicName, e);
+      // Don't throw - we've already logged the error
+    }
+  }
+
+  /**
+   * Deletes the DLQ Kafka topic for rollback purposes.
+   *
+   * @param dataset the dataset name
+   */
+  @SuppressFBWarnings(
+      value = "REC_CATCH_EXCEPTION",
+      justification = "Catch-all is intentional for rollback - must not fail main operation")
+  private void deleteDlqTopic(String dataset) {
+    String dlqTopicName = kafkaProperties.getTopicName(dataset) + ".dlq";
+
+    try (AdminClient adminClient = AdminClient.create(kafkaAdmin.getConfigurationProperties())) {
+      logger.warn("Rolling back - deleting DLQ topic: {}", dlqTopicName);
+      adminClient.deleteTopics(Collections.singletonList(dlqTopicName)).all().get();
+      logger.info("Rollback successful - DLQ topic deleted: {}", dlqTopicName);
+    } catch (Exception e) {
+      logger.error("Rollback failed - could not delete DLQ topic: {}", dlqTopicName, e);
       // Don't throw - we've already logged the error
     }
   }

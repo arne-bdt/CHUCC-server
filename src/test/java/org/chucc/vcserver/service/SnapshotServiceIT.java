@@ -70,11 +70,20 @@ class SnapshotServiceIT {
   @Autowired
   private TestSnapshotListener snapshotListener;
 
+  @Autowired
+  private org.chucc.vcserver.repository.MaterializedBranchRepository materializedBranchRepo;
+
   private static final String DATASET = "snapshot-test-dataset";
   private static final String BRANCH = "main";
 
   @BeforeEach
   void setUp() {
+    // Clean up materialized graphs first (before deleting branches)
+    List<Branch> branches = branchRepository.findAllByDataset(DATASET);
+    for (Branch b : branches) {
+      materializedBranchRepo.deleteBranch(DATASET, b.getName());
+    }
+
     // Clean up repositories and counters
     branchRepository.deleteAllByDataset(DATASET);
     commitRepository.deleteAllByDataset(DATASET);
@@ -85,6 +94,9 @@ class SnapshotServiceIT {
     CommitId initialCommitId = CommitId.generate();
     Branch branch = new Branch(BRANCH, initialCommitId);
     branchRepository.save(DATASET, branch);
+
+    // Create initial empty materialized branch
+    materializedBranchRepo.createBranch(DATASET, BRANCH, java.util.Optional.empty());
   }
 
   @Test

@@ -570,6 +570,432 @@ class MergeOperationsIT {
     assertThat(body.get("code").asText()).isEqualTo("invalid_request");
   }
 
+  // ========== Phase 2: Conflict Resolution Strategy Tests ==========
+
+  /**
+   * Test "ours" strategy with graph-level scope resolves conflicts per graph.
+   * When Graph-A has conflicts, keep "into" changes for Graph-A only.
+   * Non-conflicting Graph-B changes from "from" should still be merged.
+   */
+  @Test
+  void merge_oursStrategy_graphScope_shouldResolveConflictingGraphsOnly() {
+    // Arrange: Create divergent branches with conflict in Graph-A, no conflict in Graph-B
+    // Main branch: Update Graph-A
+    mainCommit2Id = CommitId.generate();
+    RDFChangesCollector mainCollector = new RDFChangesCollector();
+    mainCollector.start();
+    mainCollector.add(
+        NodeFactory.createURI("http://ex.org/graphA"),
+        NodeFactory.createURI("http://ex.org/Alice"),
+        NodeFactory.createURI("http://ex.org/age"),
+        NodeFactory.createLiteralString("31")
+    );
+    mainCollector.finish();
+    Commit mainCommit2 = new Commit(
+        mainCommit2Id,
+        List.of(mainCommit1Id),
+        "Alice",
+        "Update Alice's age to 31",
+        Instant.now(),
+        1
+    );
+    commitRepository.save(DATASET_NAME, mainCommit2, mainCollector.getRDFPatch());
+    branchRepository.updateBranchHead(DATASET_NAME, "main", mainCommit2Id);
+
+    // Feature branch: Conflicting update to Graph-A + new triple in Graph-B
+    featureCommit1Id = CommitId.generate();
+    RDFChangesCollector featureCollector = new RDFChangesCollector();
+    featureCollector.start();
+    // Conflict: Same subject/predicate in Graph-A, different value
+    featureCollector.add(
+        NodeFactory.createURI("http://ex.org/graphA"),
+        NodeFactory.createURI("http://ex.org/Alice"),
+        NodeFactory.createURI("http://ex.org/age"),
+        NodeFactory.createLiteralString("32")
+    );
+    // No conflict: Different graph (Graph-B)
+    featureCollector.add(
+        NodeFactory.createURI("http://ex.org/graphB"),
+        NodeFactory.createURI("http://ex.org/Bob"),
+        NodeFactory.createURI("http://ex.org/name"),
+        NodeFactory.createLiteralString("Bob")
+    );
+    featureCollector.finish();
+    Commit featureCommit1 = new Commit(
+        featureCommit1Id,
+        List.of(mainCommit1Id),
+        "Bob",
+        "Update Alice to 32 and add Bob",
+        Instant.now(),
+        2
+    );
+    commitRepository.save(DATASET_NAME, featureCommit1, featureCollector.getRDFPatch());
+    branchRepository.updateBranchHead(DATASET_NAME, "feature", featureCommit1Id);
+
+    // Act: Merge with graph-level "ours" strategy
+    String requestBody = """
+        {
+          "into": "main",
+          "from": "feature",
+          "strategy": "ours",
+          "conflictScope": "graph"
+        }
+        """;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "Alice");
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        BASE_URL + "?dataset=" + DATASET_NAME,
+        HttpMethod.POST,
+        new HttpEntity<>(requestBody, headers),
+        String.class
+    );
+
+    // Assert: Merge succeeds with conflicts resolved
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_JSON);
+
+    JsonNode body = parseJson(response.getBody());
+    assertThat(body.get("result").asText()).isEqualTo("merged");
+    assertThat(body.get("into").asText()).isEqualTo("main");
+    assertThat(body.get("from").asText()).isEqualTo("feature");
+    assertThat(body.get("strategy").asText()).isEqualTo("ours");
+    assertThat(body.get("conflictScope").asText()).isEqualTo("graph");
+    assertThat(body.get("conflictsResolved").asInt()).isGreaterThan(0);
+    assertThat(body.get("mergeCommit").asText()).isNotBlank();
+    assertThat(body.get("fastForward").asBoolean()).isFalse();
+  }
+
+  /**
+   * Test "ours" strategy with dataset-level scope discards all "from" changes.
+   * When ANY conflict exists, keep ALL "into" changes (including non-conflicting graphs).
+   */
+  @Test
+  void merge_oursStrategy_datasetScope_shouldDiscardAllFromChanges() {
+    // Arrange: Same setup as graph-level test
+    mainCommit2Id = CommitId.generate();
+    RDFChangesCollector mainCollector = new RDFChangesCollector();
+    mainCollector.start();
+    mainCollector.add(
+        NodeFactory.createURI("http://ex.org/graphA"),
+        NodeFactory.createURI("http://ex.org/Alice"),
+        NodeFactory.createURI("http://ex.org/age"),
+        NodeFactory.createLiteralString("31")
+    );
+    mainCollector.finish();
+    Commit mainCommit2 = new Commit(
+        mainCommit2Id,
+        List.of(mainCommit1Id),
+        "Alice",
+        "Update Alice's age to 31",
+        Instant.now(),
+        1
+    );
+    commitRepository.save(DATASET_NAME, mainCommit2, mainCollector.getRDFPatch());
+    branchRepository.updateBranchHead(DATASET_NAME, "main", mainCommit2Id);
+
+    featureCommit1Id = CommitId.generate();
+    RDFChangesCollector featureCollector = new RDFChangesCollector();
+    featureCollector.start();
+    featureCollector.add(
+        NodeFactory.createURI("http://ex.org/graphA"),
+        NodeFactory.createURI("http://ex.org/Alice"),
+        NodeFactory.createURI("http://ex.org/age"),
+        NodeFactory.createLiteralString("32")
+    );
+    featureCollector.add(
+        NodeFactory.createURI("http://ex.org/graphB"),
+        NodeFactory.createURI("http://ex.org/Bob"),
+        NodeFactory.createURI("http://ex.org/name"),
+        NodeFactory.createLiteralString("Bob")
+    );
+    featureCollector.finish();
+    Commit featureCommit1 = new Commit(
+        featureCommit1Id,
+        List.of(mainCommit1Id),
+        "Bob",
+        "Update Alice to 32 and add Bob",
+        Instant.now(),
+        2
+    );
+    commitRepository.save(DATASET_NAME, featureCommit1, featureCollector.getRDFPatch());
+    branchRepository.updateBranchHead(DATASET_NAME, "feature", featureCommit1Id);
+
+    // Act: Merge with dataset-level "ours" strategy
+    String requestBody = """
+        {
+          "into": "main",
+          "from": "feature",
+          "strategy": "ours",
+          "conflictScope": "dataset"
+        }
+        """;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "Alice");
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        BASE_URL + "?dataset=" + DATASET_NAME,
+        HttpMethod.POST,
+        new HttpEntity<>(requestBody, headers),
+        String.class
+    );
+
+    // Assert: Merge succeeds, all "from" changes discarded (including Graph-B)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    JsonNode body = parseJson(response.getBody());
+    assertThat(body.get("result").asText()).isEqualTo("merged");
+    assertThat(body.get("strategy").asText()).isEqualTo("ours");
+    assertThat(body.get("conflictScope").asText()).isEqualTo("dataset");
+    assertThat(body.get("conflictsResolved").asInt()).isGreaterThan(0);
+  }
+
+  /**
+   * Test "theirs" strategy with graph-level scope keeps "from" changes in conflicting graphs.
+   * Non-conflicting "into" graphs should still be merged.
+   */
+  @Test
+  void merge_theirsStrategy_graphScope_shouldKeepFromChangesInConflictingGraphs() {
+    // Arrange: Divergent branches
+    // Main: Add to Graph-A and Graph-C
+    mainCommit2Id = CommitId.generate();
+    RDFChangesCollector mainCollector = new RDFChangesCollector();
+    mainCollector.start();
+    mainCollector.add(
+        NodeFactory.createURI("http://ex.org/graphA"),
+        NodeFactory.createURI("http://ex.org/Alice"),
+        NodeFactory.createURI("http://ex.org/age"),
+        NodeFactory.createLiteralString("31")
+    );
+    mainCollector.add(
+        NodeFactory.createURI("http://ex.org/graphC"),
+        NodeFactory.createURI("http://ex.org/Charlie"),
+        NodeFactory.createURI("http://ex.org/email"),
+        NodeFactory.createLiteralString("charlie@example.com")
+    );
+    mainCollector.finish();
+    Commit mainCommit2 = new Commit(
+        mainCommit2Id,
+        List.of(mainCommit1Id),
+        "Alice",
+        "Update Alice and add Charlie",
+        Instant.now(),
+        2
+    );
+    commitRepository.save(DATASET_NAME, mainCommit2, mainCollector.getRDFPatch());
+    branchRepository.updateBranchHead(DATASET_NAME, "main", mainCommit2Id);
+
+    // Feature: Conflicting update to Graph-A
+    featureCommit1Id = CommitId.generate();
+    RDFChangesCollector featureCollector = new RDFChangesCollector();
+    featureCollector.start();
+    featureCollector.add(
+        NodeFactory.createURI("http://ex.org/graphA"),
+        NodeFactory.createURI("http://ex.org/Alice"),
+        NodeFactory.createURI("http://ex.org/age"),
+        NodeFactory.createLiteralString("32")
+    );
+    featureCollector.finish();
+    Commit featureCommit1 = new Commit(
+        featureCommit1Id,
+        List.of(mainCommit1Id),
+        "Bob",
+        "Update Alice to 32",
+        Instant.now(),
+        1
+    );
+    commitRepository.save(DATASET_NAME, featureCommit1, featureCollector.getRDFPatch());
+    branchRepository.updateBranchHead(DATASET_NAME, "feature", featureCommit1Id);
+
+    // Act: Merge with graph-level "theirs" strategy
+    String requestBody = """
+        {
+          "into": "main",
+          "from": "feature",
+          "strategy": "theirs",
+          "conflictScope": "graph"
+        }
+        """;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "Alice");
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        BASE_URL + "?dataset=" + DATASET_NAME,
+        HttpMethod.POST,
+        new HttpEntity<>(requestBody, headers),
+        String.class
+    );
+
+    // Assert: Merge succeeds, Graph-A from "feature", Graph-C from "main"
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    JsonNode body = parseJson(response.getBody());
+    assertThat(body.get("result").asText()).isEqualTo("merged");
+    assertThat(body.get("strategy").asText()).isEqualTo("theirs");
+    assertThat(body.get("conflictScope").asText()).isEqualTo("graph");
+    assertThat(body.get("conflictsResolved").asInt()).isGreaterThan(0);
+  }
+
+  /**
+   * Test "theirs" strategy with dataset-level scope discards all "into" changes.
+   */
+  @Test
+  void merge_theirsStrategy_datasetScope_shouldDiscardAllIntoChanges() {
+    // Arrange: Same setup as above
+    mainCommit2Id = CommitId.generate();
+    RDFChangesCollector mainCollector = new RDFChangesCollector();
+    mainCollector.start();
+    mainCollector.add(
+        NodeFactory.createURI("http://ex.org/graphA"),
+        NodeFactory.createURI("http://ex.org/Alice"),
+        NodeFactory.createURI("http://ex.org/age"),
+        NodeFactory.createLiteralString("31")
+    );
+    mainCollector.add(
+        NodeFactory.createURI("http://ex.org/graphC"),
+        NodeFactory.createURI("http://ex.org/Charlie"),
+        NodeFactory.createURI("http://ex.org/email"),
+        NodeFactory.createLiteralString("charlie@example.com")
+    );
+    mainCollector.finish();
+    Commit mainCommit2 = new Commit(
+        mainCommit2Id,
+        List.of(mainCommit1Id),
+        "Alice",
+        "Update Alice and add Charlie",
+        Instant.now(),
+        2
+    );
+    commitRepository.save(DATASET_NAME, mainCommit2, mainCollector.getRDFPatch());
+    branchRepository.updateBranchHead(DATASET_NAME, "main", mainCommit2Id);
+
+    featureCommit1Id = CommitId.generate();
+    RDFChangesCollector featureCollector = new RDFChangesCollector();
+    featureCollector.start();
+    featureCollector.add(
+        NodeFactory.createURI("http://ex.org/graphA"),
+        NodeFactory.createURI("http://ex.org/Alice"),
+        NodeFactory.createURI("http://ex.org/age"),
+        NodeFactory.createLiteralString("32")
+    );
+    featureCollector.finish();
+    Commit featureCommit1 = new Commit(
+        featureCommit1Id,
+        List.of(mainCommit1Id),
+        "Bob",
+        "Update Alice to 32",
+        Instant.now(),
+        1
+    );
+    commitRepository.save(DATASET_NAME, featureCommit1, featureCollector.getRDFPatch());
+    branchRepository.updateBranchHead(DATASET_NAME, "feature", featureCommit1Id);
+
+    // Act: Merge with dataset-level "theirs" strategy
+    String requestBody = """
+        {
+          "into": "main",
+          "from": "feature",
+          "strategy": "theirs",
+          "conflictScope": "dataset"
+        }
+        """;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "Alice");
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        BASE_URL + "?dataset=" + DATASET_NAME,
+        HttpMethod.POST,
+        new HttpEntity<>(requestBody, headers),
+        String.class
+    );
+
+    // Assert: Merge succeeds, all "into" changes discarded (Graph-A and Graph-C)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    JsonNode body = parseJson(response.getBody());
+    assertThat(body.get("result").asText()).isEqualTo("merged");
+    assertThat(body.get("strategy").asText()).isEqualTo("theirs");
+    assertThat(body.get("conflictScope").asText()).isEqualTo("dataset");
+    assertThat(body.get("conflictsResolved").asInt()).isGreaterThan(0);
+  }
+
+  /**
+   * Test invalid strategy parameter returns 400.
+   */
+  @Test
+  void merge_invalidStrategy_shouldReturn400() {
+    // Act: Invalid strategy
+    String requestBody = """
+        {
+          "into": "main",
+          "from": "feature",
+          "strategy": "invalid-strategy"
+        }
+        """;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        BASE_URL + "?dataset=" + DATASET_NAME,
+        HttpMethod.POST,
+        new HttpEntity<>(requestBody, headers),
+        String.class
+    );
+
+    // Assert: Bad request
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getHeaders().getContentType().toString())
+        .contains("application/problem+json");
+
+    JsonNode body = parseJson(response.getBody());
+    assertThat(body.get("status").asInt()).isEqualTo(400);
+    assertThat(body.get("code").asText()).isEqualTo("invalid_request");
+  }
+
+  /**
+   * Test invalid conflictScope parameter returns 400.
+   */
+  @Test
+  void merge_invalidConflictScope_shouldReturn400() {
+    // Act: Invalid conflictScope
+    String requestBody = """
+        {
+          "into": "main",
+          "from": "feature",
+          "strategy": "ours",
+          "conflictScope": "invalid-scope"
+        }
+        """;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        BASE_URL + "?dataset=" + DATASET_NAME,
+        HttpMethod.POST,
+        new HttpEntity<>(requestBody, headers),
+        String.class
+    );
+
+    // Assert: Bad request
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getHeaders().getContentType().toString())
+        .contains("application/problem+json");
+
+    JsonNode body = parseJson(response.getBody());
+    assertThat(body.get("status").asInt()).isEqualTo(400);
+    assertThat(body.get("code").asText()).isEqualTo("invalid_request");
+  }
+
   // Helper methods
 
   private RDFPatch createPatch(Node g, Node s, Node p, Node o) {

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 /**
  * Response DTO for merge operation.
  * Provides information about the merge result including merge type, commit IDs,
- * and conflict resolution statistics.
+ * conflict resolution statistics, and conflict scope used.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record MergeResponse(
@@ -16,6 +16,7 @@ public record MergeResponse(
     String headCommit,
     Boolean fastForward,
     String strategy,
+    String conflictScope,
     Integer conflictsResolved
 ) {
   /**
@@ -36,6 +37,7 @@ public record MergeResponse(
         headCommit,
         true,
         "fast-forward",
+        null,
         0
     );
   }
@@ -48,11 +50,13 @@ public record MergeResponse(
    * @param from source ref
    * @param mergeCommit ID of created merge commit
    * @param strategy merge strategy used
+   * @param conflictScope conflict resolution scope used
    * @param conflictsResolved number of conflicts auto-resolved
    * @return merge response
    */
   public static MergeResponse merged(String into, String from, String mergeCommit,
-                                     String strategy, int conflictsResolved) {
+                                     String strategy, String conflictScope,
+                                     int conflictsResolved) {
     return new MergeResponse(
         "merged",
         mergeCommit,
@@ -60,7 +64,8 @@ public record MergeResponse(
         from,
         null,
         false,
-        strategy,
+        strategy != null ? strategy : "three-way",
+        conflictScope != null ? conflictScope : "graph",
         conflictsResolved
     );
   }

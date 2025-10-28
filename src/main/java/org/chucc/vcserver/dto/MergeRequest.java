@@ -1,18 +1,20 @@
 package org.chucc.vcserver.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Locale;
 
 /**
- * Request DTO for merge operation (Phase 1: Core functionality).
+ * Request DTO for merge operation.
  *
- * <p>This DTO supports fast-forward modes in Phase 1. Strategy and resolutions
- * parameters are reserved for later phases but ignored in Phase 1 implementation.
+ * <p>Supports fast-forward modes, conflict resolution strategies,
+ * and configurable conflict scope (graph-level or dataset-level).
  */
 public record MergeRequest(
     String into,
     String from,
     @JsonProperty(defaultValue = "allow") String fastForward,
-    String strategy,
+    @JsonProperty(defaultValue = "three-way") String strategy,
+    @JsonProperty(defaultValue = "graph") String conflictScope,
     Object resolutions
 ) {
   /**
@@ -28,9 +30,28 @@ public record MergeRequest(
       throw new IllegalArgumentException("Source ref (from) is required");
     }
 
+    // Validate fastForward
     String ff = normalizedFastForward();
     if (!java.util.List.of("allow", "only", "never").contains(ff)) {
       throw new IllegalArgumentException("Invalid fastForward mode: " + ff);
+    }
+
+    // Validate strategy
+    if (strategy != null) {
+      String strat = strategy.toLowerCase(Locale.ROOT);
+      if (!java.util.List.of("three-way", "ours", "theirs").contains(strat)) {
+        throw new IllegalArgumentException(
+            "Invalid strategy: " + strategy + ". Valid values: three-way, ours, theirs");
+      }
+    }
+
+    // Validate conflictScope
+    if (conflictScope != null) {
+      String scope = conflictScope.toLowerCase(Locale.ROOT);
+      if (!java.util.List.of("graph", "dataset").contains(scope)) {
+        throw new IllegalArgumentException(
+            "Invalid conflictScope: " + conflictScope + ". Valid values: graph, dataset");
+      }
     }
   }
 
@@ -45,11 +66,19 @@ public record MergeRequest(
 
   /**
    * Returns the normalized strategy.
-   * Phase 1: Always returns "three-way" (other strategies not yet implemented).
    *
    * @return merge strategy (defaults to "three-way")
    */
   public String normalizedStrategy() {
-    return strategy != null ? strategy : "three-way";
+    return strategy != null ? strategy.toLowerCase(Locale.ROOT) : "three-way";
+  }
+
+  /**
+   * Returns the normalized conflict scope.
+   *
+   * @return conflict scope (defaults to "graph")
+   */
+  public String normalizedConflictScope() {
+    return conflictScope != null ? conflictScope.toLowerCase(Locale.ROOT) : "graph";
   }
 }

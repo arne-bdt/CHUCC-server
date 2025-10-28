@@ -412,7 +412,7 @@ All handlers:
    - Handles serialization (JSON)
    - Adds event headers (eventId, eventType, timestamp)
 
-2. **Domain Events** (14 event types):
+2. **Domain Events** (15 event types):
    - `CommitCreatedEvent` - New commit with RDF patch
    - `BranchCreatedEvent` - New branch created
    - `BranchDeletedEvent` - Branch deleted
@@ -1192,7 +1192,7 @@ Each component has ONE reason to change:
 - 17 Services (business logic, including recovery services)
 - 5 Repositories (read model: commits, branches, tags, historical graphs, materialized branch HEADs)
 - 1 Projector with 14 event handlers (async updates)
-- 14 Event types (domain events)
+- 15 Event types (domain events)
 
 **Key Patterns**:
 - Command Handler pattern (write model)

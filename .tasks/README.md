@@ -11,6 +11,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 **Now:** 4 tasks remain (3 protocol endpoints + 1 technical debt)
 
 **Recent Completions:**
+- Merge Operations Phase 2 (Conflict resolution strategies - 2025-10-28) ✅
 - Merge Operations Phase 1 (Core merge functionality - 2025-10-28) ✅
 - Materialized Views (All 6 tasks - 2025-10-26 to 2025-10-28) ✅
 - Parallel Event Replay (Simplified approach - 2025-10-28) ✅
@@ -40,7 +41,8 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 - "ours" strategy (keep target branch changes)
 - "theirs" strategy (keep source branch changes)
 - Auto-resolve conflicts based on strategy
-- **Status:** Not Started (requires Phase 1)
+- Configurable conflict scope (graph-level or dataset-level)
+- **Status:** ✅ Completed (2025-10-28)
 
 **Phase 3: Manual Resolution (3-4 hours)** - [`.tasks/merge/03-implement-manual-resolution.md`](./merge/03-implement-manual-resolution.md)
 - "manual" strategy with resolution array
@@ -607,7 +609,7 @@ The following major features were completed before these tasks were added:
 - Model API to Graph API migration (20-30% performance gain)
 
 ### ✅ Quality & Testing (Completed)
-- 1078 tests (all passing)
+- 1168 tests (all passing)
 - Zero quality violations
 - Test isolation pattern (projector disabled by default)
 - Comprehensive integration test suite

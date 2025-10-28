@@ -28,10 +28,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Handles merge commands (Phase 1: conflict detection only).
+ * Handles merge commands with conflict resolution strategies.
  *
- * <p>Implements fast-forward detection and three-way merge with conflict detection.
- * Conflicts are not auto-resolved in Phase 1 - they return 409 Conflict.
+ * <p>Implements fast-forward detection, three-way merge with conflict detection,
+ * and automatic conflict resolution using "ours" or "theirs" strategies.
  */
 @Component
 @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
@@ -186,18 +186,45 @@ public class MergeCommandHandler implements CommandHandler<MergeCommand> {
     // Detect conflicts
     List<ConflictItem> conflicts = MergeUtil.detectConflicts(baseToInto, baseToFrom);
 
+    RDFPatch mergedPatch;
+    int conflictsResolved = 0;
+
     if (!conflicts.isEmpty()) {
-      // Phase 1: Always throw exception on conflicts
-      logger.info("Merge conflicts detected: {} conflicting quad(s)", conflicts.size());
-      throw new MergeConflictException(
-          "Merge conflicts detected between branches. "
-              + "Use 'ours' or 'theirs' strategy, or resolve manually.",
-          conflicts);
+      String strategy = command.strategy();
+      String conflictScope = command.conflictScope();
+
+      switch (strategy) {
+        case "ours":
+          logger.info("Resolving {} conflicts with 'ours' strategy (scope: {})",
+              conflicts.size(), conflictScope);
+          mergedPatch = MergeUtil.resolveWithOurs(baseToInto, baseToFrom, conflicts, conflictScope);
+          conflictsResolved = conflicts.size();
+          break;
+
+        case "theirs":
+          logger.info("Resolving {} conflicts with 'theirs' strategy (scope: {})",
+              conflicts.size(), conflictScope);
+          mergedPatch = MergeUtil.resolveWithTheirs(
+              baseToInto, baseToFrom, conflicts, conflictScope);
+          conflictsResolved = conflicts.size();
+          break;
+
+        case "three-way":
+        default:
+          // Default behavior: throw exception on conflicts
+          logger.info("Merge conflicts detected: {} conflicting quad(s)", conflicts.size());
+          throw new MergeConflictException(
+              "Merge conflicts detected between branches. "
+                  + "Use 'ours' or 'theirs' strategy, or resolve manually.",
+              conflicts);
+      }
+    } else {
+      // No conflicts: combine both patches
+      logger.info("No conflicts detected, combining patches");
+      mergedPatch = combineDiffs(baseToInto, baseToFrom);
     }
 
-    // No conflicts: create merge commit
-    logger.info("No conflicts detected, creating merge commit");
-    return createMergeCommit(command, intoCommitId, fromCommitId);
+    return createMergeCommit(command, intoCommitId, fromCommitId, mergedPatch, conflictsResolved);
   }
 
   /**
@@ -216,10 +243,26 @@ public class MergeCommandHandler implements CommandHandler<MergeCommand> {
     Dataset fromData = datasetService.getDataset(
         DatasetRef.forCommit(command.dataset(), CommitId.of(fromCommitId)));
 
-    // For now, use simple strategy: compute diff from "into" to "from"
-    // This is the patch that would transform "into" branch into "from" branch
+    // Compute diff from "into" to "from"
     RDFPatch mergePatch = RdfPatchUtil.diff(
         intoData.asDatasetGraph(), fromData.asDatasetGraph());
+
+    return createMergeCommit(command, intoCommitId, fromCommitId, mergePatch, 0);
+  }
+
+  /**
+   * Creates a merge commit with the given merged patch and conflict count.
+   *
+   * @param command the merge command
+   * @param intoCommitId the "into" branch HEAD commit ID
+   * @param fromCommitId the "from" ref commit ID
+   * @param mergePatch the merged RDF patch
+   * @param conflictsResolved number of conflicts that were auto-resolved
+   * @return BranchMergedEvent
+   */
+  private VersionControlEvent createMergeCommit(
+      MergeCommand command, String intoCommitId, String fromCommitId,
+      RDFPatch mergePatch, int conflictsResolved) {
     int patchSize = RdfPatchUtil.countOperations(mergePatch);
 
     // Generate merge commit ID
@@ -235,6 +278,7 @@ public class MergeCommandHandler implements CommandHandler<MergeCommand> {
 
     // Produce event
     VersionControlEvent event = new BranchMergedEvent(
+        null,  // eventId - auto-generated
         command.dataset(),
         command.into(),
         command.from(),
@@ -244,7 +288,8 @@ public class MergeCommandHandler implements CommandHandler<MergeCommand> {
         command.author(),
         Instant.now(),
         patchString,
-        patchSize
+        patchSize,
+        conflictsResolved
     );
 
     // Publish event to Kafka (async, with proper error logging)
@@ -290,6 +335,29 @@ public class MergeCommandHandler implements CommandHandler<MergeCommand> {
     }
 
     throw new IllegalArgumentException("Ref not found: " + ref);
+  }
+
+  /**
+   * Combines two RDF patches into a single patch.
+   * Used when there are no conflicts - simply applies both patches in sequence.
+   *
+   * @param patch1 first patch to combine
+   * @param patch2 second patch to combine
+   * @return combined patch
+   */
+  private RDFPatch combineDiffs(RDFPatch patch1, RDFPatch patch2) {
+    org.apache.jena.rdfpatch.changes.RDFChangesCollector collector =
+        new org.apache.jena.rdfpatch.changes.RDFChangesCollector();
+    collector.start();
+
+    // Apply first patch
+    patch1.apply(collector);
+
+    // Apply second patch
+    patch2.apply(collector);
+
+    collector.finish();
+    return collector.getRDFPatch();
   }
 
   /**

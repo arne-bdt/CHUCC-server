@@ -142,7 +142,7 @@ Distributed event streaming platform that serves dual roles:
 - **Commit Mode**: Manual (AckMode.RECORD) for retry support
 - **Failure Isolation**: Poison events don't block consumer after DLQ routing
 
-**Event Types Stored** (14 event types):
+**Event Types Stored** (15 event types):
 1. `CommitCreatedEvent` - New commit with RDF patch
 2. `BranchCreatedEvent` - New branch created
 3. `BranchDeletedEvent` - Branch deleted

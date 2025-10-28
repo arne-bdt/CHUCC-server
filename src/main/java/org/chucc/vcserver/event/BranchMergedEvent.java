@@ -11,6 +11,9 @@ import java.util.Objects;
  *
  * <p>Note: Fast-forward merges use BranchResetEvent instead.
  * This event is only for three-way merges that create a new commit with two parents.
+ *
+ * <p>The conflictsResolved field indicates how many conflicts were auto-resolved
+ * using a conflict resolution strategy (0 if no conflicts, null for backward compatibility).
  */
 public record BranchMergedEvent(
     @JsonProperty("eventId") String eventId,
@@ -23,7 +26,8 @@ public record BranchMergedEvent(
     @JsonProperty("author") String author,
     @JsonProperty("timestamp") Instant timestamp,
     @JsonProperty("rdfPatch") String rdfPatch,
-    @JsonProperty("patchSize") int patchSize)
+    @JsonProperty("patchSize") int patchSize,
+    @JsonProperty("conflictsResolved") Integer conflictsResolved)
     implements VersionControlEvent {
 
   /**
@@ -41,6 +45,7 @@ public record BranchMergedEvent(
    * @param timestamp event timestamp (must be non-null)
    * @param rdfPatch RDF Patch applied in merge (must be non-null)
    * @param patchSize number of quads changed (must be non-negative)
+   * @param conflictsResolved number of conflicts auto-resolved (null for backward compatibility)
    * @throws IllegalArgumentException if any validation fails
    */
   public BranchMergedEvent {
@@ -78,13 +83,17 @@ public record BranchMergedEvent(
     if (patchSize < 0) {
       throw new IllegalArgumentException("Patch size cannot be negative");
     }
+    if (conflictsResolved != null && conflictsResolved < 0) {
+      throw new IllegalArgumentException("Conflicts resolved cannot be negative");
+    }
 
     // Create defensive copy of parents list to ensure immutability
     parents = List.copyOf(parents);
   }
 
   /**
-   * Convenience constructor that auto-generates eventId.
+   * Convenience constructor that auto-generates eventId and defaults conflictsResolved to null.
+   * For backward compatibility with Phase 1.
    *
    * @param dataset the dataset name
    * @param branchName target branch that was updated
@@ -109,7 +118,7 @@ public record BranchMergedEvent(
       String rdfPatch,
       int patchSize) {
     this(null, dataset, branchName, sourceRef, commitId, parents, message, author,
-        timestamp, rdfPatch, patchSize);
+        timestamp, rdfPatch, patchSize, null);
   }
 
   @Override

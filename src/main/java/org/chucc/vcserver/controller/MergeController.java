@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Merge operations endpoint for version control (Phase 1).
+ * Merge operations endpoint for version control with conflict resolution strategies.
  */
 @RestController
 @RequestMapping("/version/merge")
@@ -43,7 +43,7 @@ public class MergeController {
   }
 
   /**
-   * Merge two branches or commits (Phase 1: fast-forward and conflict detection).
+   * Merge two branches or commits with conflict resolution strategies.
    *
    * @param request merge request
    * @param dataset the dataset name
@@ -56,7 +56,7 @@ public class MergeController {
   )
   @Operation(
       summary = "Merge branches/commits",
-      description = "Merge two branches or commits with fast-forward detection (Phase 1)"
+      description = "Merge two branches or commits with automatic conflict resolution"
   )
   @ApiResponse(
       responseCode = "200",
@@ -110,8 +110,10 @@ public class MergeController {
         request.into(),
         request.from(),
         request.normalizedFastForward(),
+        request.normalizedStrategy(),
+        request.normalizedConflictScope(),
         author != null ? author : "anonymous",
-        null  // Phase 1: no custom message support
+        null  // no custom message support yet
     );
 
     // Handle command
@@ -141,8 +143,9 @@ public class MergeController {
             request.into(),
             request.from(),
             mergedEvent.commitId(),
-            "three-way",
-            0
+            request.normalizedStrategy(),
+            request.normalizedConflictScope(),
+            mergedEvent.conflictsResolved() != null ? mergedEvent.conflictsResolved() : 0
         );
         return ResponseEntity.ok()
             .contentType(MediaType.APPLICATION_JSON)

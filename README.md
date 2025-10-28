@@ -33,7 +33,7 @@ This server implements:
 - ✅ **Commits** - Create commits, query metadata (id, message, author, timestamp, parents, patchSize)
 - ⏳ **History** - Browse commit history with filtering (in progress)
 - ✅ **Time-travel** - Query dataset state at any point in time (`asOf`)
-- ⏳ **Merging** - Three-way merge with conflict detection (in progress)
+- ✅ **Merging** - Fast-forward and three-way merge with conflict detection (Phase 1 complete)
 - ✅ **Tags** - Create, list, get, and delete tags with immutability enforcement
 - ⏳ **Diff** - Compare any two commits (in progress)
 - ⏳ **Blame** - Last-writer attribution per triple (in progress)
@@ -246,7 +246,7 @@ See [.tasks/README.md](.tasks/README.md) for detailed task roadmap.
 - ✅ Zero SpotBugs warnings
 - ✅ Zero PMD violations
 - ✅ Zero compiler warnings (enforced by `-Werror`)
-- ✅ All 1153 tests passing
+- ✅ All 1162 tests passing
 
 See [Task Roadmap](./.tasks/README.md) for complete implementation history.
 

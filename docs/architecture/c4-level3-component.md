@@ -38,7 +38,7 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
 │  │  │  DeleteGraphCommandHandler   ResetBranchCommandHandler   │    ││
 │  │  │  BatchGraphsCommandHandler   RevertCommitCommandHandler  │    ││
 │  │  │  RebaseCommandHandler        CherryPickCommandHandler    │    ││
-│  │  │  SquashCommandHandler                                    │    ││
+│  │  │  SquashCommandHandler        MergeCommandHandler         │    ││
 │  │  └────────────────────┬─────────────────────────────────────┘    ││
 │  │                       │ Uses                                     ││
 │  │                       ▼                                          ││
@@ -412,12 +412,13 @@ All handlers:
    - Handles serialization (JSON)
    - Adds event headers (eventId, eventType, timestamp)
 
-2. **Domain Events** (13 event types):
+2. **Domain Events** (14 event types):
    - `CommitCreatedEvent` - New commit with RDF patch
    - `BranchCreatedEvent` - New branch created
    - `BranchDeletedEvent` - Branch deleted
    - `BranchResetEvent` - Branch pointer moved
    - `BranchRebasedEvent` - Branch rebased onto new base
+   - `BranchMergedEvent` - Branches merged
    - `TagCreatedEvent` - Immutable tag created
    - `TagDeletedEvent` - Tag deleted
    - `CherryPickedEvent` - Commit cherry-picked to branch
@@ -1187,11 +1188,11 @@ Each component has ONE reason to change:
 
 **Key Components**:
 - 14 Controllers (HTTP endpoints, including administrative/monitoring endpoints)
-- 18 Command Handlers (write operations)
+- 19 Command Handlers (write operations)
 - 17 Services (business logic, including recovery services)
 - 5 Repositories (read model: commits, branches, tags, historical graphs, materialized branch HEADs)
-- 1 Projector with 13 event handlers (async updates)
-- 13 Event types (domain events)
+- 1 Projector with 14 event handlers (async updates)
+- 14 Event types (domain events)
 
 **Key Patterns**:
 - Command Handler pattern (write model)

@@ -142,20 +142,21 @@ Distributed event streaming platform that serves dual roles:
 - **Commit Mode**: Manual (AckMode.RECORD) for retry support
 - **Failure Isolation**: Poison events don't block consumer after DLQ routing
 
-**Event Types Stored** (13 event types):
+**Event Types Stored** (14 event types):
 1. `CommitCreatedEvent` - New commit with RDF patch
 2. `BranchCreatedEvent` - New branch created
 3. `BranchDeletedEvent` - Branch deleted
 4. `BranchResetEvent` - Branch pointer moved
 5. `BranchRebasedEvent` - Branch rebased onto new base
-6. `TagCreatedEvent` - Immutable tag created
-7. `CherryPickedEvent` - Commit cherry-picked to branch
-8. `CommitsSquashedEvent` - Multiple commits combined
-9. `RevertCreatedEvent` - Commit reverted
-10. `SnapshotCreatedEvent` - Dataset snapshot created
-11. `DatasetCreatedEvent` - Dataset created with Kafka topic
-12. `DatasetDeletedEvent` - Dataset and all data deleted
-13. `BatchGraphsCompletedEvent` - Batch graph operations completed
+6. `BranchMergedEvent` - Branches merged
+7. `TagCreatedEvent` - Immutable tag created
+8. `CherryPickedEvent` - Commit cherry-picked to branch
+9. `CommitsSquashedEvent` - Multiple commits combined
+10. `RevertCreatedEvent` - Commit reverted
+11. `SnapshotCreatedEvent` - Dataset snapshot created
+12. `DatasetCreatedEvent` - Dataset created with Kafka topic
+13. `DatasetDeletedEvent` - Dataset and all data deleted
+14. `BatchGraphsCompletedEvent` - Batch graph operations completed
 
 **Why Kafka?**:
 - **Durability**: Events survive server restarts

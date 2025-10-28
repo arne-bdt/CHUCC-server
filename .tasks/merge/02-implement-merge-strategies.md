@@ -3,53 +3,122 @@
 **Status:** Not Started (Requires Phase 1 Completion)
 **Priority:** High
 **Category:** Version Control Protocol (Phase 2 of 3)
-**Estimated Time:** 2-3 hours
+**Estimated Time:** 3-4 hours (includes configurable conflict scope)
 
 ---
 
 ## Overview
 
-Add automatic conflict resolution strategies ("ours" and "theirs") to the merge endpoint. This phase builds on Phase 1's conflict detection to auto-resolve conflicts based on strategy.
+Add automatic conflict resolution strategies ("ours" and "theirs") with **configurable conflict scope** to the merge endpoint. This phase builds on Phase 1's conflict detection to auto-resolve conflicts based on strategy and scope.
 
 **Prerequisites:** Phase 1 must be completed (conflict detection working, returns 409).
+
+**Key Design Decisions:**
+1. Conflicts can be resolved at **graph-level** (default) or **dataset-level**
+2. Graphs and datasets are the only valid RDF semantic boundaries
+3. Configurable via `conflictScope` parameter
+
+---
+
+## RDF Terminology Reminder
+
+**Valid RDF structures:**
+- **Triple:** `(Subject, Predicate, Object)` - Statement within a graph
+- **Quad:** `(Graph, Subject, Predicate, Object)` - Statement within a dataset
+- **Graph:** Collection of triples
+- **Dataset:** Collection of graphs (one default graph + zero or more named graphs)
+
+**Valid conflict scopes:**
+- ✅ **Graph-level:** Treat each graph as a semantic boundary
+- ✅ **Dataset-level:** Treat entire dataset as a semantic boundary
+- ❌ **NOT valid:** "Triple-level", "Predicate-level", "Quad-level" (leads to semantic errors)
+
+---
+
+## Conflict Resolution Granularity
+
+### Graph-Level (Default)
+
+When Phase 1 detects a conflicting quad, extract its graph name. **ALL operations in that graph** are treated as conflicting.
+
+**Example:**
+```
+Dataset contains:
+  - Graph-A (metadata): (Alice, age, 30), (Alice, name, "Alice")
+  - Graph-B (emails): (Bob, email, "bob@old.com")
+
+Into branch:
+  - Graph-A: DELETE (Alice, age, 30), ADD (Alice, age, 31)
+  - Graph-B: no changes
+
+From branch:
+  - Graph-A: DELETE (Alice, age, 30), ADD (Alice, age, 32)
+  - Graph-B: ADD (Bob, email, "bob@new.com")
+
+Conflict detected: Quad (Graph-A, Alice, age, 30) touched by both branches
+Conflict scope: Graph-A only
+
+"ours" strategy with conflictScope="graph":
+  - Keep: ALL Graph-A operations from "into" → age=31
+  - Discard: ALL Graph-A operations from "from"
+  - Keep: ALL Graph-B operations from "from" → bob@new.com
+
+Result:
+  - Graph-A: (Alice, age, 31), (Alice, name, "Alice")  [from "into"]
+  - Graph-B: (Bob, email, "bob@old.com"), (Bob, email, "bob@new.com")  [combined]
+```
+
+**Rationale:**
+- Graphs are natural semantic boundaries in RDF
+- Prevents partial merges within a graph
+- Allows merging non-conflicting graphs
+- Most flexible for multi-graph datasets
+
+### Dataset-Level (Conservative)
+
+When ANY quad conflicts, **ALL operations in the entire dataset** are treated as conflicting.
+
+**Example (same scenario as above):**
+```
+Conflict detected: Quad (Graph-A, Alice, age, 30) touched by both branches
+Conflict scope: Entire dataset
+
+"ours" strategy with conflictScope="dataset":
+  - Keep: ALL operations from "into" (Graph-A and Graph-B)
+  - Discard: ALL operations from "from"
+
+Result:
+  - Graph-A: (Alice, age, 31), (Alice, name, "Alice")  [from "into"]
+  - Graph-B: (Bob, email, "bob@old.com")  [from "into", no changes]
+```
+
+**Rationale:**
+- Conservative approach
+- Safest when graphs have dependencies
+- Simpler for single-graph datasets
+- Git-like behavior (repository as single unit)
 
 ---
 
 ## Scope of Phase 2
 
 ### ✅ In Scope
-- Add `strategy` parameter to `MergeRequest`
-- Implement "ours" strategy (keep target branch changes)
-- Implement "theirs" strategy (keep source branch changes)
-- Auto-resolve conflicts based on strategy
+- Add `strategy` parameter to `MergeRequest` ("three-way", "ours", "theirs")
+- Add `conflictScope` parameter to `MergeRequest` ("graph", "dataset")
+- Extract conflicting graphs from quad conflicts
+- Implement graph-level conflict resolution
+- Implement dataset-level conflict resolution
 - Update response to include `conflictsResolved` count
 
 ### ❌ Out of Scope (Phase 3)
 - "manual" strategy with resolution array
-- `MergeResolution` DTO
 - User-provided conflict resolutions
 
 ---
 
 ## Requirements
 
-### Merge Strategies
-
-**three-way (default):**
-- Phase 1 behavior: return 409 if conflicts detected
-- No changes needed
-
-**ours:**
-- Auto-resolve conflicts by keeping target branch ("into") changes
-- If both branches modify same quad, keep "into" version
-- Never returns 409 Conflict
-
-**theirs:**
-- Auto-resolve conflicts by keeping source branch ("from") changes
-- If both branches modify same quad, keep "from" version
-- Never returns 409 Conflict
-
-### Updated Request
+### API Request
 
 ```http
 POST /version/merge HTTP/1.1
@@ -59,14 +128,39 @@ Content-Type: application/json
   "into": "main",
   "from": "feature-x",
   "strategy": "ours",
+  "conflictScope": "graph",
   "fastForward": "allow"
 }
 ```
 
-**New Parameter:**
-- `strategy` (optional) - Merge strategy: `"three-way"`, `"ours"`, `"theirs"` (default: `"three-way"`)
+**New Parameters:**
+- `strategy` (optional) - Conflict resolution strategy:
+  - `"three-way"` (default) - Return 409 if conflicts detected
+  - `"ours"` - Keep "into" branch changes
+  - `"theirs"` - Keep "from" branch changes
+- `conflictScope` (optional) - Conflict boundary:
+  - `"graph"` (default) - Resolve per conflicting graph
+  - `"dataset"` - Resolve entire dataset at once
 
-### Updated Response
+### Merge Strategies
+
+**three-way (default):**
+- Phase 1 behavior: return 409 if conflicts detected
+- `conflictScope` parameter ignored
+
+**ours:**
+- Auto-resolve conflicts by keeping "into" branch changes
+- **conflictScope="graph":** Keep all "into" operations in conflicting graphs only
+- **conflictScope="dataset":** Keep all "into" operations in entire dataset
+- Never returns 409 Conflict
+
+**theirs:**
+- Auto-resolve conflicts by keeping "from" branch changes
+- **conflictScope="graph":** Keep all "from" operations in conflicting graphs only
+- **conflictScope="dataset":** Keep all "from" operations in entire dataset
+- Never returns 409 Conflict
+
+### API Response
 
 ```json
 {
@@ -75,55 +169,15 @@ Content-Type: application/json
   "into": "main",
   "from": "feature-x",
   "strategy": "ours",
+  "conflictScope": "graph",
   "fastForward": false,
   "conflictsResolved": 3
 }
 ```
 
-**New Field:**
-- `conflictsResolved` (integer) - Number of conflicts auto-resolved by strategy
-
----
-
-## Strategy Resolution Logic
-
-### "ours" Strategy
-
-**Algorithm:**
-1. Detect conflicts (same as Phase 1)
-2. For each conflicting quad:
-   - If quad in "into" changes: keep it
-   - If quad in "from" changes only: apply it
-3. Result: "into" branch wins all conflicts
-
-**Example:**
-```
-Base:     (Alice, age, 30)
-Into:     (Alice, age, 31)  [delete 30, add 31]
-From:     (Alice, age, 32)  [delete 30, add 32]
-
-Conflict: Both delete (Alice, age, 30)
-Resolution (ours): Keep "into" changes → Result: (Alice, age, 31)
-```
-
-### "theirs" Strategy
-
-**Algorithm:**
-1. Detect conflicts (same as Phase 1)
-2. For each conflicting quad:
-   - If quad in "from" changes: keep it
-   - If quad in "into" changes only: apply it
-3. Result: "from" branch wins all conflicts
-
-**Example:**
-```
-Base:     (Alice, age, 30)
-Into:     (Alice, age, 31)  [delete 30, add 31]
-From:     (Alice, age, 32)  [delete 30, add 32]
-
-Conflict: Both delete (Alice, age, 30)
-Resolution (theirs): Keep "from" changes → Result: (Alice, age, 32)
-```
+**New Fields:**
+- `conflictScope` (string) - Scope used for resolution
+- `conflictsResolved` (integer) - Number of conflicts auto-resolved
 
 ---
 
@@ -133,28 +187,88 @@ Resolution (theirs): Keep "from" changes → Result: (Alice, age, 32)
 
 **File:** `src/main/java/org/chucc/vcserver/dto/MergeRequest.java`
 
-Add `strategy` validation:
 ```java
-public void validate() {
-  // ... existing validation ...
+package org.chucc.vcserver.dto;
 
-  String strat = strategy != null ? strategy : "three-way";
-  if (!List.of("three-way", "ours", "theirs", "manual").contains(strat)) {
-    throw new IllegalArgumentException("Invalid strategy: " + strat);
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.NotBlank;
+
+/**
+ * Request DTO for merge operation.
+ */
+public record MergeRequest(
+    @NotBlank(message = "Target branch (into) is required")
+    String into,
+
+    @NotBlank(message = "Source ref (from) is required")
+    String from,
+
+    @JsonProperty(defaultValue = "allow")
+    String fastForward,
+
+    @JsonProperty(defaultValue = "three-way")
+    String strategy,          // NEW: "three-way", "ours", "theirs"
+
+    @JsonProperty(defaultValue = "graph")
+    String conflictScope,     // NEW: "graph", "dataset"
+
+    Object resolutions        // Phase 3: Not used in Phase 2
+) {
+
+  public void validate() {
+    if (into == null || into.isBlank()) {
+      throw new IllegalArgumentException("Target branch (into) is required");
+    }
+    if (from == null || from.isBlank()) {
+      throw new IllegalArgumentException("Source ref (from) is required");
+    }
+
+    // Validate fastForward
+    String ff = fastForward != null ? fastForward : "allow";
+    if (!List.of("allow", "only", "never").contains(ff)) {
+      throw new IllegalArgumentException("Invalid fastForward mode: " + ff);
+    }
+
+    // Validate strategy
+    if (strategy != null) {
+      String strat = strategy.toLowerCase();
+      if (!List.of("three-way", "ours", "theirs").contains(strat)) {
+        throw new IllegalArgumentException(
+            "Invalid strategy: " + strategy + ". Valid values: three-way, ours, theirs");
+      }
+    }
+
+    // Validate conflictScope
+    if (conflictScope != null) {
+      String scope = conflictScope.toLowerCase();
+      if (!List.of("graph", "dataset").contains(scope)) {
+        throw new IllegalArgumentException(
+            "Invalid conflictScope: " + conflictScope + ". Valid values: graph, dataset");
+      }
+    }
   }
-}
 
-public String normalizedStrategy() {
-  return strategy != null ? strategy : "three-way";
+  public String normalizedFastForward() {
+    return fastForward != null ? fastForward : "allow";
+  }
+
+  public String normalizedStrategy() {
+    return strategy != null ? strategy.toLowerCase() : "three-way";
+  }
+
+  public String normalizedConflictScope() {
+    return conflictScope != null ? conflictScope.toLowerCase() : "graph";
+  }
 }
 ```
 
 **File:** `src/main/java/org/chucc/vcserver/dto/MergeResponse.java`
 
-Update static factory methods to accept `conflictsResolved`:
+Update factory method:
+
 ```java
 public static MergeResponse merged(String into, String from, String mergeCommit,
-                                   String strategy, int conflictsResolved) {
+                                   String strategy, String conflictScope, int conflictsResolved) {
   return new MergeResponse(
       "merged",
       mergeCommit,
@@ -162,60 +276,90 @@ public static MergeResponse merged(String into, String from, String mergeCommit,
       from,
       null,
       false,
-      strategy,
+      strategy != null ? strategy : "three-way",
+      conflictScope != null ? conflictScope : "graph",
       conflictsResolved
   );
 }
 ```
 
----
+Update record:
 
-### Step 2: Update Command
-
-**File:** `src/main/java/org/chucc/vcserver/command/MergeCommand.java`
-
-Add `strategy` field:
 ```java
-public record MergeCommand(
-    String dataset,
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record MergeResponse(
+    String result,
+    String mergeCommit,
     String into,
     String from,
-    String fastForward,
-    String strategy,      // NEW: "three-way", "ours", "theirs"
-    String author,
-    String message
-) implements Command {
+    String headCommit,
+    Boolean fastForward,
+    String strategy,
+    String conflictScope,     // NEW
+    Integer conflictsResolved
+) {
+  // ... factory methods
 }
 ```
 
 ---
 
-### Step 3: Implement Strategy Resolution
+### Step 2: Update Merge Utilities
 
 **File:** `src/main/java/org/chucc/vcserver/util/MergeUtil.java`
 
-Add strategy resolution methods:
+Add conflict scope methods:
+
 ```java
 /**
- * Resolves conflicts using "ours" strategy.
+ * Extracts conflicting graph names from quad-level conflicts.
  *
- * <p>Keeps all changes from "into" branch, discards conflicting changes from "from" branch.
+ * @param conflicts quad-level conflicts from detectConflicts()
+ * @return set of conflicting graph nodes
+ */
+public static Set<Node> extractConflictingGraphs(List<MergeConflict> conflicts) {
+  Set<Node> graphs = new HashSet<>();
+
+  for (MergeConflict conflict : conflicts) {
+    Node graphNode = parseGraphNode(conflict.graph());
+    graphs.add(graphNode);
+  }
+
+  return graphs;
+}
+
+/**
+ * Parses a graph node string.
+ */
+private static Node parseGraphNode(String graphStr) {
+  if ("urn:x-arq:DefaultGraph".equals(graphStr)) {
+    return Quad.defaultGraphIRI;
+  }
+  return NodeFactory.createURI(graphStr);
+}
+
+/**
+ * Resolves conflicts using "ours" strategy.
  *
  * @param baseToInto changes from base to "into"
  * @param baseToFrom changes from base to "from"
  * @param conflicts detected conflicts
- * @return merged patch with "into" changes winning
+ * @param conflictScope "graph" or "dataset"
+ * @return merged patch with "into" winning
  */
 public static RDFPatch resolveWithOurs(RDFPatch baseToInto, RDFPatch baseToFrom,
-                                       List<MergeConflict> conflicts) {
-  Set<Quad> conflictQuads = extractQuadsFromConflicts(conflicts);
+                                       List<MergeConflict> conflicts, String conflictScope) {
+  RDFPatchBuilder builder = RDFPatchOps.builder();
 
-  // Start with "into" changes (they win)
-  RDFPatchBuilder builder = new RDFPatchBuilder();
-  applyPatch(builder, baseToInto);
-
-  // Add non-conflicting changes from "from"
-  addNonConflictingChanges(builder, baseToFrom, conflictQuads);
+  if ("dataset".equals(conflictScope)) {
+    // Dataset-level: keep ALL "into", discard ALL "from"
+    applyAllOperations(builder, baseToInto);
+  } else {
+    // Graph-level: keep ALL "into", keep non-conflicting "from" graphs
+    Set<Node> conflictingGraphs = extractConflictingGraphs(conflicts);
+    applyAllOperations(builder, baseToInto);
+    applyGraphFilteredOperations(builder, baseToFrom, conflictingGraphs, false);
+  }
 
   return builder.build();
 }
@@ -223,58 +367,142 @@ public static RDFPatch resolveWithOurs(RDFPatch baseToInto, RDFPatch baseToFrom,
 /**
  * Resolves conflicts using "theirs" strategy.
  *
- * <p>Keeps all changes from "from" branch, discards conflicting changes from "into" branch.
- *
  * @param baseToInto changes from base to "into"
  * @param baseToFrom changes from base to "from"
  * @param conflicts detected conflicts
- * @return merged patch with "from" changes winning
+ * @param conflictScope "graph" or "dataset"
+ * @return merged patch with "from" winning
  */
 public static RDFPatch resolveWithTheirs(RDFPatch baseToInto, RDFPatch baseToFrom,
-                                         List<MergeConflict> conflicts) {
-  Set<Quad> conflictQuads = extractQuadsFromConflicts(conflicts);
+                                         List<MergeConflict> conflicts, String conflictScope) {
+  RDFPatchBuilder builder = RDFPatchOps.builder();
 
-  // Start with "from" changes (they win)
-  RDFPatchBuilder builder = new RDFPatchBuilder();
-  applyPatch(builder, baseToFrom);
-
-  // Add non-conflicting changes from "into"
-  addNonConflictingChanges(builder, baseToInto, conflictQuads);
+  if ("dataset".equals(conflictScope)) {
+    // Dataset-level: keep ALL "from", discard ALL "into"
+    applyAllOperations(builder, baseToFrom);
+  } else {
+    // Graph-level: keep non-conflicting "into" graphs, keep ALL "from"
+    Set<Node> conflictingGraphs = extractConflictingGraphs(conflicts);
+    applyGraphFilteredOperations(builder, baseToInto, conflictingGraphs, false);
+    applyAllOperations(builder, baseToFrom);
+  }
 
   return builder.build();
 }
 
-private static Set<Quad> extractQuadsFromConflicts(List<MergeConflict> conflicts) {
-  Set<Quad> quads = new HashSet<>();
-  for (MergeConflict conflict : conflicts) {
-    // Convert MergeConflict back to Quad
-    // (You'll need to parse the strings back to Nodes)
-    quads.add(conflictToQuad(conflict));
-  }
-  return quads;
-}
-
-private static void addNonConflictingChanges(RDFPatchBuilder builder, RDFPatch patch,
-                                            Set<Quad> conflictQuads) {
+/**
+ * Applies all operations from a patch.
+ */
+private static void applyAllOperations(RDFPatchBuilder builder, RDFPatch patch) {
   patch.apply(new RDFChanges() {
     @Override
     public void add(Node g, Node s, Node p, Node o) {
-      Quad quad = new Quad(g, s, p, o);
-      if (!conflictQuads.contains(quad)) {
+      builder.add(g, s, p, o);
+    }
+
+    @Override
+    public void delete(Node g, Node s, Node p, Node o) {
+      builder.delete(g, s, p, o);
+    }
+
+    // Other methods: no-op
+    @Override public void start() {}
+    @Override public void finish() {}
+    @Override public void header(String field, Node value) {}
+    @Override public void addPrefix(Node gn, String prefix, String uriStr) {}
+    @Override public void deletePrefix(Node gn, String prefix) {}
+    @Override public void txnBegin() {}
+    @Override public void txnCommit() {}
+    @Override public void txnAbort() {}
+    @Override public void segment() {}
+  });
+}
+
+/**
+ * Applies operations from a patch, filtering by graph.
+ *
+ * @param graphFilter set of graph nodes to filter
+ * @param include if true, include only operations in graphFilter; if false, exclude them
+ */
+private static void applyGraphFilteredOperations(RDFPatchBuilder builder, RDFPatch patch,
+                                                 Set<Node> graphFilter, boolean include) {
+  patch.apply(new RDFChanges() {
+    @Override
+    public void add(Node g, Node s, Node p, Node o) {
+      boolean inFilter = graphFilter.contains(g);
+      if (include ? inFilter : !inFilter) {
         builder.add(g, s, p, o);
       }
     }
 
     @Override
     public void delete(Node g, Node s, Node p, Node o) {
-      Quad quad = new Quad(g, s, p, o);
-      if (!conflictQuads.contains(quad)) {
+      boolean inFilter = graphFilter.contains(g);
+      if (include ? inFilter : !inFilter) {
         builder.delete(g, s, p, o);
       }
     }
 
     // Other methods: no-op
+    @Override public void start() {}
+    @Override public void finish() {}
+    @Override public void header(String field, Node value) {}
+    @Override public void addPrefix(Node gn, String prefix, String uriStr) {}
+    @Override public void deletePrefix(Node gn, String prefix) {}
+    @Override public void txnBegin() {}
+    @Override public void txnCommit() {}
+    @Override public void txnAbort() {}
+    @Override public void segment() {}
   });
+}
+```
+
+---
+
+### Step 3: Update Command and Event
+
+**File:** `src/main/java/org/chucc/vcserver/command/MergeCommand.java`
+
+```java
+public record MergeCommand(
+    String dataset,
+    String into,
+    String from,
+    String fastForward,
+    String strategy,          // NEW: "three-way", "ours", "theirs"
+    String conflictScope,     // NEW: "graph", "dataset"
+    String author,
+    String message
+) implements Command {
+}
+```
+
+**File:** `src/main/java/org/chucc/vcserver/event/BranchMergedEvent.java`
+
+```java
+public record BranchMergedEvent(
+    String eventId,
+    String dataset,
+    String branchName,
+    String sourceRef,
+    String commitId,
+    List<String> parentIds,
+    RDFPatch patch,
+    int patchSize,
+    String author,
+    String message,
+    Instant timestamp,
+    Integer conflictsResolved  // NEW: nullable for backward compatibility
+) implements Event {
+
+  // Constructor without conflictsResolved (backward compatibility)
+  public BranchMergedEvent(String eventId, String dataset, String branchName,
+                           String sourceRef, String commitId, List<String> parentIds,
+                           RDFPatch patch, int patchSize, String author,
+                           String message, Instant timestamp) {
+    this(eventId, dataset, branchName, sourceRef, commitId, parentIds,
+         patch, patchSize, author, message, timestamp, null);
+  }
 }
 ```
 
@@ -284,10 +512,24 @@ private static void addNonConflictingChanges(RDFPatchBuilder builder, RDFPatch p
 
 **File:** `src/main/java/org/chucc/vcserver/command/MergeCommandHandler.java`
 
-Update `performThreeWayMerge` to handle strategies:
+Update `performThreeWayMerge`:
+
 ```java
 private Event performThreeWayMerge(MergeCommand cmd, String intoCommitId, String fromCommitId) {
-  // ... (existing code to load datasets and compute diffs) ...
+  // Find common ancestor
+  String ancestorId = ancestorFinder.findCommonAncestor(cmd.dataset(), intoCommitId, fromCommitId);
+  if (ancestorId == null) {
+    throw new IllegalStateException("No common ancestor found");
+  }
+
+  // Load datasets
+  Dataset ancestorData = datasetService.loadCommitData(cmd.dataset(), ancestorId);
+  Dataset intoData = datasetService.loadCommitData(cmd.dataset(), intoCommitId);
+  Dataset fromData = datasetService.loadCommitData(cmd.dataset(), fromCommitId);
+
+  // Compute diffs
+  RDFPatch baseToInto = GraphDiffUtil.computeDiff(ancestorData, intoData);
+  RDFPatch baseToFrom = GraphDiffUtil.computeDiff(ancestorData, fromData);
 
   // Detect conflicts
   List<MergeConflict> conflicts = MergeUtil.detectConflicts(baseToInto, baseToFrom);
@@ -297,17 +539,16 @@ private Event performThreeWayMerge(MergeCommand cmd, String intoCommitId, String
 
   if (!conflicts.isEmpty()) {
     String strategy = cmd.strategy() != null ? cmd.strategy() : "three-way";
+    String conflictScope = cmd.conflictScope() != null ? cmd.conflictScope() : "graph";
 
     switch (strategy) {
       case "ours":
-        // Keep "into" branch changes
-        mergedPatch = MergeUtil.resolveWithOurs(baseToInto, baseToFrom, conflicts);
+        mergedPatch = MergeUtil.resolveWithOurs(baseToInto, baseToFrom, conflicts, conflictScope);
         conflictsResolved = conflicts.size();
         break;
 
       case "theirs":
-        // Keep "from" branch changes
-        mergedPatch = MergeUtil.resolveWithTheirs(baseToInto, baseToFrom, conflicts);
+        mergedPatch = MergeUtil.resolveWithTheirs(baseToInto, baseToFrom, conflicts, conflictScope);
         conflictsResolved = conflicts.size();
         break;
 
@@ -321,36 +562,7 @@ private Event performThreeWayMerge(MergeCommand cmd, String intoCommitId, String
     mergedPatch = combineDiffs(baseToInto, baseToFrom);
   }
 
-  // Create merge commit
   return createMergeCommit(cmd, intoCommitId, fromCommitId, mergedPatch, conflictsResolved);
-}
-
-private Event createMergeCommit(MergeCommand cmd, String intoCommitId, String fromCommitId,
-                                RDFPatch mergedPatch, int conflictsResolved) {
-  int patchSize = countPatchOperations(mergedPatch);
-  String mergeCommitId = uuidGenerator.generateCommitId();
-
-  return new BranchMergedEvent(
-      uuidGenerator.generateEventId(),
-      cmd.dataset(),
-      cmd.into(),
-      cmd.from(),
-      mergeCommitId,
-      List.of(intoCommitId, fromCommitId),
-      mergedPatch,
-      patchSize,
-      cmd.author(),
-      cmd.message() != null ? cmd.message() : "Merge " + cmd.from() + " into " + cmd.into(),
-      Instant.now()
-  );
-}
-
-private RDFPatch combineDiffs(RDFPatch baseToInto, RDFPatch baseToFrom) {
-  // Simple combination: apply both patches
-  RDFPatchBuilder builder = new RDFPatchBuilder();
-  applyPatch(builder, baseToInto);
-  applyPatch(builder, baseToFrom);
-  return builder.build();
 }
 ```
 
@@ -360,38 +572,29 @@ private RDFPatch combineDiffs(RDFPatch baseToInto, RDFPatch baseToFrom) {
 
 **File:** `src/main/java/org/chucc/vcserver/controller/MergeController.java`
 
-Pass `strategy` to command:
 ```java
 MergeCommand command = new MergeCommand(
     dataset,
     request.into(),
     request.from(),
     request.normalizedFastForward(),
-    request.normalizedStrategy(),  // NEW
+    request.normalizedStrategy(),
+    request.normalizedConflictScope(),  // NEW
     author,
     null
 );
-```
 
-Update response building:
-```java
+// ... later in response building:
+
 } else if (event instanceof BranchMergedEvent bme) {
   return ResponseEntity.ok(MergeResponse.merged(
       request.into(),
       request.from(),
       bme.commitId(),
-      request.normalizedStrategy(),  // NEW
-      conflictsResolvedCount           // NEW (extract from handler)
+      request.normalizedStrategy(),
+      request.normalizedConflictScope(),
+      bme.conflictsResolved() != null ? bme.conflictsResolved() : 0
   ));
-}
-```
-
-**Note:** You'll need to return `conflictsResolved` count from handler. Consider adding it to `BranchMergedEvent`:
-```java
-public record BranchMergedEvent(
-    // ... existing fields ...
-    int conflictsResolved  // NEW
-) implements Event {
 }
 ```
 
@@ -401,24 +604,28 @@ public record BranchMergedEvent(
 
 **File:** `src/test/java/org/chucc/vcserver/integration/MergeOperationsIT.java`
 
-Add tests for strategies:
 ```java
 @Test
-void merge_oursStrategy_shouldResolveConflictsWithIntoChanges() {
-  // Arrange: Create diverged branches
+void merge_oursStrategy_graphScope_shouldResolveConflictingGraphsOnly() {
+  // Arrange: Conflict in Graph-A, changes in Graph-B
   String baseCommit = getCurrentCommit("main");
   createBranch("branch-a", baseCommit);
   createBranch("branch-b", baseCommit);
 
-  // Add conflicting data
-  String patchA = "A <http://example.org/g> <http://example.org/Alice> <http://example.org/age> \"31\" .";
-  applyPatch("branch-a", patchA);
+  // Graph-A: conflicting age updates
+  applyPatch("branch-a", """
+    D <http://example.org/graphA> <urn:Alice> <urn:age> "30" .
+    A <http://example.org/graphA> <urn:Alice> <urn:age> "31" .
+    """);
 
-  String patchB = "A <http://example.org/g> <http://example.org/Alice> <http://example.org/age> \"32\" .";
-  applyPatch("branch-b", patchB);
+  applyPatch("branch-b", """
+    D <http://example.org/graphA> <urn:Alice> <urn:age> "30" .
+    A <http://example.org/graphA> <urn:Alice> <urn:age> "32" .
+    A <http://example.org/graphB> <urn:Bob> <urn:name> "Bob" .
+    """);
 
-  // Act: Merge with "ours" strategy
-  MergeRequest request = new MergeRequest("branch-a", "branch-b", "allow", "ours", null);
+  // Act: Merge with graph-level "ours"
+  MergeRequest request = new MergeRequest("branch-a", "branch-b", "allow", "ours", "graph", null);
   ResponseEntity<MergeResponse> response = restTemplate.postForEntity(
       "/version/merge?dataset=test",
       request,
@@ -427,32 +634,31 @@ void merge_oursStrategy_shouldResolveConflictsWithIntoChanges() {
 
   // Assert
   assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-  assertThat(response.getBody().result()).isEqualTo("merged");
   assertThat(response.getBody().strategy()).isEqualTo("ours");
+  assertThat(response.getBody().conflictScope()).isEqualTo("graph");
   assertThat(response.getBody().conflictsResolved()).isGreaterThan(0);
-
-  // Verify: Result has "31" (from branch-a, not "32" from branch-b)
-  String result = queryGraph("branch-a", "SELECT ?age WHERE { <http://example.org/Alice> <http://example.org/age> ?age }");
-  assertThat(result).contains("31");
-  assertThat(result).doesNotContain("32");
 }
 
 @Test
-void merge_theirsStrategy_shouldResolveConflictsWithFromChanges() {
-  // Arrange: Create diverged branches
+void merge_oursStrategy_datasetScope_shouldDiscardAllFromChanges() {
+  // Same setup as above
   String baseCommit = getCurrentCommit("main");
   createBranch("branch-a", baseCommit);
   createBranch("branch-b", baseCommit);
 
-  // Add conflicting data
-  String patchA = "A <http://example.org/g> <http://example.org/Alice> <http://example.org/age> \"31\" .";
-  applyPatch("branch-a", patchA);
+  applyPatch("branch-a", """
+    D <http://example.org/graphA> <urn:Alice> <urn:age> "30" .
+    A <http://example.org/graphA> <urn:Alice> <urn:age> "31" .
+    """);
 
-  String patchB = "A <http://example.org/g> <http://example.org/Alice> <http://example.org/age> \"32\" .";
-  applyPatch("branch-b", patchB);
+  applyPatch("branch-b", """
+    D <http://example.org/graphA> <urn:Alice> <urn:age> "30" .
+    A <http://example.org/graphA> <urn:Alice> <urn:age> "32" .
+    A <http://example.org/graphB> <urn:Bob> <urn:name> "Bob" .
+    """);
 
-  // Act: Merge with "theirs" strategy
-  MergeRequest request = new MergeRequest("branch-a", "branch-b", "allow", "theirs", null);
+  // Act: Merge with dataset-level "ours"
+  MergeRequest request = new MergeRequest("branch-a", "branch-b", "allow", "ours", "dataset", null);
   ResponseEntity<MergeResponse> response = restTemplate.postForEntity(
       "/version/merge?dataset=test",
       request,
@@ -461,70 +667,54 @@ void merge_theirsStrategy_shouldResolveConflictsWithFromChanges() {
 
   // Assert
   assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-  assertThat(response.getBody().result()).isEqualTo("merged");
-  assertThat(response.getBody().strategy()).isEqualTo("theirs");
-  assertThat(response.getBody().conflictsResolved()).isGreaterThan(0);
-
-  // Verify: Result has "32" (from branch-b, not "31" from branch-a)
-  String result = queryGraph("branch-a", "SELECT ?age WHERE { <http://example.org/Alice> <http://example.org/age> ?age }");
-  assertThat(result).contains("32");
-  assertThat(result).doesNotContain("31");
+  assertThat(response.getBody().conflictScope()).isEqualTo("dataset");
+  // With dataset scope, Graph-B changes from branch-b should also be discarded
 }
 
 @Test
-void merge_oursStrategy_withNoConflicts_shouldApplyBothChanges() {
-  // Arrange: Create diverged branches with non-overlapping changes
-  String baseCommit = getCurrentCommit("main");
-  createBranch("branch-a", baseCommit);
-  createBranch("branch-b", baseCommit);
+void merge_theirsStrategy_graphScope_shouldKeepFromChangesInConflictingGraphs() {
+  // Similar test for "theirs" strategy
+}
 
-  String patchA = "A <http://example.org/g> <http://example.org/Alice> <http://example.org/name> \"Alice\" .";
-  applyPatch("branch-a", patchA);
+@Test
+void merge_invalidConflictScope_shouldReturn400() {
+  MergeRequest request = new MergeRequest("main", "feature", "allow", "ours", "invalid", null);
 
-  String patchB = "A <http://example.org/g> <http://example.org/Bob> <http://example.org/name> \"Bob\" .";
-  applyPatch("branch-b", patchB);
-
-  // Act: Merge with "ours" strategy
-  MergeRequest request = new MergeRequest("branch-a", "branch-b", "allow", "ours", null);
-  ResponseEntity<MergeResponse> response = restTemplate.postForEntity(
+  ResponseEntity<String> response = restTemplate.postForEntity(
       "/version/merge?dataset=test",
       request,
-      MergeResponse.class
+      String.class
   );
 
-  // Assert
-  assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-  assertThat(response.getBody().conflictsResolved()).isEqualTo(0);
-
-  // Verify: Both changes applied
-  String result = queryGraph("branch-a", "SELECT ?name WHERE { ?s <http://example.org/name> ?name }");
-  assertThat(result).contains("Alice");
-  assertThat(result).contains("Bob");
+  assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  assertThat(response.getBody()).contains("Invalid conflictScope");
 }
 ```
 
 **File:** `src/test/java/org/chucc/vcserver/util/MergeUtilTest.java`
 
-Add unit tests for strategy resolution:
 ```java
 @Test
-void resolveWithOurs_shouldKeepIntoChanges() {
-  // Arrange
-  RDFPatch baseToInto = createPatch("A <g> <s> <p> \"31\" .");
-  RDFPatch baseToFrom = createPatch("A <g> <s> <p> \"32\" .");
-  List<MergeConflict> conflicts = List.of(new MergeConflict(...));
-
-  // Act
-  RDFPatch result = MergeUtil.resolveWithOurs(baseToInto, baseToFrom, conflicts);
-
-  // Assert
-  assertThat(result).contains("31");
-  assertThat(result).doesNotContain("32");
+void resolveWithOurs_graphScope_shouldKeepIntoInConflictingGraphOnly() {
+  // Test graph-level resolution
 }
 
 @Test
-void resolveWithTheirs_shouldKeepFromChanges() {
-  // Similar test for "theirs"
+void resolveWithOurs_datasetScope_shouldKeepIntoEntireDataset() {
+  // Test dataset-level resolution
+}
+
+@Test
+void extractConflictingGraphs_shouldReturnUniqueGraphs() {
+  List<MergeConflict> conflicts = List.of(
+      new MergeConflict("http://example.org/graphA", "urn:s1", "urn:p1", "\"v1\"", null),
+      new MergeConflict("http://example.org/graphA", "urn:s2", "urn:p2", "\"v2\"", null),
+      new MergeConflict("http://example.org/graphB", "urn:s3", "urn:p3", "\"v3\"", null)
+  );
+
+  Set<Node> graphs = MergeUtil.extractConflictingGraphs(conflicts);
+
+  assertThat(graphs).hasSize(2);
 }
 ```
 
@@ -533,13 +723,16 @@ void resolveWithTheirs_shouldKeepFromChanges() {
 ## Success Criteria
 
 - ✅ `strategy` parameter accepted and validated
-- ✅ "ours" strategy resolves conflicts (keeps "into" changes)
-- ✅ "theirs" strategy resolves conflicts (keeps "from" changes)
+- ✅ `conflictScope` parameter accepted and validated (graph, dataset)
+- ✅ "ours" strategy with graph-level scope works correctly
+- ✅ "ours" strategy with dataset-level scope works correctly
+- ✅ "theirs" strategy with both scopes works correctly
+- ✅ Conflicting graphs extracted correctly from quad conflicts
+- ✅ Non-conflicting graphs merged when using graph-level scope
 - ✅ `conflictsResolved` count returned in response
-- ✅ Non-conflicting changes always applied
-- ✅ "three-way" strategy still returns 409 on conflicts (Phase 1 behavior preserved)
-- ✅ Integration tests pass (3+ new test cases)
-- ✅ Unit tests pass
+- ✅ "three-way" strategy ignores conflictScope (returns 409)
+- ✅ Integration tests pass (5+ test cases)
+- ✅ Unit tests pass (scope extraction, both strategies, both scopes)
 - ✅ Zero quality violations
 - ✅ Full build passes
 
@@ -547,21 +740,48 @@ void resolveWithTheirs_shouldKeepFromChanges() {
 
 ## Files to Modify
 
-- `src/main/java/org/chucc/vcserver/dto/MergeRequest.java` (add strategy validation)
-- `src/main/java/org/chucc/vcserver/dto/MergeResponse.java` (add conflictsResolved parameter)
-- `src/main/java/org/chucc/vcserver/command/MergeCommand.java` (add strategy field)
-- `src/main/java/org/chucc/vcserver/event/BranchMergedEvent.java` (add conflictsResolved field)
-- `src/main/java/org/chucc/vcserver/command/MergeCommandHandler.java` (implement strategies)
-- `src/main/java/org/chucc/vcserver/controller/MergeController.java` (pass strategy)
-- `src/main/java/org/chucc/vcserver/util/MergeUtil.java` (add strategy methods)
-- `src/test/java/org/chucc/vcserver/integration/MergeOperationsIT.java` (add strategy tests)
-- `src/test/java/org/chucc/vcserver/util/MergeUtilTest.java` (add strategy unit tests)
+- `src/main/java/org/chucc/vcserver/dto/MergeRequest.java`
+- `src/main/java/org/chucc/vcserver/dto/MergeResponse.java`
+- `src/main/java/org/chucc/vcserver/command/MergeCommand.java`
+- `src/main/java/org/chucc/vcserver/event/BranchMergedEvent.java`
+- `src/main/java/org/chucc/vcserver/command/MergeCommandHandler.java`
+- `src/main/java/org/chucc/vcserver/controller/MergeController.java`
+- `src/main/java/org/chucc/vcserver/util/MergeUtil.java`
+- `src/test/java/org/chucc/vcserver/integration/MergeOperationsIT.java`
+- `src/test/java/org/chucc/vcserver/util/MergeUtilTest.java`
+
+---
+
+## Edge Cases
+
+1. **Single-graph dataset:** Both scopes behave identically
+2. **Default graph only:** Handled via `Quad.defaultGraphIRI`
+3. **Multiple conflicting graphs:** Each resolved independently (graph scope) or all together (dataset scope)
+4. **Both branches add same quad:** Conservatively flagged as conflict, strategy handles gracefully
+5. **Empty patches:** No conflicts, no operations
+
+---
+
+## Decision Matrix
+
+| Scenario | Graph Scope | Dataset Scope |
+|----------|-------------|---------------|
+| Conflict in Graph-A only | Resolve Graph-A, merge Graph-B | Resolve entire dataset |
+| Conflict in multiple graphs | Resolve each graph independently | Resolve entire dataset |
+| Single graph dataset | Same as dataset scope | Conservative resolution |
+| Inter-graph dependencies | May cause inconsistency ⚠️ | Safe ✅ |
+
+**Recommendation:**
+- Use `conflictScope="graph"` for multi-graph datasets with independent graphs
+- Use `conflictScope="dataset"` for datasets with inter-graph dependencies or single-graph datasets
 
 ---
 
 ## Next Phase
 
-- **Phase 3:** [Implement manual resolution](./03-implement-manual-resolution.md) ("manual" strategy with resolution array)
+- **Phase 3:** [Implement manual resolution](./03-implement-manual-resolution.md) ("manual" strategy) - **Optional**
+
+**Note:** Phase 3 adds significant complexity. Evaluate Phase 2 in production before deciding on Phase 3.
 
 ---
 
@@ -569,3 +789,6 @@ void resolveWithTheirs_shouldKeepFromChanges() {
 
 - [Phase 1 Task](./01-implement-merge-core.md)
 - [Git Merge Strategies](https://git-scm.com/docs/merge-strategies)
+- [Apache Jena RDFPatch](https://jena.apache.org/documentation/rdfpatch/)
+- [RDF Named Graphs](https://www.w3.org/TR/rdf11-concepts/#section-dataset)
+- [RDF 1.1 Concepts: Triples and Quads](https://www.w3.org/TR/rdf11-concepts/)

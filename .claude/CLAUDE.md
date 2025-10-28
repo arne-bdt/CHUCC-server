@@ -29,6 +29,67 @@ This project implements [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-pro
 
 ---
 
+## RDF Fundamentals
+
+**Essential terminology for working with this codebase:**
+
+### RDF Data Model
+
+**Triple:** `(Subject, Predicate, Object)` - Statement within a single graph
+- Example: `(Alice, age, 30)`
+- Represents: "Alice's age is 30"
+
+**Quad:** `(Graph, Subject, Predicate, Object)` - Statement within a dataset
+- Example: `(metadata-graph, Alice, age, 30)`
+- Represents: "In metadata-graph, Alice's age is 30"
+
+**Graph:** Collection of triples
+- Named graph: Has a URI identifier (e.g., `http://example.org/metadata`)
+- Default graph: Unnamed graph (represented as `urn:x-arq:DefaultGraph` in Jena)
+
+**Dataset:** Collection of graphs
+- Contains exactly one default graph (may be empty)
+- Contains zero or more named graphs
+- Example: A dataset might contain:
+  - Default graph: Core data
+  - `http://example.org/metadata`: Provenance metadata
+  - `http://example.org/inference`: Inferred triples
+
+### Apache Jena Specifics
+
+**Key classes:**
+- `Node` - Represents a URI, literal, or blank node
+- `Triple` - (S, P, O) within a graph
+- `Quad` - (G, S, P, O) within a dataset
+- `Graph` - Collection of triples
+- `Dataset` - Collection of graphs
+- `DatasetGraph` - Low-level dataset interface (used in this project)
+
+**Important:**
+- This project uses `DatasetGraphInMemory` (in-memory RDF storage)
+- RDFPatch represents changes to a dataset (additions and deletions of quads)
+- JSON-LD is a JSON-based RDF format supporting both triples and quads
+
+### Conflict Resolution Semantics
+
+When merging branches, conflicts can be resolved at different granularities:
+
+**Dataset-level:** If ANY quad conflicts, treat entire dataset as conflicting
+- Conservative approach
+- Safest for datasets with inter-graph dependencies
+
+**Graph-level:** If ANY quad in a graph conflicts, treat that graph as conflicting
+- Balanced approach (default in this project)
+- Treats graphs as semantic boundaries
+- Other non-conflicting graphs can still be merged
+
+**⚠️ Invalid RDF concepts:**
+- ❌ "(G, S, P) tuple" - Not a valid RDF structure
+- ❌ "Partial triple" - Triples are atomic (S, P, O)
+- ✅ Use proper terminology: Triple, Quad, Graph, Dataset
+
+---
+
 ## Testing Guidelines
 
 ### Test-Driven Development (TDD)

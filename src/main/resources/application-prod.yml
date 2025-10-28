@@ -35,6 +35,7 @@ kafka:
     enable-auto-commit: true
     auto-commit-interval-ms: 1000
     max-poll-records: 500
+    concurrency: 6  # Process 6 dataset topics in parallel for faster startup
 
 management:
   endpoint:

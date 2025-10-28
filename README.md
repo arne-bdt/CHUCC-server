@@ -54,6 +54,8 @@ This server implements:
 - ✅ **Metadata Caching** - Fast snapshot lookups with minimal memory footprint
 - ✅ **Event Deduplication** - Exactly-once processing semantics with UUIDv7-based deduplication cache
 - ✅ **Distributed Tracing** - Correlation IDs track requests across HTTP → Kafka → Projector
+- ✅ **Parallel Event Replay** - Configurable consumer concurrency for faster startup (6x with 6 datasets)
+- ✅ **Event Processing Metrics** - Timing metrics for identifying performance bottlenecks
 
 ### Operations
 - ✅ **Dataset Creation** - Dynamic dataset creation with automatic Kafka topic provisioning

@@ -173,9 +173,9 @@ public class ReadModelProjector {
       autoStartup = "${projector.kafka-listener.enabled:true}"
   )
   @SuppressFBWarnings(
-      value = "REC_CATCH_EXCEPTION",
+      value = {"REC_CATCH_EXCEPTION", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"},
       justification = "Catch-all exception handler needed for projector resilience -"
-          + " delegates to caller's retry/DLQ logic")
+          + " delegates to caller's retry/DLQ logic. Null check needed for test scenarios.")
   public void handleEvent(ConsumerRecord<String, VersionControlEvent> record) {
     VersionControlEvent event = record.value();
     Headers headers = record.headers();
@@ -185,6 +185,12 @@ public class ReadModelProjector {
     if (correlationId != null) {
       // Set in MDC so all logs in this handler include it
       MDC.put(CorrelationIdFilter.CORRELATION_ID_KEY, correlationId);
+    }
+
+    // Start timing for performance measurement (null-safe for tests)
+    io.micrometer.core.instrument.Timer.Sample sample = null;
+    if (meterRegistry != null && meterRegistry.config() != null) {
+      sample = io.micrometer.core.instrument.Timer.start(meterRegistry);
     }
 
     try {
@@ -226,6 +232,15 @@ public class ReadModelProjector {
           "status", "success"
       ).increment();
 
+      // Stop timer and record duration
+      if (sample != null) {
+        sample.stop(meterRegistry.timer("chucc.projection.event.duration",
+            "event_type", event.getClass().getSimpleName(),
+            "dataset", event.dataset(),
+            "status", "success"
+        ));
+      }
+
       logger.info("Successfully projected event: {} (id={}) for dataset: {}",
           event.getClass().getSimpleName(), event.eventId(), event.dataset());
     } catch (Exception ex) {
@@ -236,6 +251,15 @@ public class ReadModelProjector {
           "status", "error",
           "error_type", ex.getClass().getSimpleName()
       ).increment();
+
+      // Stop timer and record duration (even for errors)
+      if (sample != null) {
+        sample.stop(meterRegistry.timer("chucc.projection.event.duration",
+            "event_type", event.getClass().getSimpleName(),
+            "dataset", event.dataset(),
+            "status", "error"
+        ));
+      }
 
       logger.error("Failed to project event: {} (id={}) for dataset: {}",
           event.getClass().getSimpleName(), event.eventId(), event.dataset(), ex);

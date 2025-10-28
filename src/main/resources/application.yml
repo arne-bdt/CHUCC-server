@@ -109,6 +109,7 @@ kafka:
     enable-auto-commit: ${KAFKA_CONSUMER_ENABLE_AUTO_COMMIT:true}
     isolation-level: ${KAFKA_CONSUMER_ISOLATION:read_uncommitted}  # read_committed for prod
     max-poll-records: ${KAFKA_CONSUMER_MAX_POLL_RECORDS:500}
+    concurrency: ${KAFKA_CONSUMER_CONCURRENCY:1}  # Parallel consumers (1=sequential, 6+=parallel)
 
   # Snapshot store configuration
   snapshot-store:

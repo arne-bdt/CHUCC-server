@@ -238,6 +238,7 @@ public class KafkaConfig {
   /**
    * Kafka listener container factory for event consumers.
    * Configures error handling with exponential backoff retry and DLQ.
+   * Concurrency level controls parallel event processing across topics.
    *
    * @return ConcurrentKafkaListenerContainerFactory instance
    */
@@ -247,7 +248,15 @@ public class KafkaConfig {
     ConcurrentKafkaListenerContainerFactory<String, VersionControlEvent> factory =
         new ConcurrentKafkaListenerContainerFactory<>();
     factory.setConsumerFactory(consumerFactory());
-    factory.setConcurrency(1); // Single consumer for ordered processing
+
+    // Configurable concurrency: multiple consumers process different topics in parallel
+    // With N datasets (each with 1 partition), N consumers process events concurrently
+    int concurrency = kafkaProperties.getConsumer().getConcurrency();
+    factory.setConcurrency(concurrency);
+
+    logger.info("Configured Kafka listener with concurrency={} "
+            + "(processes {} dataset topics in parallel)",
+        concurrency, concurrency);
 
     // Manual commit mode: commit offset after each successful event processing
     // This ensures failed events trigger retry instead of being lost

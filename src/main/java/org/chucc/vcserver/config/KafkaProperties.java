@@ -245,6 +245,7 @@ public class KafkaProperties {
     private boolean enableAutoCommit = true;
     private String isolationLevel = "read_uncommitted";
     private int maxPollRecords = 500;
+    private int concurrency = 1;
 
     public int getAutoCommitIntervalMs() {
       return autoCommitIntervalMs;
@@ -276,6 +277,33 @@ public class KafkaProperties {
 
     public void setMaxPollRecords(int maxPollRecords) {
       this.maxPollRecords = maxPollRecords;
+    }
+
+    /**
+     * Gets the number of concurrent consumer threads.
+     *
+     * @return the concurrency level
+     */
+    public int getConcurrency() {
+      return concurrency;
+    }
+
+    /**
+     * Sets the number of concurrent consumer threads.
+     * Higher concurrency enables parallel processing across multiple dataset topics.
+     *
+     * @param concurrency the concurrency level (1-100)
+     * @throws IllegalArgumentException if concurrency is not between 1 and 100
+     */
+    public void setConcurrency(int concurrency) {
+      final int minConcurrency = 1;
+      final int maxConcurrency = 100;
+      if (concurrency < minConcurrency || concurrency > maxConcurrency) {
+        throw new IllegalArgumentException(
+            "Consumer concurrency must be between " + minConcurrency + " and " + maxConcurrency
+                + ", got: " + concurrency);
+      }
+      this.concurrency = concurrency;
     }
   }
 

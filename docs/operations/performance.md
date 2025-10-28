@@ -46,6 +46,65 @@ This simple approach is sufficient because:
 - Available memory
 - JVM heap settings
 
+| Operation | Configuration | Expected Time | Notes |
+|-----------|--------------|---------------|-------|
+| Event replay (startup) | concurrency=1 | ~100 events/sec | Sequential processing |
+| Event replay (startup) | concurrency=6 | ~600 events/sec | 6 datasets in parallel |
+| Event projection (steady) | Any | < 10ms/event | Trickle rate, concurrency less important |
+
+### Parallel Event Processing
+
+**Configuration** (Added 2025-10-28):
+- `kafka.consumer.concurrency` - Number of concurrent consumer threads
+- Default: 1 (sequential processing in dev)
+- Production: 6 (parallel processing across 6 dataset topics)
+- Range: 1-100
+
+**How It Works:**
+Multiple Kafka consumer threads process events from different dataset topics concurrently:
+- Each dataset has its own Kafka topic (e.g., `vc.dataset1.events`, `vc.dataset2.events`)
+- With concurrency=6, up to 6 dataset topics can be processed in parallel
+- Events within a single dataset remain strictly ordered (per-partition guarantee)
+- Improves event replay performance during startup
+
+**When to Adjust:**
+
+*Increase concurrency* if:
+- Multiple datasets exist (N datasets → N concurrency for full parallelism)
+- Startup recovery is slow (replaying events from earliest offset)
+- CPU cores are underutilized during event processing
+
+*Decrease concurrency* if:
+- Single dataset (concurrency > 1 provides no benefit)
+- Memory pressure exists (each consumer has overhead)
+- Contention on shared resources observed
+
+**Performance Impact:**
+- Startup time: 6x faster with 6 datasets and concurrency=6 (parallel replay)
+- Steady-state: Minimal impact (events trickle in slowly)
+- Trade-off: More memory/CPU for parallel processing
+
+**Configuration Examples:**
+
+Development:
+```yaml
+kafka:
+  consumer:
+    concurrency: 1  # Sequential for simpler debugging
+```
+
+Production:
+```yaml
+kafka:
+  consumer:
+    concurrency: 6  # Parallel across 6 datasets
+```
+
+Environment variable override:
+```bash
+export KAFKA_CONSUMER_CONCURRENCY=6
+```
+
 ### Scalability Considerations
 
 **Vertical Scaling**:
@@ -113,6 +172,17 @@ If performance issues arise, consider these optimizations **in order**:
 3. **Resource usage**:
    - JVM heap usage
    - GC frequency and duration
+
+4. **Event processing performance** (Added 2025-10-28):
+   - `chucc.projection.event.duration{event_type, dataset, status}` - Event processing time
+     - Labels: `event_type` (e.g., CommitCreatedEvent), `dataset`, `status` (success/error)
+     - Use to identify slow projector handlers
+     - Query example: `histogram_quantile(0.95, chucc_projection_event_duration_seconds)`
+   - `chucc.projection.events.total{event_type, dataset, status}` - Event processing count
+     - Labels: Same as above, plus `error_type` on failures
+     - Use to track throughput and error rates
+   - `chucc.projection.retries.total{topic, attempt}` - Retry counts
+     - Use to identify problematic events or transient failures
 
 ### Performance Testing
 

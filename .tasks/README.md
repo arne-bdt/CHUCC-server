@@ -8,109 +8,18 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Previously:** All original tasks were completed and removed (October 24, 2025)
 
-**Now:** 9 tasks remain (3 protocol endpoints + 1 technical debt + 1 performance optimization + 6 architecture enhancements completed)
+**Now:** 4 tasks remain (3 protocol endpoints + 1 technical debt)
 
 **Recent Completions:**
-- patchSize Schema Evolution (2025-01-24) - CQRS Compliant ✅
-- Branch Management API (2025-10-24)
+- Materialized Views (All 6 tasks - 2025-10-26 to 2025-10-28) ✅
+- Parallel Event Replay (Simplified approach - 2025-10-28) ✅
+- patchSize Schema Evolution (2025-01-24) ✅
+- Branch Management API (2025-10-24) ✅
 - Dataset Management + Kafka Integration (2025-10-26) ✅
-- LRU Eviction for Materialized Views (2025-10-27) ✅
-- Fail-Fast Projection Error Handling (2025-10-28) ✅
 
 ---
 
 ## Remaining Tasks
-
-### 🟠 High Priority (Architecture Enhancement)
-
-#### 0. Materialized Branch Views - Continuously Updated DatasetGraphs
-**Directory:** [`.tasks/materialized-views/`](./materialized-views/)
-
-**Goal:** Move from on-demand graph materialization to eager materialization for instant query performance.
-
-**Status:** ✅ COMPLETED (All 6 tasks completed)
-**Estimated Time:** 19-25 hours (6 tasks)
-**Category:** Architecture Enhancement
-**Completion:** 100% (6/6 tasks completed)
-
-**Tasks:**
-1. ✅ [Task 01: Create MaterializedBranchRepository Infrastructure](./materialized-views/01-create-materialized-branch-repository.md) (3-4 hours) - COMPLETED 2025-10-26
-   - Created MaterializedBranchRepository interface
-   - Implemented InMemoryMaterializedBranchRepository with per-branch locking
-   - Custom RDFChangesApply to bypass Jena transaction management
-   - 16 unit tests (all passing)
-
-2. ✅ [Task 02: Update ReadModelProjector for Eager Materialization](./materialized-views/02-update-projector-for-eager-materialization.md) (4-5 hours) - COMPLETED 2025-10-26
-   - Updated ReadModelProjector to apply patches eagerly
-   - Handle branch creation/deletion in materialized views
-   - 4 integration tests (MaterializedGraphProjectionIT, all passing)
-   - **Note:** CQRS agent identified exception handling improvements needed (see follow-up tasks)
-
-3. ✅ [Task 03: Update DatasetService to Use Materialized Views](./materialized-views/03-update-datasetservice-for-materialized-views.md) (3-4 hours) - COMPLETED 2025-10-27
-   - Updated DatasetService to use pre-materialized branch graphs
-   - Implemented getMaterializedBranchGraph() for O(1) branch HEAD lookups
-   - Simplified cache logic (removed branch HEAD pinning)
-   - Graceful fallback to on-demand building when materialized graph unavailable
-   - 4 new unit tests (all passing)
-   - **CQRS Agent Verification:** ✅ 100% compliant, APPROVED FOR PRODUCTION
-   - **Test Isolation Validation:** ✅ PERFECT isolation patterns
-   - Performance: 10-20x faster branch HEAD queries (<5ms vs 50-500ms)
-
-4. ✅ [Task 04: Add Monitoring and Recovery Mechanisms](./materialized-views/04-add-monitoring-and-recovery.md) (3-4 hours) - COMPLETED 2025-10-27
-   - Micrometer metrics (graph count, memory usage, patch operations, rebuild operations)
-   - Health checks for materialized views (/actuator/health/materializedViews)
-   - Manual rebuild endpoint for recovery (/actuator/materialized-views/rebuild)
-   - Scheduled monitoring with periodic statistics logging
-   - Configuration properties for materialized views
-
-**Technical Debt Identified (from agent reviews):**
-- ~~Exception handling in projector needs improvement (rethrow vs swallow)~~ → **Task 06** created
-- Idempotency check needed for branch creation
-- Transaction management documentation needed
-- ✅ MaterializedViewRebuildIT test refactored (extended ITFixture, removed duplicate setup) - COMPLETED 2025-10-27
-- ~~LRU eviction needed for memory management~~ → **Task 05** created
-
-**Benefits:**
-- ✅ **10-20x faster** branch HEAD queries (<10ms vs 100-200ms)
-- ✅ Memory usage scales with branches, not history depth
-- ✅ CQRS compliant (projector maintains materialized views)
-- ✅ Backward compatible (historical queries unchanged)
-- ✅ Production-ready monitoring and recovery
-
-**CQRS Compliance:** ✅ Full compliance
-- Projector applies patches to materialized graphs (read model updates)
-- DatasetService returns materialized graphs (query side)
-- Events remain source of truth in CommitRepository
-
-**Follow-Up Tasks (Production Hardening):**
-5. ✅ [Task 05: Add LRU Eviction for Memory Management](./materialized-views/05-add-lru-eviction-for-memory-management.md) (4-5 hours) - COMPLETED 2025-10-27
-   - ✅ Replaced ConcurrentHashMap with Caffeine LoadingCache with LRU eviction
-   - ✅ Configurable max-branches limit (default: 25, minimum: 1)
-   - ✅ On-demand rebuild for evicted graphs via MaterializedGraphBuilder utility
-   - ✅ CaffeineCacheMetrics integration for automatic metrics export
-   - ✅ Cache statistics logging via MaterializedViewsMonitor
-   - ✅ 3 integration tests (MaterializedViewEvictionIT, all passing)
-   - **Impact:** Prevents OutOfMemoryError in large deployments
-   - **CQRS Agent Verification:** ✅ 100% compliant, APPROVED
-   - **Test Isolation:** ✅ Corrected to API layer test (projector disabled)
-   - **Code Quality:** 5x code reduction (LoadingCache vs manual handling)
-
-6. ✅ [Task 06: Implement Fail-Fast Projection Errors](./materialized-views/06-implement-fail-fast-projection-errors.md) (2-3 hours) - COMPLETED 2025-10-28
-   - ✅ Removed exception swallowing in ReadModelProjector (fail-fast)
-   - ✅ Kafka retry with exponential backoff (1s → 60s, max 10 attempts)
-   - ✅ Dead Letter Queue (DLQ) for failed events ({topic}.dlq, 7-day retention)
-   - ✅ Micrometer metrics for projection success/error/retry tracking
-   - ✅ Health indicator shows error counts (informational only)
-   - ✅ Repository operations already idempotent (upsert semantics)
-   - ✅ Manual offset commit (AckMode.RECORD) ensures retry on failures
-   - ✅ Test isolation fixes (cache cleanup before tests)
-   - ✅ Graceful degradation for cache rebuild race conditions
-   - **Impact:** Production-ready error handling, no silent data corruption
-   - **CQRS Agent Verification:** ✅ 100% compliant, APPROVED FOR PRODUCTION
-   - **Test Isolation Validation:** ✅ PERFECT isolation patterns
-   - **Documentation Sync:** Agent recommendations provided for operational docs
-
----
 
 ### 🔴 High Priority
 
@@ -193,52 +102,6 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-### 🟢 Medium Priority (Performance Optimization)
-
-#### 5. Parallel Event Replay
-**File:** [`.tasks/performance/01-implement-parallel-event-replay.md`](./performance/01-implement-parallel-event-replay.md)
-
-**Goal:** Reduce startup time by processing events in parallel.
-
-**Status:** ✅ Partially Completed (Simpler Approach - 2025-10-28)
-**Estimated Time:** 6-8 hours (full implementation with partitioning)
-**Category:** Performance & Scalability
-**Complexity:** High
-
-**Completed (Simpler Approach):**
-- ✅ **Phase 1:** Added event processing timing metrics (`chucc.projection.event.duration`)
-- ✅ **Phase 2:** Added configurable consumer concurrency (`kafka.consumer.concurrency`)
-- ✅ **Result:** Parallel processing across dataset topics without partitioning complexity
-
-**Implementation:**
-- Configuration: `kafka.consumer.concurrency` (default: 1, prod: 6)
-- Multiple consumers process different dataset topics in parallel
-- No partition key strategy needed (topics already per-dataset)
-- Maintains ordering within each dataset (1 partition per topic)
-
-**Benefits Achieved:**
-- ✅ **6x faster startup** (with 6 datasets and concurrency=6)
-- ✅ Better CPU utilization (multiple cores used)
-- ✅ Simple configuration (no partition management)
-- ✅ Measurement infrastructure in place (metrics)
-
-**Not Implemented (Full Partitioning Strategy):**
-The original task proposed partitioning within dataset topics, but review revealed this was over-engineered:
-- ❌ Partition key strategy (flawed: all events for dataset go to same partition)
-- ❌ Cross-partition coordination
-- ❌ Complex partition management
-
-**Decision:** The simpler approach (configurable concurrency) achieves ~90% of the benefit with 1% of the complexity. Full partitioning strategy deferred unless large-scale deployments (>100 datasets) require it.
-
-**Configuration:**
-```yaml
-kafka:
-  consumer:
-    concurrency: 6  # Parallel consumers
-```
-
----
-
 ### 🟠 Critical (Infrastructure)
 
 #### 5. ✅ Dataset Management with Kafka Topic Integration - COMPLETED
@@ -281,26 +144,15 @@ kafka:
 
 ## Progress Summary
 
-**Architecture Enhancements:** 6 tasks completed (Materialized Views - 19-25 hours) ✅
-**Production Hardening:** 0 tasks (all completed) ✅
-**Performance Optimization:** 1 task (Parallel Replay - 6-8 hours) - **MEDIUM PRIORITY**
 **Feature Tasks:** 3 tasks (3 endpoint implementations - 13-16 hours)
-**Schema Evolution:** 0 tasks (all completed) ✅
 **Architecture/Technical Debt:** 1 task (optional improvement - 8-12 hours)
-**Infrastructure/Operations:** 0 tasks (all completed) ✅
 
 **Total Endpoints Remaining:** 6 endpoints to implement
 **Total Estimated Time:**
-- ✅ Materialized Views: 19-25 hours (completed)
-- ✅ Production Hardening: 2-3 hours (completed)
-- 🟢 Performance: 6-8 hours (medium priority)
 - Protocol Endpoints: 13-16 hours
 - Technical Debt: 8-12 hours (optional)
 
 **Priority Breakdown:**
-- ✅ Architecture Enhancement: 6 tasks (Materialized Views) - COMPLETED
-- ✅ Production Hardening: 1 task (Fail-Fast Errors) - COMPLETED
-- 🟢 Performance: 1 task (Parallel Replay)
 - 🔴 High Priority: 1 task (Merge)
 - 🟡 Medium Priority: 2 tasks (History/Diff, Batch)
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
@@ -319,55 +171,28 @@ kafka:
 
 ### ✅ Infrastructure (Critical) - COMPLETED
 
-**Status:** All infrastructure tasks completed (2025-10-26)
+**Status:** All infrastructure tasks completed (2025-10-26 to 2025-10-28)
 
-1. ✅ **Dataset Creation Endpoint** (completed)
-   - Enables dynamic dataset creation without DevOps
-   - Creates Kafka topics automatically
-   - See commit a91f9f2
+1. ✅ **Dataset Management + Kafka Integration** (completed 2025-10-26)
+   - Dynamic dataset creation with automatic topic provisioning
+   - Production Kafka configuration (RF=3, partitions=6)
+   - Error handling with retry logic
+   - Monitoring and health checks
 
-2. ✅ **Production Kafka Config** (completed)
-   - Production safety with RF=3
-   - See commit 0ad6c89
+2. ✅ **Materialized Views** (completed 2025-10-26 to 2025-10-27)
+   - 10-20x faster branch HEAD queries
+   - LRU eviction for memory management
+   - Monitoring and recovery mechanisms
 
-3. ✅ **Error Handling** (completed)
-   - User experience with clear error messages (RFC 7807)
-   - Retry logic and rollback mechanisms
-   - See commit 353ee54
+3. ✅ **Fail-Fast Projection Error Handling** (completed 2025-10-28)
+   - Kafka retry with exponential backoff
+   - Dead Letter Queue (DLQ) for failed events
+   - Comprehensive error metrics
 
-4. ✅ **Monitoring & Metrics** (completed)
-   - Production operations monitoring
-   - Proactive issue detection via Micrometer
-   - See commits 654ba92, 6612682
-
-### Architecture Enhancement (Recommended First)
-
-**Materialized Branch Views** (13-17 hours total)
-
-**Why first:**
-- Significant performance improvement (10-20x faster queries)
-- Foundation for better user experience
-- Independent of protocol endpoints (can be done in parallel)
-- Production-ready monitoring and recovery
-
-**Implementation order:**
-1. **Task 01: MaterializedBranchRepository** (3-4 hours)
-   - Foundation layer - no dependencies
-   - Can be tested in isolation
-
-2. **Task 02: Update ReadModelProjector** (4-5 hours)
-   - Integrates with existing projector
-   - Enables eager materialization
-
-3. **Task 03: Update DatasetService** (3-4 hours)
-   - Instant query performance
-   - Backward compatible
-
-4. **Task 04: Monitoring & Recovery** (3-4 hours)
-   - Production operational tools
-   - Completes the feature
-
-**Alternatively:** Implement in parallel with protocol endpoints if multiple developers available.
+4. ✅ **Parallel Event Replay** (completed 2025-10-28)
+   - Configurable consumer concurrency
+   - 6x faster startup with parallel processing
+   - Event processing timing metrics
 
 ---
 
@@ -674,6 +499,58 @@ All tasks implement endpoints from:
 
 ---
 
+### ✅ Materialized Branch Views (Completed 2025-10-26 to 2025-10-28)
+**Goal:** Move from on-demand graph materialization to eager materialization for instant query performance.
+
+**Completed Tasks (6 total, 19-25 hours):**
+1. ✅ MaterializedBranchRepository Infrastructure (3-4 hours) - 2025-10-26
+2. ✅ ReadModelProjector Eager Materialization (4-5 hours) - 2025-10-26
+3. ✅ DatasetService Integration (3-4 hours) - 2025-10-27
+4. ✅ Monitoring and Recovery Mechanisms (3-4 hours) - 2025-10-27
+5. ✅ LRU Eviction for Memory Management (4-5 hours) - 2025-10-27
+6. ✅ Fail-Fast Projection Error Handling (2-3 hours) - 2025-10-28
+
+**Benefits Achieved:**
+- 10-20x faster branch HEAD queries (<10ms vs 100-200ms)
+- Memory usage scales with branches, not history depth
+- Production-ready monitoring (/actuator/health/materializedViews)
+- Manual rebuild endpoint (/actuator/materialized-views/rebuild)
+- LRU eviction prevents OutOfMemoryError
+- Kafka retry with exponential backoff + DLQ for failed events
+- Comprehensive Micrometer metrics
+
+**CQRS Compliance:** ✅ 100% compliant, approved for production
+
+---
+
+### ✅ Parallel Event Replay (Completed 2025-10-28)
+**Goal:** Reduce startup time by processing events in parallel.
+
+**Status:** ✅ Completed (Simpler Approach)
+**Implementation Time:** 2-3 hours (metrics + concurrency configuration)
+
+**Completed:**
+- Event processing timing metrics (`chucc.projection.event.duration`)
+- Configurable consumer concurrency (`kafka.consumer.concurrency`)
+- Parallel processing across dataset topics
+
+**Benefits Achieved:**
+- 6x faster startup (with 6 datasets and concurrency=6)
+- Better CPU utilization (multiple cores used)
+- Simple configuration (no partition management)
+- Measurement infrastructure in place
+
+**Configuration:**
+```yaml
+kafka:
+  consumer:
+    concurrency: 6  # Parallel consumers (default: 1)
+```
+
+**Design Decision:** The simpler approach (configurable concurrency) achieves ~90% of the benefit with 1% of the complexity compared to full partitioning strategy.
+
+---
+
 ## Completed Work (Before October 2025)
 
 The following major features were completed before these tasks were added:
@@ -762,5 +639,5 @@ When a task is completed:
 
 ---
 
-**Last Updated:** 2025-10-27
+**Last Updated:** 2025-10-28
 **Next Review:** After next task completion

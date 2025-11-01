@@ -36,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class HistoryController {
 
   private static final int MAX_LIMIT = 1000;
+  private static final String MEDIA_TYPE_RDF_PATCH = "text/rdf-patch";
 
   private final VersionControlProperties vcProperties;
   private final HistoryService historyService;
@@ -213,7 +214,7 @@ public class HistoryController {
    * @param to to commit id
    * @return RDF Patch representing changes from 'from' to 'to'
    */
-  @GetMapping(value = "/diff", produces = "text/rdf-patch")
+  @GetMapping(value = "/diff", produces = MEDIA_TYPE_RDF_PATCH)
   @Operation(
       summary = "Diff two commits",
       description = "Get RDF Patch representing changes from 'from' commit to 'to' commit. "
@@ -225,7 +226,7 @@ public class HistoryController {
   @ApiResponse(
       responseCode = "200",
       description = "RDF Patch representing changes between commits",
-      content = @Content(mediaType = "text/rdf-patch")
+      content = @Content(mediaType = MEDIA_TYPE_RDF_PATCH)
   )
   @ApiResponse(
       responseCode = "400",
@@ -271,7 +272,7 @@ public class HistoryController {
 
       // Return RDF Patch
       return ResponseEntity.ok()
-          .contentType(MediaType.parseMediaType("text/rdf-patch"))
+          .contentType(MediaType.parseMediaType(MEDIA_TYPE_RDF_PATCH))
           .body(patchText);
 
     } catch (IllegalArgumentException e) {

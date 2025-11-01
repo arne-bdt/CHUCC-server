@@ -286,4 +286,94 @@ class DiffEndpointIT extends ITFixture {
     // Then: Should return 400 Bad Request
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
   }
+
+  @Test
+  void diffCommits_reverseDirection_shouldInvertPatch() {
+    // Given: Two commits where second adds a triple on top of first
+    String dataset = "test-diff-symmetry";
+
+    // Commit 1: Contains triple s1/p1/v1
+    CommitId commit1 = createCommit(
+        dataset,
+        List.of(),
+        "Alice <alice@example.org>",
+        "First commit",
+        createSimplePatch("http://ex.org/s1", "http://ex.org/p1", "value1")
+    );
+
+    // Commit 2: Adds triple s2/p2/v2 (on top of commit1, so contains both s1 and s2)
+    CommitId commit2 = createCommit(
+        dataset,
+        List.of(commit1),
+        "Alice <alice@example.org>",
+        "Second commit",
+        createSimplePatch("http://ex.org/s2", "http://ex.org/p2", "value2")
+    );
+
+    // When: Request diff in both directions
+    String forwardUrl = String.format(
+        "/version/diff?dataset=%s&from=%s&to=%s",
+        dataset, commit1.value(), commit2.value()
+    );
+    String reverseUrl = String.format(
+        "/version/diff?dataset=%s&from=%s&to=%s",
+        dataset, commit2.value(), commit1.value()
+    );
+
+    ResponseEntity<String> forwardResponse = restTemplate.exchange(
+        forwardUrl, HttpMethod.GET, null, String.class);
+    ResponseEntity<String> reverseResponse = restTemplate.exchange(
+        reverseUrl, HttpMethod.GET, null, String.class);
+
+    String forwardPatch = forwardResponse.getBody();
+    String reversePatch = reverseResponse.getBody();
+
+    // Then: Forward diff (commit1 -> commit2) should show addition of s2
+    assertThat(forwardPatch).contains("A <http://ex.org/s2>");  // s2 added in forward
+    assertThat(forwardPatch).doesNotContain("D <http://ex.org/s1>");  // s1 NOT deleted (still there)
+
+    // And: Reverse diff (commit2 -> commit1) should show deletion of s2
+    assertThat(reversePatch).contains("D <http://ex.org/s2>");  // s2 deleted in reverse
+    assertThat(reversePatch).doesNotContain("A <http://ex.org/s1>");  // s1 NOT added (already there)
+
+    // And: Both should be valid patches
+    assertThat(forwardResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(reverseResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+  }
+
+  /**
+   * Nested test class for diff endpoint with feature flag disabled.
+   */
+  @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+      properties = "vc.diff-enabled=false")
+  @ActiveProfiles("it")
+  static class DiffDisabledTest extends ITFixture {
+
+    @Autowired
+    private TestRestTemplate restTemplate;
+
+    @Override
+    protected boolean shouldCreateInitialSetup() {
+      return false;
+    }
+
+    @Test
+    void diffCommits_whenFeatureFlagDisabled_shouldReturn404() {
+      // Given: Feature flag is disabled (vc.diff-enabled=false)
+      CommitId commit1 = CommitId.generate();
+      CommitId commit2 = CommitId.generate();
+
+      // When: Request diff endpoint
+      String url = String.format(
+          "/version/diff?dataset=test&from=%s&to=%s",
+          commit1.value(), commit2.value()
+      );
+      ResponseEntity<String> response = restTemplate.exchange(
+          url, HttpMethod.GET, null, String.class);
+
+      // Then: Should return 404 Not Found
+      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+      assertThat(response.getBody()).contains("Diff endpoint is disabled");
+    }
+  }
 }

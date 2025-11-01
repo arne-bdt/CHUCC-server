@@ -1206,7 +1206,7 @@ Each component has ONE reason to change:
 **Key Components**:
 - 14 Controllers (HTTP endpoints, including administrative/monitoring endpoints)
 - 19 Command Handlers (write operations)
-- 18 Services (business logic, including recovery services)
+- 19 Services (business logic, including recovery services)
 - 5 Repositories (read model: commits, branches, tags, historical graphs, materialized branch HEADs)
 - 1 Projector with 14 event handlers (async updates)
 - 15 Event types (domain events)

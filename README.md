@@ -230,7 +230,7 @@ To temporarily increase test logging, override in your test:
 
 **In Progress:**
 - ⏳ Tag Management API (GET/POST /version/tags)
-- ⏳ History & Diff API (GET /version/history, /diff, /blame)
+- ⏳ Blame API (GET /version/blame)
 - ⏳ Merge Operations API (POST /version/merge)
 - ⏳ Batch Operations API (POST /version/batch)
 

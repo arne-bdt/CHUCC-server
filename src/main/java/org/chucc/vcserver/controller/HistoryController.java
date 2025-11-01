@@ -14,8 +14,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import org.chucc.vcserver.config.VersionControlProperties;
+import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.dto.HistoryResponse;
 import org.chucc.vcserver.dto.ProblemDetail;
+import org.chucc.vcserver.service.DiffService;
 import org.chucc.vcserver.service.HistoryService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -37,7 +39,7 @@ public class HistoryController {
 
   private final VersionControlProperties vcProperties;
   private final HistoryService historyService;
-  private final org.chucc.vcserver.service.DiffService diffService;
+  private final DiffService diffService;
 
   /**
    * Constructs a HistoryController.
@@ -53,7 +55,7 @@ public class HistoryController {
   )
   public HistoryController(VersionControlProperties vcProperties,
       HistoryService historyService,
-      org.chucc.vcserver.service.DiffService diffService) {
+      DiffService diffService) {
     this.vcProperties = vcProperties;
     this.historyService = historyService;
     this.diffService = diffService;
@@ -261,10 +263,8 @@ public class HistoryController {
 
     try {
       // Parse commit IDs
-      org.chucc.vcserver.domain.CommitId fromCommitId =
-          org.chucc.vcserver.domain.CommitId.of(from);
-      org.chucc.vcserver.domain.CommitId toCommitId =
-          org.chucc.vcserver.domain.CommitId.of(to);
+      CommitId fromCommitId = CommitId.of(from);
+      CommitId toCommitId = CommitId.of(to);
 
       // Call service
       String patchText = diffService.diffCommits(dataset, fromCommitId, toCommitId);

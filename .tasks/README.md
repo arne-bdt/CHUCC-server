@@ -8,9 +8,10 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Previously:** All original tasks were completed and removed (October 24, 2025)
 
-**Now:** 2 tasks remain (2 protocol endpoints + 1 technical debt)
+**Now:** 2 tasks remain (1 protocol endpoint + 1 batch endpoint + 1 technical debt)
 
 **Recent Completions:**
+- History & Diff API (2025-11-01) ✅
 - Merge Operations API (All phases - 2025-10-28) ✅
 - Materialized Views (All 6 tasks - 2025-10-26 to 2025-10-28) ✅
 - Parallel Event Replay (Simplified approach - 2025-10-28) ✅
@@ -23,26 +24,6 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 ## Remaining Tasks
 
 ### 🟡 Medium Priority
-
-#### 1. History Listing API
-**File:** [`.tasks/history/01-implement-history-api.md`](./history/01-implement-history-api.md)
-
-**Endpoint:**
-- `GET /version/history` - List commit history with filters and pagination
-
-**Status:** Not Started
-**Estimated Time:** 2-3 hours
-**Protocol Spec:** §3.2
-**Complexity:** Low (⭐ Start here - good warm-up task)
-
-**Features:**
-- Filter by branch (commits reachable from HEAD)
-- Filter by date range (since/until)
-- Filter by author (exact match)
-- Offset-based pagination with Link headers (RFC 5988)
-
----
-
 
 #### 1. Blame API
 **File:** [`.tasks/history/03-implement-blame-api.md`](./history/03-implement-blame-api.md)
@@ -703,7 +684,7 @@ The following major features were completed before these tasks were added:
 - Model API to Graph API migration (20-30% performance gain)
 
 ### ✅ Quality & Testing (Completed)
-- 1168 tests (all passing)
+- 1212 tests (all passing)
 - Zero quality violations
 - Test isolation pattern (projector disabled by default)
 - Comprehensive integration test suite

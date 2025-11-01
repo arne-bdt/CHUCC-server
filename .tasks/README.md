@@ -24,23 +24,66 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🟡 Medium Priority
 
-#### 1. History & Diff API
-**File:** [`.tasks/history/01-implement-history-diff-blame-api.md`](./history/01-implement-history-diff-blame-api.md)
+#### 1. History Listing API
+**File:** [`.tasks/history/01-implement-history-api.md`](./history/01-implement-history-api.md)
 
-**Endpoints:**
-- `GET /version/history` - List commit history with filters
-- `GET /version/diff` - Diff two commits (returns RDF Patch)
-- `GET /version/blame` - Last-writer attribution
+**Endpoint:**
+- `GET /version/history` - List commit history with filters and pagination
 
 **Status:** Not Started
-**Estimated Time:** 4-5 hours
-**Protocol Spec:** §3.2 (history), Extensions (diff, blame)
+**Estimated Time:** 2-3 hours
+**Protocol Spec:** §3.2
+**Complexity:** Low (⭐ Start here - good warm-up task)
 
-**Note:** Diff and blame are **extensions** (not in official SPARQL 1.2 spec)
+**Features:**
+- Filter by branch (commits reachable from HEAD)
+- Filter by date range (since/until)
+- Filter by author (exact match)
+- Offset-based pagination with Link headers (RFC 5988)
 
 ---
 
-#### 2. Batch Operations API
+#### 2. Diff API
+**File:** [`.tasks/history/02-implement-diff-api.md`](./history/02-implement-diff-api.md)
+
+**Endpoint:**
+- `GET /version/diff` - Diff two commits (returns RDF Patch)
+
+**Status:** Not Started
+**Estimated Time:** 1 hour
+**Protocol Spec:** Extension (not in official SPARQL 1.2 spec)
+**Complexity:** Low (infrastructure already exists)
+
+**Features:**
+- Load commit snapshots (cached, optimized)
+- Compute RDF Patch diff using existing utilities
+- Serialize to text/rdf-patch format
+
+**Note:** This is an **EXTENSION** (not in official SPARQL 1.2 spec)
+
+---
+
+#### 3. Blame API
+**File:** [`.tasks/history/03-implement-blame-api.md`](./history/03-implement-blame-api.md)
+
+**Endpoint:**
+- `GET /version/blame` - Last-writer attribution for all quads
+
+**Status:** Not Started
+**Estimated Time:** 3-4 hours
+**Protocol Spec:** Extension (not in official SPARQL 1.2 spec)
+**Complexity:** Medium-High (reverse history traversal)
+
+**Features:**
+- Reverse BFS traversal from target commit to root
+- Track quad additions with removal logic (handles delete/re-add)
+- Early exit optimization when all quads found
+
+**Note:** This is an **EXTENSION** (not in official SPARQL 1.2 spec)
+
+---
+
+#### 4. Batch Operations API
 **File:** [`.tasks/batch/01-implement-batch-operations-api.md`](./batch/01-implement-batch-operations-api.md)
 
 **Endpoints:**
@@ -125,19 +168,21 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Progress Summary
 
-**Feature Tasks:** 2 endpoint implementations (8-10 hours)
-- History & Diff API: 1 task (4-5 hours)
+**Feature Tasks:** 4 endpoint implementations (6-8 hours)
+- History Listing API: 1 task (2-3 hours) ⭐ Start here
+- Diff API: 1 task (1 hour)
+- Blame API: 1 task (3-4 hours)
 - Batch Operations API: 1 task (4-5 hours)
 
 **Architecture/Technical Debt:** 1 task (optional improvement - 8-12 hours)
 
 **Total Endpoints Remaining:** 4 endpoints to implement
 **Total Estimated Time:**
-- Protocol Endpoints: 8-10 hours
+- Protocol Endpoints: 10-13 hours (broken into smaller tasks)
 - Technical Debt: 8-12 hours (optional)
 
 **Priority Breakdown:**
-- 🟡 Medium Priority: 2 tasks (History/Diff, Batch)
+- 🟡 Medium Priority: 4 tasks (History, Diff, Blame, Batch)
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
 
 **Current Status:** All infrastructure and schema evolution tasks completed (100%)
@@ -183,13 +228,26 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Recommended Order (Start Simple, Build Up):**
 
-1. **History & Diff API** (4-5 hours)
-   - Read-only operations
-   - Diff requires RDF Patch serialization
-   - Useful for debugging and auditing
-   - **Simplest task - good starting point**
+1. **History Listing API** (2-3 hours) ⭐ **Start here**
+   - Read-only operation
+   - Simple filtering and pagination
+   - Good warm-up task
+   - Foundation for understanding commit data
 
-2. **Batch Operations API** (4-5 hours)
+2. **Diff API** (1 hour)
+   - Read-only operation
+   - Infrastructure already exists (DatasetService, RdfPatchUtil)
+   - Just wire up existing components
+   - Quick win after history
+
+3. **Blame API** (3-4 hours)
+   - Read-only operation
+   - More complex: reverse history traversal
+   - Interesting algorithm (BFS with quad tracking)
+   - Good challenge after simpler tasks
+
+4. **Batch Operations API** (4-5 hours)
+   - Write operations (CQRS)
    - Complex but modular
    - Reuses existing query/update logic
    - Performance optimization for bulk operations

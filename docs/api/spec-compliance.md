@@ -10,7 +10,7 @@ This implementation supports **Level 2 (Advanced)** conformance.
 | GET /version/refs | ✅ Implemented | Lists all branches and tags |
 | GET /version/commits/{id} | ✅ Implemented | Returns commit metadata (id, message, author, timestamp, parents, patchSize) |
 | POST /version/commits | ✅ Implemented | Creates commits from RDF Patch or SPARQL Update |
-| GET /version/history | ⚠️ Stub (501) | History listing defined but not implemented |
+| GET /version/history | ✅ Implemented | History listing with filtering and pagination |
 | SPARQL Query with selectors | ✅ Implemented | Supports branch, commit, asOf selectors |
 | SPARQL Update with selectors | ✅ Implemented | Creates commits automatically |
 
@@ -118,6 +118,5 @@ None. All deviations are clearly marked as optional extensions that can be disab
 
 ## Future Enhancements
 
-- Implement GET /version/history (currently 501)
 - Implement GET /version/diff (currently 501)
 - Implement GET /version/blame (currently 501)

@@ -31,7 +31,7 @@ This server implements:
 ### Version Control
 - ✅ **Branches** - Create, list, get info, delete with Git-like metadata (timestamps, commit count, protection)
 - ✅ **Commits** - Create commits, query metadata (id, message, author, timestamp, parents, patchSize)
-- ⏳ **History** - Browse commit history with filtering (in progress)
+- ✅ **History** - Browse commit history with filtering (branch, date range, author) and RFC 5988 pagination
 - ✅ **Time-travel** - Query dataset state at any point in time (`asOf`)
 - ✅ **Merging** - Fast-forward and three-way merge with conflict resolution strategies (ours, theirs)
 - ✅ **Tags** - Create, list, get, and delete tags with immutability enforcement

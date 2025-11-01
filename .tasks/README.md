@@ -43,7 +43,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-#### 2. Diff API
+#### 1. Diff API
 **File:** [`.tasks/history/02-implement-diff-api.md`](./history/02-implement-diff-api.md)
 
 **Endpoint:**
@@ -63,7 +63,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-#### 3. Blame API
+#### 2. Blame API
 **File:** [`.tasks/history/03-implement-blame-api.md`](./history/03-implement-blame-api.md)
 
 **Endpoint:**
@@ -83,7 +83,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-#### 4. Batch Operations API
+#### 3. Batch Operations API
 **File:** [`.tasks/batch/01-implement-batch-operations-api.md`](./batch/01-implement-batch-operations-api.md)
 
 **Endpoints:**
@@ -104,7 +104,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🔵 Low Priority (Technical Debt)
 
-#### 3. Refactor Squash/Rebase Handlers to Pure CQRS
+#### 4. Refactor Squash/Rebase Handlers to Pure CQRS
 **File:** [`.tasks/architecture/02-refactor-squash-rebase-to-pure-cqrs.md`](./architecture/02-refactor-squash-rebase-to-pure-cqrs.md)
 
 **Problem:**
@@ -168,21 +168,20 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Progress Summary
 
-**Feature Tasks:** 4 endpoint implementations (6-8 hours)
-- History Listing API: 1 task (2-3 hours) ⭐ Start here
+**Feature Tasks:** 3 endpoint implementations (4-6 hours)
 - Diff API: 1 task (1 hour)
 - Blame API: 1 task (3-4 hours)
 - Batch Operations API: 1 task (4-5 hours)
 
 **Architecture/Technical Debt:** 1 task (optional improvement - 8-12 hours)
 
-**Total Endpoints Remaining:** 4 endpoints to implement
+**Total Endpoints Remaining:** 3 endpoints to implement
 **Total Estimated Time:**
-- Protocol Endpoints: 10-13 hours (broken into smaller tasks)
+- Protocol Endpoints: 8-10 hours (broken into smaller tasks)
 - Technical Debt: 8-12 hours (optional)
 
 **Priority Breakdown:**
-- 🟡 Medium Priority: 4 tasks (History, Diff, Blame, Batch)
+- 🟡 Medium Priority: 3 tasks (Diff, Blame, Batch)
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
 
 **Current Status:** All infrastructure and schema evolution tasks completed (100%)
@@ -228,25 +227,18 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Recommended Order (Start Simple, Build Up):**
 
-1. **History Listing API** (2-3 hours) ⭐ **Start here**
-   - Read-only operation
-   - Simple filtering and pagination
-   - Good warm-up task
-   - Foundation for understanding commit data
-
-2. **Diff API** (1 hour)
+1. **Diff API** (1 hour) ⭐ **Start here**
    - Read-only operation
    - Infrastructure already exists (DatasetService, RdfPatchUtil)
    - Just wire up existing components
    - Quick win after history
 
-3. **Blame API** (3-4 hours)
    - Read-only operation
    - More complex: reverse history traversal
    - Interesting algorithm (BFS with quad tracking)
    - Good challenge after simpler tasks
 
-4. **Batch Operations API** (4-5 hours)
+3. **Batch Operations API** (4-5 hours)
    - Write operations (CQRS)
    - Complex but modular
    - Reuses existing query/update logic
@@ -409,7 +401,7 @@ All tasks implement endpoints from:
 - ✅ Commit metadata (`GET /version/commits/{id}`)
 - ✅ Tag management (`GET/POST /version/tags`)
 - ✅ Merge operations (`POST /version/merge`)
-- ❌ History listing (`GET /version/history`)
+- ✅ History listing (`GET /version/history`)
 - ❌ Batch operations (`POST /version/batch`)
 
 ### Optional Endpoints (Extensions)
@@ -420,6 +412,54 @@ All tasks implement endpoints from:
 ---
 
 ## Completed Tasks (2025)
+
+### ✅ History Listing API (Completed 2025-11-01)
+**File:** `.tasks/history/01-implement-history-api.md` (DELETED - task completed)
+
+**Endpoint:**
+- ✅ `GET /version/history` - List commit history with filters and pagination
+
+**Status:** ✅ Completed (2025-11-01)
+**Category:** Version Control Protocol
+**Protocol Spec:** §3.2
+**Estimated Time:** 2-3 hours (actual)
+
+**Implementation:**
+- Created DTOs: CommitHistoryInfo, HistoryResponse, PaginationInfo
+- Implemented HistoryService with comprehensive filtering
+- Updated HistoryController (replaced 501 stub)
+- Branch filtering: BFS traversal to find reachable commits
+- Date range filtering: since/until parameters (RFC3339/ISO8601)
+- Author filtering: exact match, case-sensitive
+- Offset-based pagination with RFC 5988 Link headers
+- Added 10 integration tests (HistoryListingIT)
+- Added 10 unit tests (HistoryServiceTest)
+
+**Optimizations:**
+- Fixed N+1 query problem: in-memory commit map for O(1) lookups
+- Single-pass stream filtering (lazy evaluation)
+- Pagination validation (max 1000 limit, DoS protection)
+
+**Files Created:**
+- `src/main/java/org/chucc/vcserver/dto/CommitHistoryInfo.java`
+- `src/main/java/org/chucc/vcserver/dto/PaginationInfo.java`
+- `src/main/java/org/chucc/vcserver/dto/HistoryResponse.java`
+- `src/main/java/org/chucc/vcserver/service/HistoryService.java`
+- `src/test/java/org/chucc/vcserver/integration/HistoryListingIT.java`
+- `src/test/java/org/chucc/vcserver/service/HistoryServiceTest.java`
+
+**Files Modified:**
+- `src/main/java/org/chucc/vcserver/controller/HistoryController.java`
+
+**Design Decisions:**
+- Read-only operation (no CQRS commands/events needed)
+- Sorting: timestamp descending (newest first)
+- Branch filter: BFS with in-memory commit map (performance optimization)
+- Pagination: offset-based with hasMore flag (no total count for performance)
+- Date parsing: RFC3339/ISO8601 format (Instant.parse)
+- URL encoding: manual encoding for Link headers
+
+---
 
 ### ✅ Merge Operations API (Completed 2025-10-28)
 **File:** `.tasks/merge/` (DELETED - tasks completed)

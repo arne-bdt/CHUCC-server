@@ -33,7 +33,7 @@ This server implements:
 - ✅ **Commits** - Create commits, query metadata (id, message, author, timestamp, parents, patchSize)
 - ⏳ **History** - Browse commit history with filtering (in progress)
 - ✅ **Time-travel** - Query dataset state at any point in time (`asOf`)
-- ✅ **Merging** - Fast-forward and three-way merge with conflict detection (Phase 1 complete)
+- ✅ **Merging** - Fast-forward and three-way merge with conflict resolution strategies (ours, theirs)
 - ✅ **Tags** - Create, list, get, and delete tags with immutability enforcement
 - ⏳ **Diff** - Compare any two commits (in progress)
 - ⏳ **Blame** - Last-writer attribution per triple (in progress)
@@ -43,6 +43,7 @@ This server implements:
 - ✅ **Optimistic Concurrency** - ETags and If-Match headers
 - ✅ **Fast-forward merges** - Automatic when possible
 - ✅ **Conflict detection** - Structured representation of merge conflicts
+- ✅ **Conflict resolution** - Automatic strategies (ours, theirs) with configurable scope (graph-level, dataset-level)
 - ✅ **RFC 7807 Problem Details** - Standardized error responses
 - ✅ **Multi-dataset** - Dataset parameter support consistently across all endpoints
 

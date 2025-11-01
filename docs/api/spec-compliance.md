@@ -86,7 +86,7 @@ This implementation supports **Level 2 (Advanced)** conformance.
 
 | Endpoint | Status | Configurable | Notes |
 |----------|--------|--------------|-------|
-| GET /version/diff | ⚠️ Extension (501) | ✅ Yes | Compare any two commits |
+| GET /version/diff | ✅ Implemented | ✅ Yes | Compare any two commits (configurable via vc.diff-enabled) |
 | GET /version/blame | ⚠️ Extension (501) | ✅ Yes | Last-writer attribution |
 | GET /version/branches | ✅ Extension | No | Convenience filter over /refs |
 
@@ -118,5 +118,4 @@ None. All deviations are clearly marked as optional extensions that can be disab
 
 ## Future Enhancements
 
-- Implement GET /version/diff (currently 501)
 - Implement GET /version/blame (currently 501)

@@ -51,6 +51,7 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
 │  │  │  RefService                SnapshotService               │    ││
 │  │  │  BranchService             TagService                    │    ││
 │  │  │  DatasetService            MaterializedViewRebuildService│    ││
+│  │  │  DiffService               HistoryService                │    ││
 │  │  └────────────────────┬─────────────────────────────────────┘    ││
 │  │                       │ Creates                                  ││
 │  │                       ▼                                          ││
@@ -388,6 +389,22 @@ All handlers:
     - **Performance:** <5ms for branch HEADs, 50-500ms for historical queries
     - **Fallback:** Graceful degradation to on-demand building if materialized graph unavailable
     - Uses SnapshotService for accelerated historical materialization
+
+14. **DiffService**
+    - Computes differences between any two commits
+    - Returns RDFPatch representing changes (additions and deletions)
+    - Used by GET /version/diff endpoint
+    - Supports cross-branch comparisons
+    - **Performance:** Materializes both commit states (O(n+m) where n,m = quad counts)
+    - Leverages DatasetService caching for historical commits
+
+15. **HistoryService**
+    - Lists commit history with filtering and pagination
+    - Supports branch, date range, and author filters
+    - Implements RFC 5988 pagination with Link headers
+    - Used by GET /version/history endpoint
+    - **Performance:** BFS traversal with in-memory commit map (O(c) where c = commits)
+    - Offset-based pagination with configurable limits
 
 **Responsibilities**:
 - Pure business logic (no side effects)

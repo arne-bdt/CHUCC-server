@@ -43,27 +43,8 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-#### 1. Diff API
-**File:** [`.tasks/history/02-implement-diff-api.md`](./history/02-implement-diff-api.md)
 
-**Endpoint:**
-- `GET /version/diff` - Diff two commits (returns RDF Patch)
-
-**Status:** Not Started
-**Estimated Time:** 1 hour
-**Protocol Spec:** Extension (not in official SPARQL 1.2 spec)
-**Complexity:** Low (infrastructure already exists)
-
-**Features:**
-- Load commit snapshots (cached, optimized)
-- Compute RDF Patch diff using existing utilities
-- Serialize to text/rdf-patch format
-
-**Note:** This is an **EXTENSION** (not in official SPARQL 1.2 spec)
-
----
-
-#### 2. Blame API
+#### 1. Blame API
 **File:** [`.tasks/history/03-implement-blame-api.md`](./history/03-implement-blame-api.md)
 
 **Endpoint:**
@@ -83,7 +64,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-#### 3. Batch Operations API
+#### 2. Batch Operations API
 **File:** [`.tasks/batch/01-implement-batch-operations-api.md`](./batch/01-implement-batch-operations-api.md)
 
 **Endpoints:**
@@ -104,7 +85,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🔵 Low Priority (Technical Debt)
 
-#### 4. Refactor Squash/Rebase Handlers to Pure CQRS
+#### 3. Refactor Squash/Rebase Handlers to Pure CQRS
 **File:** [`.tasks/architecture/02-refactor-squash-rebase-to-pure-cqrs.md`](./architecture/02-refactor-squash-rebase-to-pure-cqrs.md)
 
 **Problem:**
@@ -128,7 +109,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🟠 Critical (Infrastructure)
 
-#### 5. ✅ Dataset Management with Kafka Topic Integration - COMPLETED
+#### 4. ✅ Dataset Management with Kafka Topic Integration - COMPLETED
 **Status:** ✅ COMPLETED (2025-10-26)
 
 **Completed Tasks:**
@@ -168,20 +149,19 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Progress Summary
 
-**Feature Tasks:** 3 endpoint implementations (4-6 hours)
-- Diff API: 1 task (1 hour)
+**Feature Tasks:** 2 endpoint implementations (7-9 hours)
 - Blame API: 1 task (3-4 hours)
 - Batch Operations API: 1 task (4-5 hours)
 
 **Architecture/Technical Debt:** 1 task (optional improvement - 8-12 hours)
 
-**Total Endpoints Remaining:** 3 endpoints to implement
+**Total Endpoints Remaining:** 2 endpoints to implement
 **Total Estimated Time:**
-- Protocol Endpoints: 8-10 hours (broken into smaller tasks)
+- Protocol Endpoints: 7-9 hours (broken into smaller tasks)
 - Technical Debt: 8-12 hours (optional)
 
 **Priority Breakdown:**
-- 🟡 Medium Priority: 3 tasks (Diff, Blame, Batch)
+- 🟡 Medium Priority: 2 tasks (Blame, Batch)
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
 
 **Current Status:** All infrastructure and schema evolution tasks completed (100%)
@@ -227,18 +207,13 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Recommended Order (Start Simple, Build Up):**
 
-1. **Diff API** (1 hour) ⭐ **Start here**
-   - Read-only operation
-   - Infrastructure already exists (DatasetService, RdfPatchUtil)
-   - Just wire up existing components
-   - Quick win after history
-
+1. **Blame API** (3-4 hours) ⭐ **Start here**
    - Read-only operation
    - More complex: reverse history traversal
    - Interesting algorithm (BFS with quad tracking)
    - Good challenge after simpler tasks
 
-3. **Batch Operations API** (4-5 hours)
+2. **Batch Operations API** (4-5 hours)
    - Write operations (CQRS)
    - Complex but modular
    - Reuses existing query/update logic
@@ -405,13 +380,51 @@ All tasks implement endpoints from:
 - ❌ Batch operations (`POST /version/batch`)
 
 ### Optional Endpoints (Extensions)
-- ❌ Diff (`GET /version/diff`)
+- ✅ Diff (`GET /version/diff`)
 - ❌ Blame (`GET /version/blame`)
 - ✅ Advanced operations (cherry-pick, revert, reset, rebase, squash)
 
 ---
 
 ## Completed Tasks (2025)
+
+### ✅ Diff API (Completed 2025-11-01)
+**File:** `.tasks/history/02-implement-diff-api.md` (DELETED - task completed)
+
+**Endpoint:**
+- ✅ `GET /version/diff` - Diff two commits (returns RDF Patch)
+
+**Status:** ✅ Completed (2025-11-01)
+**Category:** Version Control Protocol (EXTENSION)
+**Protocol Spec:** Extension (not in official SPARQL 1.2 spec)
+**Estimated Time:** 1 hour (actual)
+
+**Implementation:**
+- Created DiffService for computing diffs between commits
+- Updated HistoryController (replaced 501 stub with full implementation)
+- Leverages existing DatasetService.materializeCommit() for snapshot loading
+- Uses RdfPatchUtil.diff() for quad-level comparison
+- Supports diffs between any two commits (not just parent-child)
+- Added 9 integration tests (DiffEndpointIT)
+- Feature flag support: chucc.version-control.diff-enabled=true
+
+**Design Decisions:**
+- Read-only operation (no CQRS commands/events needed)
+- Uses existing snapshot caching infrastructure (Caffeine cache)
+- Materializes both commit states in memory (O(n+m) where n,m = quad counts)
+- Returns text/rdf-patch format
+- Additions: quads in 'to' but not in 'from'
+- Deletions: quads in 'from' but not in 'to'
+- No relationship validation (works for any two commits)
+
+**Files Created:**
+- `src/main/java/org/chucc/vcserver/service/DiffService.java`
+- `src/test/java/org/chucc/vcserver/integration/DiffEndpointIT.java`
+
+**Files Modified:**
+- `src/main/java/org/chucc/vcserver/controller/HistoryController.java`
+
+---
 
 ### ✅ History Listing API (Completed 2025-11-01)
 **File:** `.tasks/history/01-implement-history-api.md` (DELETED - task completed)
@@ -756,5 +769,5 @@ When a task is completed:
 
 ---
 
-**Last Updated:** 2025-10-28
+**Last Updated:** 2025-11-01
 **Next Review:** After next task completion

@@ -35,7 +35,7 @@ This server implements:
 - ✅ **Time-travel** - Query dataset state at any point in time (`asOf`)
 - ✅ **Merging** - Fast-forward and three-way merge with conflict resolution strategies (ours, theirs)
 - ✅ **Tags** - Create, list, get, and delete tags with immutability enforcement
-- ⏳ **Diff** - Compare any two commits (in progress)
+- ✅ **Diff** - Compare any two commits with RDFPatch output (configurable endpoint)
 - ⏳ **Blame** - Last-writer attribution per triple (in progress)
 - ⏳ **Batch operations** - Apply multiple SPARQL operations atomically (in progress)
 

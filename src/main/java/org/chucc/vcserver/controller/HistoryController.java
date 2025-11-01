@@ -37,21 +37,26 @@ public class HistoryController {
 
   private final VersionControlProperties vcProperties;
   private final HistoryService historyService;
+  private final org.chucc.vcserver.service.DiffService diffService;
 
   /**
    * Constructs a HistoryController.
    *
    * @param vcProperties the version control configuration properties
    * @param historyService the history service
+   * @param diffService the diff service
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
-      justification = "VersionControlProperties and HistoryService are Spring-managed beans"
+      justification = "VersionControlProperties, HistoryService, and DiffService "
+          + "are Spring-managed beans"
   )
   public HistoryController(VersionControlProperties vcProperties,
-      HistoryService historyService) {
+      HistoryService historyService,
+      org.chucc.vcserver.service.DiffService diffService) {
     this.vcProperties = vcProperties;
     this.historyService = historyService;
+    this.diffService = diffService;
   }
 
   /**
@@ -201,38 +206,44 @@ public class HistoryController {
   /**
    * Diff two commits.
    *
+   * @param dataset dataset name
    * @param from from commit id
    * @param to to commit id
-   * @return changeset (501 stub)
+   * @return RDF Patch representing changes from 'from' to 'to'
    */
   @GetMapping(value = "/diff", produces = "text/rdf-patch")
   @Operation(
       summary = "Diff two commits",
-      description = "Get changeset between two commits. "
+      description = "Get RDF Patch representing changes from 'from' commit to 'to' commit. "
+          + "Additions are quads in 'to' but not in 'from', "
+          + "deletions are quads in 'from' but not in 'to'. "
           + "⚠️ EXTENSION: This endpoint is not part of the official "
           + "SPARQL 1.2 Protocol specification."
   )
   @ApiResponse(
       responseCode = "200",
-      description = "Changeset between from→to",
+      description = "RDF Patch representing changes between commits",
       content = @Content(mediaType = "text/rdf-patch")
   )
   @ApiResponse(
-      responseCode = "404",
-      description = "Commit not found",
+      responseCode = "400",
+      description = "Invalid request parameters",
       content = @Content(mediaType = "application/problem+json")
   )
   @ApiResponse(
-      responseCode = "501",
-      description = "Not Implemented",
+      responseCode = "404",
+      description = "Commit not found or diff endpoint disabled",
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<String> diffCommits(
+      @Parameter(description = "Dataset name", required = true)
+      @RequestParam String dataset,
       @Parameter(description = "From commit id (UUIDv7)", required = true)
       @RequestParam String from,
       @Parameter(description = "To commit id (UUIDv7)", required = true)
       @RequestParam String to
   ) {
+    // Check feature flag
     if (!vcProperties.isDiffEnabled()) {
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
@@ -243,9 +254,37 @@ public class HistoryController {
           ).toString());
     }
 
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-        .body("{\"title\":\"Not Implemented\",\"status\":501}");
+    // Validate dataset parameter
+    if (dataset == null || dataset.isBlank()) {
+      throw new IllegalArgumentException("Dataset parameter is required");
+    }
+
+    try {
+      // Parse commit IDs
+      org.chucc.vcserver.domain.CommitId fromCommitId =
+          org.chucc.vcserver.domain.CommitId.of(from);
+      org.chucc.vcserver.domain.CommitId toCommitId =
+          org.chucc.vcserver.domain.CommitId.of(to);
+
+      // Call service
+      String patchText = diffService.diffCommits(dataset, fromCommitId, toCommitId);
+
+      // Return RDF Patch
+      return ResponseEntity.ok()
+          .contentType(MediaType.parseMediaType("text/rdf-patch"))
+          .body(patchText);
+
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("Invalid commit ID format: " + e.getMessage(), e);
+    } catch (org.chucc.vcserver.exception.CommitNotFoundException e) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(new ProblemDetail(
+              e.getMessage(),
+              HttpStatus.NOT_FOUND.value(),
+              "NOT_FOUND"
+          ).toString());
+    }
   }
 
   /**

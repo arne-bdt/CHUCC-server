@@ -63,8 +63,8 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
   // ========== GSP → Protocol Visibility Tests ==========
 
   /**
-   * Test that /version/history endpoint exists (returns 501 for now).
-   * Note: When implemented, GSP commits should appear in history.
+   * Test that /version/history endpoint exists and returns commits.
+   * Verifies that GSP commits appear in history.
    */
   @Test
   void versionHistoryEndpoint_shouldExist() throws Exception {
@@ -74,8 +74,8 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
         String.class
     );
 
-    // Then - Endpoint exists (currently returns 501)
-    assertThat(historyResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_IMPLEMENTED);
+    // Then - Endpoint exists and returns 200 OK (implemented in commit a9613d4)
+    assertThat(historyResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
   }
 
   /**

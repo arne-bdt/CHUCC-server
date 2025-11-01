@@ -88,9 +88,9 @@ class HistoryListingIT {
         "Alice <alice@example.org>", "Add new feature",
         now, 42);
 
-    commitRepository.save(DATASET_NAME, commit1, null);
-    commitRepository.save(DATASET_NAME, commit2, null);
-    commitRepository.save(DATASET_NAME, commit3, null);
+    commitRepository.save(DATASET_NAME, commit1, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
+    commitRepository.save(DATASET_NAME, commit2, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
+    commitRepository.save(DATASET_NAME, commit3, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
 
     // When
     ResponseEntity<String> response = restTemplate.getForEntity(
@@ -153,10 +153,10 @@ class HistoryListingIT {
         "Charlie <charlie@example.org>", "Feature branch commit",
         now, 25);
 
-    commitRepository.save(DATASET_NAME, commit1, null);
-    commitRepository.save(DATASET_NAME, commit2, null);
-    commitRepository.save(DATASET_NAME, commit3, null);
-    commitRepository.save(DATASET_NAME, commit4, null);
+    commitRepository.save(DATASET_NAME, commit1, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
+    commitRepository.save(DATASET_NAME, commit2, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
+    commitRepository.save(DATASET_NAME, commit3, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
+    commitRepository.save(DATASET_NAME, commit4, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
 
     // Create branches
     branchRepository.save(DATASET_NAME, new Branch("main", commit3Id));
@@ -210,10 +210,10 @@ class HistoryListingIT {
     Commit commit4 = new Commit(commit4Id, java.util.List.of(commit3Id),
         "Alice <alice@example.org>", "Commit 4", now, 25);
 
-    commitRepository.save(DATASET_NAME, commit1, null);
-    commitRepository.save(DATASET_NAME, commit2, null);
-    commitRepository.save(DATASET_NAME, commit3, null);
-    commitRepository.save(DATASET_NAME, commit4, null);
+    commitRepository.save(DATASET_NAME, commit1, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
+    commitRepository.save(DATASET_NAME, commit2, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
+    commitRepository.save(DATASET_NAME, commit3, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
+    commitRepository.save(DATASET_NAME, commit4, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
 
     // When: Query with since filter (last 2 days)
     ResponseEntity<String> response = restTemplate.getForEntity(
@@ -249,9 +249,9 @@ class HistoryListingIT {
         "Alice <alice@example.org>", "Alice's commit 2",
         now, 20);
 
-    commitRepository.save(DATASET_NAME, commit1, null);
-    commitRepository.save(DATASET_NAME, commit2, null);
-    commitRepository.save(DATASET_NAME, commit3, null);
+    commitRepository.save(DATASET_NAME, commit1, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
+    commitRepository.save(DATASET_NAME, commit2, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
+    commitRepository.save(DATASET_NAME, commit3, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
 
     // When: Query with author filter
     ResponseEntity<String> response = restTemplate.getForEntity(
@@ -282,7 +282,7 @@ class HistoryListingIT {
       Commit commit = new Commit(commitId, java.util.List.of(),
           "Alice <alice@example.org>", "Commit " + i,
           now.minus(150 - i, ChronoUnit.MINUTES), 10);
-      commitRepository.save(DATASET_NAME, commit, null);
+      commitRepository.save(DATASET_NAME, commit, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
     }
 
     // When: Request first page (limit=100)
@@ -317,7 +317,7 @@ class HistoryListingIT {
       Commit commit = new Commit(commitId, java.util.List.of(),
           "Alice <alice@example.org>", "Commit " + i,
           now.minus(150 - i, ChronoUnit.MINUTES), 10);
-      commitRepository.save(DATASET_NAME, commit, null);
+      commitRepository.save(DATASET_NAME, commit, org.apache.jena.rdfpatch.RDFPatchOps.emptyPatch());
     }
 
     // When: Request second page (offset=100, limit=100)

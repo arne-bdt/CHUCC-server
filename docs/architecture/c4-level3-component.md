@@ -52,6 +52,8 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
 │  │  │  BranchService             TagService                    │    ││
 │  │  │  DatasetService            MaterializedViewRebuildService│    ││
 │  │  │  DiffService               HistoryService                │    ││
+│  │  │  CommitService             SparqlQueryService            │    ││
+│  │  │  SnapshotKafkaStore                                      │    ││
 │  │  └────────────────────┬─────────────────────────────────────┘    ││
 │  │                       │ Creates                                  ││
 │  │                       ▼                                          ││
@@ -405,6 +407,24 @@ All handlers:
     - Used by GET /version/history endpoint
     - **Performance:** BFS traversal with in-memory commit map (O(c) where c = commits)
     - Offset-based pagination with configurable limits
+
+16. **CommitService**
+    - Manages commit operations and metadata
+    - Validates commit structure and parent relationships
+    - Used by commit-related command handlers
+    - Provides commit ID generation and validation
+
+17. **SparqlQueryService**
+    - Executes SPARQL queries against materialized datasets
+    - Supports SELECT, CONSTRUCT, ASK, DESCRIBE query forms
+    - Used by SPARQL Query endpoint (GET /sparql)
+    - Leverages DatasetService for commit materialization
+
+18. **SnapshotKafkaStore**
+    - Kafka-backed storage for commit snapshots
+    - Implements snapshot compaction and retention policies
+    - Provides fast snapshot retrieval for frequently accessed commits
+    - Used by SnapshotService for snapshot persistence
 
 **Responsibilities**:
 - Pure business logic (no side effects)

@@ -211,7 +211,13 @@ public class BlameService {
     patch.apply(new org.chucc.vcserver.util.RdfChangesAdapter() {
       @Override
       public void add(Node g, Node s, Node p, Node o) {
-        Quad quad = Quad.create(g, s, p, o);
+        final var graph =
+            // both is valid for default graph in parsers
+            g == null || g.equals(Quad.defaultGraphNodeGenerated)
+            // this is Jena's standard for default graph in a dataset
+            ? Quad.defaultGraphIRI
+            : g;
+        Quad quad = Quad.create(graph, s, p, o);
 
         if (targetQuads.contains(quad)) {
           // Found the birth of this quad!
@@ -248,8 +254,9 @@ public class BlameService {
    */
   private Node parseGraphIri(String graphIri) {
     if ("default".equalsIgnoreCase(graphIri)) {
-      // For default graph, use null (matches how RDFPatch stores triples)
-      return null;
+      // For default graph, use Jena's default graph IRI
+      // Quad.defaultGraphIRI (urn:x-arq:DefaultGraph)
+      return Quad.defaultGraphIRI;
     }
     return NodeFactory.createURI(graphIri);
   }

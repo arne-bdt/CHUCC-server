@@ -359,7 +359,6 @@ class BlameEndpointIT extends ITFixture {
   }
 
   @Test
-  @org.junit.jupiter.api.Disabled("TODO: Investigate Jena default graph quad representation mismatch")
   void blameGraph_defaultGraph_shouldHandleDefaultKeyword() {
     // Given: Quads in default graph
     String dataset = "test-default-graph";

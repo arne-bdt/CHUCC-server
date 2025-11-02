@@ -377,9 +377,9 @@ class BlameEndpointIT extends ITFixture {
         patch1
     );
 
-    // When: Blame default graph using "default" keyword
+    // When: Blame default graph using canonical URI
     String url = String.format(
-        "/version/blame?dataset=%s&commit=%s&graph=default",
+        "/version/blame?dataset=%s&commit=%s&graph=urn:x-arq:DefaultGraph",
         dataset, commit1.value()
     );
     ResponseEntity<BlameResponse> response = restTemplate.exchange(

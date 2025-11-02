@@ -301,7 +301,7 @@ public class HistoryController {
    *
    * @param dataset dataset name (required)
    * @param commit commit ID to blame (required)
-   * @param graph graph IRI to blame (required, use "default" for default graph)
+   * @param graph graph IRI to blame (required, use "urn:x-arq:DefaultGraph" for default graph)
    * @param offset number of results to skip (default 0)
    * @param limit maximum results per page (default 100, max 1000)
    * @return blame response with quad attribution and pagination
@@ -316,7 +316,9 @@ public class HistoryController {
   )
   @Parameter(name = "dataset", description = "Dataset name", required = true)
   @Parameter(name = "commit", description = "Commit ID (UUIDv7)", required = true)
-  @Parameter(name = "graph", description = "Graph IRI (use 'default' for default graph)",
+  @Parameter(
+      name = "graph",
+      description = "Graph IRI (use 'urn:x-arq:DefaultGraph' for default graph)",
       required = true)
   @Parameter(name = "offset", description = "Number of results to skip (default: 0)")
   @Parameter(name = "limit", description = "Max results per page (default: 100, max: 1000)")

@@ -62,7 +62,7 @@ public class BlameService {
    *
    * @param dataset the dataset name
    * @param targetCommitId the commit ID to blame
-   * @param graphIri the graph IRI (or "default" for default graph)
+   * @param graphIri the graph IRI (use "urn:x-arq:DefaultGraph" for default graph)
    * @param offset number of results to skip
    * @param limit maximum results per page
    * @return blame response with quad attribution and pagination
@@ -247,17 +247,14 @@ public class BlameService {
 
   /**
    * Parses a graph IRI string to a Jena Node.
-   * Handles special "default" keyword for default graph.
+   * Requires canonical URI (urn:x-arq:DefaultGraph for default graph).
    *
-   * @param graphIri the graph IRI (or "default")
-   * @return the graph Node (null for default graph)
+   * @param graphIri the graph IRI (must use canonical URIs)
+   * @return the graph Node
    */
   private Node parseGraphIri(String graphIri) {
-    if ("default".equalsIgnoreCase(graphIri)) {
-      // For default graph, use Jena's default graph IRI
-      // Quad.defaultGraphIRI (urn:x-arq:DefaultGraph)
-      return Quad.defaultGraphIRI;
-    }
+    // No special keyword handling - users must provide canonical URIs
+    // This prevents namespace collision: users can create graphs named "default"
     return NodeFactory.createURI(graphIri);
   }
 

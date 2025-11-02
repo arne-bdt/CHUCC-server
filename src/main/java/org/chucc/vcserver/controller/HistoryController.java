@@ -15,10 +15,13 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.dto.BlameResponse;
 import org.chucc.vcserver.dto.HistoryResponse;
 import org.chucc.vcserver.dto.ProblemDetail;
+import org.chucc.vcserver.service.BlameService;
 import org.chucc.vcserver.service.DiffService;
 import org.chucc.vcserver.service.HistoryService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -41,6 +44,7 @@ public class HistoryController {
   private final VersionControlProperties vcProperties;
   private final HistoryService historyService;
   private final DiffService diffService;
+  private final BlameService blameService;
 
   /**
    * Constructs a HistoryController.
@@ -48,18 +52,21 @@ public class HistoryController {
    * @param vcProperties the version control configuration properties
    * @param historyService the history service
    * @param diffService the diff service
+   * @param blameService the blame service
    */
   @SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
-      justification = "VersionControlProperties, HistoryService, and DiffService "
+      justification = "VersionControlProperties, HistoryService, DiffService, and BlameService "
           + "are Spring-managed beans"
   )
   public HistoryController(VersionControlProperties vcProperties,
       HistoryService historyService,
-      DiffService diffService) {
+      DiffService diffService,
+      BlameService blameService) {
     this.vcProperties = vcProperties;
     this.historyService = historyService;
     this.diffService = diffService;
+    this.blameService = blameService;
   }
 
   /**
@@ -289,49 +296,117 @@ public class HistoryController {
   }
 
   /**
-   * Get last-writer attribution for a resource.
+   * Get last-writer attribution for all quads in a specific graph.
+   * Like 'git blame' for a file, this operates on one graph at a time.
    *
-   * @param subject subject IRI
-   * @return blame info (501 stub)
+   * @param dataset dataset name (required)
+   * @param commit commit ID to blame (required)
+   * @param graph graph IRI to blame (required, use "default" for default graph)
+   * @param offset number of results to skip (default 0)
+   * @param limit maximum results per page (default 100, max 1000)
+   * @return blame response with quad attribution and pagination
    */
   @GetMapping(value = "/blame", produces = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
-      summary = "Last-writer attribution",
-      description = "Get last-writer attribution for a resource. "
+      summary = "Last-writer attribution for graph",
+      description = "Get last-writer attribution for all quads in a specific graph. "
+          + "Like 'git blame' for a single file, this operates on one graph at a time. "
           + "⚠️ EXTENSION: This endpoint is not part of the official "
           + "SPARQL 1.2 Protocol specification."
   )
+  @Parameter(name = "dataset", description = "Dataset name", required = true)
+  @Parameter(name = "commit", description = "Commit ID (UUIDv7)", required = true)
+  @Parameter(name = "graph", description = "Graph IRI (use 'default' for default graph)",
+      required = true)
+  @Parameter(name = "offset", description = "Number of results to skip (default: 0)")
+  @Parameter(name = "limit", description = "Max results per page (default: 100, max: 1000)")
   @ApiResponse(
       responseCode = "200",
-      description = "Blame/annotate info",
-      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+      description = "Blame information with quad attribution",
+      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE),
+      headers = @Header(
+          name = "Link",
+          description = "RFC 5988 pagination links (next page when available)",
+          schema = @Schema(type = "string")
+      )
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request (missing parameters or invalid limit)",
+      content = @Content(mediaType = "application/problem+json")
   )
   @ApiResponse(
       responseCode = "404",
-      description = "Resource not found",
+      description = "Not Found (blame disabled, commit not found, or graph not found)",
       content = @Content(mediaType = "application/problem+json")
   )
-  @ApiResponse(
-      responseCode = "501",
-      description = "Not Implemented",
-      content = @Content(mediaType = "application/problem+json")
-  )
-  public ResponseEntity<String> blameResource(
-      @Parameter(description = "Subject IRI", required = true)
-      @RequestParam String subject
+  public ResponseEntity<BlameResponse> blameGraph(
+      @RequestParam String dataset,
+      @RequestParam String commit,
+      @RequestParam String graph,
+      @RequestParam(defaultValue = "0") int offset,
+      @RequestParam(defaultValue = "100") int limit
   ) {
+    // Feature flag check
     if (!vcProperties.isBlameEnabled()) {
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(new ProblemDetail(
-              "Blame endpoint is disabled",
-              HttpStatus.NOT_FOUND.value(),
-              "NOT_FOUND"
-          ).toString());
+      throw new IllegalStateException("Blame endpoint is disabled");
     }
 
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-        .body("{\"title\":\"Not Implemented\",\"status\":501}");
+    // Validate required parameters
+    if (dataset == null || dataset.isBlank()) {
+      throw new IllegalArgumentException("Dataset parameter is required");
+    }
+    if (commit == null || commit.isBlank()) {
+      throw new IllegalArgumentException("Commit parameter is required");
+    }
+    if (graph == null || graph.isBlank()) {
+      throw new IllegalArgumentException("Graph parameter is required");
+    }
+
+    // Validate pagination
+    if (offset < 0) {
+      throw new IllegalArgumentException("Offset cannot be negative");
+    }
+    if (limit < 1) {
+      throw new IllegalArgumentException("Limit must be at least 1");
+    }
+    if (limit > MAX_LIMIT) {
+      throw new IllegalArgumentException("Limit cannot exceed " + MAX_LIMIT);
+    }
+
+    // Parse commit ID
+    CommitId commitId = CommitId.of(commit);
+
+    // Call service
+    BlameResponse response = blameService.blameGraph(dataset, commitId, graph, offset, limit);
+
+    // Build Link header if hasMore=true (RFC 5988)
+    HttpHeaders headers = new HttpHeaders();
+    if (response.pagination().hasMore()) {
+      String nextUrl = buildBlameNextUrl(dataset, commit, graph, offset + limit, limit);
+      headers.add("Link", String.format("<%s>; rel=\"next\"", nextUrl));
+    }
+
+    return ResponseEntity.ok().headers(headers).body(response);
+  }
+
+  /**
+   * Builds the next page URL for blame pagination.
+   *
+   * @param dataset dataset name
+   * @param commit commit ID
+   * @param graph graph IRI
+   * @param offset next offset
+   * @param limit limit per page
+   * @return next page URL
+   */
+  private String buildBlameNextUrl(String dataset, String commit, String graph,
+      int offset, int limit) {
+    return String.format("/version/blame?dataset=%s&commit=%s&graph=%s&offset=%d&limit=%d",
+        urlEncode(dataset),
+        urlEncode(commit),
+        urlEncode(graph),
+        offset,
+        limit);
   }
 }

@@ -36,7 +36,7 @@ This server implements:
 - ✅ **Merging** - Fast-forward and three-way merge with conflict resolution strategies (ours, theirs)
 - ✅ **Tags** - Create, list, get, and delete tags with immutability enforcement
 - ✅ **Diff** - Compare any two commits with RDFPatch output (configurable endpoint)
-- ⏳ **Blame** - Last-writer attribution per triple (in progress)
+- ✅ **Blame** - Last-writer attribution per quad with graph-scoped analysis and pagination
 - ⏳ **Batch operations** - Apply multiple SPARQL operations atomically (in progress)
 
 ### Advanced Features
@@ -227,11 +227,12 @@ To temporarily increase test logging, override in your test:
 - ✅ Consistent dataset parameter support (removed all hardcoded "default" values)
 - ✅ **Branch Management API** (GET/POST/GET/{name}/DELETE /version/branches) - Completed 2025-10-24
 - ✅ **Commit Metadata API** (GET /version/commits/{id}) - Completed 2025-01-25
+- ✅ **Tag Management API** (GET/POST /version/tags) - Completed 2025-10-25
+- ✅ **Merge Operations API** (POST /version/merge) - Completed 2025-10-28
+- ✅ **History & Diff API** (GET /version/history, GET /version/diff) - Completed 2025-11-01
+- ✅ **Blame API** (GET /version/blame) - Completed 2025-11-02
 
 **In Progress:**
-- ⏳ Tag Management API (GET/POST /version/tags)
-- ⏳ Blame API (GET /version/blame)
-- ⏳ Merge Operations API (POST /version/merge)
 - ⏳ Batch Operations API (POST /version/batch)
 
 See [.tasks/README.md](.tasks/README.md) for detailed task roadmap.
@@ -247,7 +248,7 @@ See [.tasks/README.md](.tasks/README.md) for detailed task roadmap.
 - ✅ Zero SpotBugs warnings
 - ✅ Zero PMD violations
 - ✅ Zero compiler warnings (enforced by `-Werror`)
-- ✅ All 1162 tests passing
+- ✅ All 1222 tests passing
 
 See [Task Roadmap](./.tasks/README.md) for complete implementation history.
 

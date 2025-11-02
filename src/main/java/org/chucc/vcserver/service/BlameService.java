@@ -263,16 +263,19 @@ public class BlameService {
 
   /**
    * Formats a graph node for display.
-   * Converts default graph node to "default" string.
+   * Returns the canonical URI representation.
+   * For default graph, returns Jena's canonical URI to avoid ambiguity.
    *
    * @param graphNode the graph node
-   * @return the formatted graph IRI (or "default")
+   * @return the formatted graph IRI (canonical URI for default graph)
    */
   private String formatGraphIri(Node graphNode) {
     if (graphNode == null
         || graphNode.equals(Quad.defaultGraphNodeGenerated)
         || graphNode.equals(Quad.defaultGraphIRI)) {
-      return "default";
+      // Return canonical Jena default graph URI to avoid ambiguity with
+      // user graphs that might be named "default"
+      return Quad.defaultGraphIRI.getURI();
     }
     return graphNode.getURI();
   }

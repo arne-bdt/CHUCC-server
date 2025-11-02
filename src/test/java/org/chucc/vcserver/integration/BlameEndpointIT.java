@@ -389,10 +389,11 @@ class BlameEndpointIT extends ITFixture {
         BlameResponse.class
     );
 
-    // Then: Should return quads from default graph
+    // Then: Should return quads from default graph with canonical URI
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     BlameResponse body = response.getBody();
-    assertThat(body.graph()).isEqualTo("default");
+    // Response uses canonical Jena URI to avoid ambiguity
+    assertThat(body.graph()).isEqualTo("urn:x-arq:DefaultGraph");
     assertThat(body.quads()).hasSize(2);
     assertThat(body.quads()).allMatch(
         q -> "Alice <alice@example.org>".equals(q.lastModifiedBy())

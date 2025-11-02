@@ -41,7 +41,7 @@ public record BlameResponse(
     String commit,
 
     @Schema(
-        description = "Graph IRI (or 'default' for default graph)",
+        description = "Graph IRI (urn:x-arq:DefaultGraph for default graph)",
         example = "http://example.org/metadata",
         requiredMode = Schema.RequiredMode.REQUIRED
     )

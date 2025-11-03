@@ -265,7 +265,7 @@ public class DatasetService {
    * @return the materialized DatasetGraph for the branch HEAD
    * @throws IllegalArgumentException if the branch doesn't exist
    */
-  private DatasetGraphInMemory getMaterializedBranchGraph(String datasetName,
+  private DatasetGraph getMaterializedBranchGraph(String datasetName,
       String branchName) {
     // Validate branch exists and get HEAD commit
     Branch branch = branchRepository.findByDatasetAndName(datasetName, branchName)
@@ -277,9 +277,8 @@ public class DatasetService {
       logger.debug("Using materialized graph for branch {}/{}", datasetName, branchName);
       DatasetGraph graph = materializedBranchRepo.getBranchGraph(datasetName, branchName);
 
-      // Return as DatasetGraphInMemory (required by interface)
-      // Note: MaterializedBranchRepository already returns DatasetGraphInMemory
-      return (DatasetGraphInMemory) graph;
+      // Return directly - MaterializedBranchRepository returns DatasetGraph
+      return graph;
     } else {
       // Fallback: Materialized graph not available, build on-demand
       // This is expected during eventual consistency (projector hasn't caught up yet)

@@ -39,6 +39,9 @@ public abstract class ITFixture {
   // Initialize Kafka container eagerly so it's started before @DynamicPropertySource runs
   protected static KafkaContainer kafkaContainer = KafkaTestContainers.createKafkaContainer();
 
+  // Static lock for synchronizing test cleanup to prevent race conditions
+  private static final Object CLEANUP_LOCK = new Object();
+
   @Autowired(required = false)
   protected BranchRepository branchRepository;
 
@@ -111,35 +114,39 @@ public abstract class ITFixture {
   void setUpIntegrationTestFixture() {
     String dataset = getDatasetName();
 
-    // Clean up materialized graph cache BEFORE deleting branches from repository
-    // (we need branch list to know which graphs to delete)
-    if (materializedBranchRepo != null && branchRepository != null) {
-      List<org.chucc.vcserver.domain.Branch> branches =
-          branchRepository.findAllByDataset(dataset);
-      for (org.chucc.vcserver.domain.Branch branch : branches) {
-        materializedBranchRepo.deleteBranch(dataset, branch.getName());
+    // Synchronized cleanup to prevent race conditions between concurrent tests
+    // This prevents cache eviction/rebuild races when tests clean up repositories
+    synchronized (CLEANUP_LOCK) {
+      // Clean up materialized graph cache BEFORE deleting branches from repository
+      // (we need branch list to know which graphs to delete)
+      if (materializedBranchRepo != null && branchRepository != null) {
+        List<org.chucc.vcserver.domain.Branch> branches =
+            branchRepository.findAllByDataset(dataset);
+        for (org.chucc.vcserver.domain.Branch branch : branches) {
+          materializedBranchRepo.deleteBranch(dataset, branch.getName());
+        }
       }
-    }
 
-    // Clean up repositories
-    if (branchRepository != null) {
-      branchRepository.deleteAllByDataset(dataset);
-    }
-    if (commitRepository != null) {
-      commitRepository.deleteAllByDataset(dataset);
-    }
-    if (tagRepository != null) {
-      tagRepository.deleteAllByDataset(dataset);
-    }
+      // Clean up repositories
+      if (branchRepository != null) {
+        branchRepository.deleteAllByDataset(dataset);
+      }
+      if (commitRepository != null) {
+        commitRepository.deleteAllByDataset(dataset);
+      }
+      if (tagRepository != null) {
+        tagRepository.deleteAllByDataset(dataset);
+      }
 
-    // Create initial setup if requested
-    if (shouldCreateInitialSetup() && commitRepository != null && branchRepository != null) {
-      createInitialCommitAndBranch(dataset);
+      // Create initial setup if requested
+      if (shouldCreateInitialSetup() && commitRepository != null && branchRepository != null) {
+        createInitialCommitAndBranch(dataset);
 
-      // Create empty materialized graph for initial branch
-      if (materializedBranchRepo != null) {
-        materializedBranchRepo.createBranch(dataset, getInitialBranchName(),
-            java.util.Optional.empty());
+        // Create empty materialized graph for initial branch
+        if (materializedBranchRepo != null) {
+          materializedBranchRepo.createBranch(dataset, getInitialBranchName(),
+              java.util.Optional.empty());
+        }
       }
     }
   }

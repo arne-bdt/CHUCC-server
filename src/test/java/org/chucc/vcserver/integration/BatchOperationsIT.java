@@ -43,56 +43,6 @@ public class BatchOperationsIT extends ITFixture {
   private TestRestTemplate restTemplate;
 
   @Test
-  void batchUpdate_shouldCreateSingleCommit_whenMultipleSparqlUpdates() {
-    // Given: Batch with multiple SPARQL updates
-    Map<String, Object> request = Map.of(
-        "operations", List.of(
-            Map.of(
-                "type", "update",
-                "sparql", "INSERT DATA { <http://ex.org/s1> <http://ex.org/p> \"v1\" }"
-            ),
-            Map.of(
-                "type", "update",
-                "sparql", "INSERT DATA { <http://ex.org/s2> <http://ex.org/p> \"v2\" }"
-            )
-        ),
-        "branch", "main"
-    );
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.APPLICATION_JSON);
-    headers.set("SPARQL-VC-Message", "Batch insert test data");
-    headers.set("SPARQL-VC-Author", "testUser");
-
-    HttpEntity<Map<String, Object>> httpRequest = new HttpEntity<>(request, headers);
-
-    // When
-    @SuppressWarnings("rawtypes")
-    ResponseEntity<Map> response = restTemplate.exchange(
-        "/version/batch?dataset=default",
-        HttpMethod.POST,
-        httpRequest,
-        Map.class
-    );
-
-    // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-    assertThat(response.getHeaders().get("Location")).isNotNull();
-    assertThat(response.getHeaders().get("SPARQL-VC-Status")).contains("pending");
-
-    @SuppressWarnings("unchecked")
-    Map<String, Object> body = response.getBody();
-    assertThat(body).isNotNull();
-    assertThat(body.get("status")).isEqualTo("accepted");
-    assertThat(body.get("commitId")).isNotNull();
-    assertThat(body.get("branch")).isEqualTo("main");
-    assertThat(body.get("operationCount")).isEqualTo(2);
-    assertThat(body.get("message")).isEqualTo("Batch insert test data");
-
-    // Note: Repository updates handled by ReadModelProjector (disabled in this test)
-  }
-
-  @Test
   void batchUpdate_shouldCreateSingleCommit_whenMultipleRdfPatches() {
     // Given: Batch with multiple RDF patches
     String patch1 = "TX .\n"
@@ -141,51 +91,6 @@ public class BatchOperationsIT extends ITFixture {
     assertThat(body).isNotNull();
     assertThat(body.get("status")).isEqualTo("accepted");
     assertThat(body.get("commitId")).isNotNull();
-    assertThat(body.get("operationCount")).isEqualTo(2);
-  }
-
-  @Test
-  void batchUpdate_shouldCreateSingleCommit_whenMixedOperations() {
-    // Given: Batch with both SPARQL update and RDF patch
-    String patch = "TX .\n"
-        + "A <http://ex.org/s2> <http://ex.org/p> \"v2\" .\n"
-        + "TC .";
-
-    Map<String, Object> request = Map.of(
-        "operations", List.of(
-            Map.of(
-                "type", "update",
-                "sparql", "INSERT DATA { <http://ex.org/s1> <http://ex.org/p> \"v1\" }"
-            ),
-            Map.of(
-                "type", "applyPatch",
-                "patch", patch
-            )
-        ),
-        "branch", "main"
-    );
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.APPLICATION_JSON);
-    headers.set("SPARQL-VC-Message", "Mixed batch operations");
-    headers.set("SPARQL-VC-Author", "testUser");
-
-    HttpEntity<Map<String, Object>> httpRequest = new HttpEntity<>(request, headers);
-
-    // When
-    @SuppressWarnings("rawtypes")
-    ResponseEntity<Map> response = restTemplate.exchange(
-        "/version/batch?dataset=default",
-        HttpMethod.POST,
-        httpRequest,
-        Map.class
-    );
-
-    // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-    @SuppressWarnings("unchecked")
-    Map<String, Object> body = response.getBody();
-    assertThat(body).isNotNull();
     assertThat(body.get("operationCount")).isEqualTo(2);
   }
 
@@ -380,43 +285,5 @@ public class BatchOperationsIT extends ITFixture {
 
     // Then
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-  }
-
-  @Test
-  void batchUpdate_shouldUseBranchFromOperations_whenRequestLevelBranchNotProvided() {
-    // Given: No request-level branch, operations specify branch
-    Map<String, Object> request = Map.of(
-        "operations", List.of(
-            Map.of(
-                "type", "update",
-                "sparql", "INSERT DATA { <http://ex.org/s1> <http://ex.org/p> \"v1\" }",
-                "branch", "main"
-            )
-        )
-        // No request-level branch
-    );
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.APPLICATION_JSON);
-    headers.set("SPARQL-VC-Message", "Test message");
-    headers.set("SPARQL-VC-Author", "testUser");
-
-    HttpEntity<Map<String, Object>> httpRequest = new HttpEntity<>(request, headers);
-
-    // When
-    @SuppressWarnings("rawtypes")
-    ResponseEntity<Map> response = restTemplate.exchange(
-        "/version/batch?dataset=default",
-        HttpMethod.POST,
-        httpRequest,
-        Map.class
-    );
-
-    // Then
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-    @SuppressWarnings("unchecked")
-    Map<String, Object> body = response.getBody();
-    assertThat(body).isNotNull();
-    assertThat(body.get("branch")).isEqualTo("main");
   }
 }

@@ -281,7 +281,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
    */
   @Test
   void batchEndpoints_shouldBeDistinct() throws Exception {
-    // Protocol batch endpoint (/version/batch) - not implemented (501)
+    // Protocol batch endpoint (/version/batch) - validates operations list
     HttpHeaders protocolHeaders = new HttpHeaders();
     protocolHeaders.set("Content-Type", "application/json");
 

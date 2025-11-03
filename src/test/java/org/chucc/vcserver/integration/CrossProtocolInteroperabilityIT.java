@@ -297,8 +297,8 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
         String.class
     );
 
-    // Should return 501 Not Implemented (stub endpoint)
-    assertThat(protocolResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_IMPLEMENTED);
+    // Should return 400 Bad Request (empty operations list is invalid)
+    assertThat(protocolResponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
     // GSP batch endpoint (/version/batch-graphs) - implemented with validation
     HttpHeaders gspHeaders = new HttpHeaders();
@@ -317,10 +317,9 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
     // Should return 400 Bad Request (validation error - implemented endpoint)
     assertThat(gspResponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
-    // Endpoints are clearly distinct:
-    // /version/batch returns 501 (not implemented)
-    // /version/batch-graphs returns 400 (implemented with validation)
-    assertThat(protocolResponse.getStatusCode()).isNotEqualTo(gspResponse.getStatusCode());
+    // Both endpoints are now implemented and return 400 for validation errors
+    // They are distinct endpoints with different implementations, even though
+    // they both correctly validate inputs and return consistent error codes.
   }
 
   // ========== Selector Consistency Tests ==========

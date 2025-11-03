@@ -1,18 +1,30 @@
-# Task: Implement Batch Operations Endpoint
+# Task: Implement Batch Operations Endpoint (Simplified)
 
 **Status:** Not Started
 **Priority:** Medium
 **Category:** Version Control Protocol
-**Estimated Time:** 4-5 hours
+**Estimated Time:** 2-3 hours
 
 ---
 
 ## Overview
 
 Implement the missing Batch Operations endpoint that currently returns 501:
-- `POST /version/batch` - Execute a batch of SPARQL operations atomically
+- `POST /version/batch` - Combine multiple write operations into a single commit
 
 **Related Protocol Spec:** [SPARQL 1.2 Protocol Version Control Extension §3.6](../../protocol/SPARQL_1_2_Protocol_Version_Control_Extension.md)
+
+**Simplified Scope:**
+- ✅ Write operations only (`update`, `applyPatch`)
+- ✅ Single commit mode (combine all writes into one commit)
+- ✅ Fail-fast validation (no atomic rollback - not possible in event sourcing)
+- ✅ Reuse existing `CommitCreatedEvent` (no new events needed)
+
+**Rationale for Simplification:**
+- Queries (reads) don't fit CQRS event model
+- Atomic rollback impossible with Kafka-based eventual consistency
+- Single commit mode is the only genuinely useful feature (cleaner history for migrations)
+- Separate commits for each operation can be achieved by calling endpoints multiple times
 
 ---
 
@@ -29,11 +41,11 @@ Implement the missing Batch Operations endpoint that currently returns 501:
 
 ## Requirements
 
-### POST /version/batch - Execute Batch of Operations
+### POST /version/batch - Execute Batch of Write Operations
 
 **Request:**
 ```http
-POST /version/batch HTTP/1.1
+POST /version/batch?dataset=myDataset HTTP/1.1
 Content-Type: application/json
 SPARQL-VC-Author: Alice <alice@example.org>
 SPARQL-VC-Message: Batch update for migration
@@ -41,82 +53,67 @@ SPARQL-VC-Message: Batch update for migration
 {
   "operations": [
     {
-      "type": "query",
-      "sparql": "SELECT * WHERE { ?s ?p ?o } LIMIT 10",
+      "type": "update",
+      "sparql": "INSERT DATA { <http://example.org/s1> <http://example.org/p1> \"value1\" }",
       "branch": "main"
     },
     {
       "type": "update",
-      "sparql": "INSERT DATA { <http://example.org/s> <http://example.org/p> \"value\" }",
+      "sparql": "DELETE DATA { <http://example.org/s2> <http://example.org/p2> \"old\" }",
       "branch": "main"
     },
     {
       "type": "applyPatch",
-      "patch": "A <http://example.org/s2> <http://example.org/p2> \"value2\" .",
+      "patch": "A <http://example.org/s3> <http://example.org/p3> \"value3\" .",
       "branch": "main"
     }
   ],
-  "atomic": true,
-  "singleCommit": true
+  "branch": "main"
 }
 ```
 
 **Parameters:**
-- `operations` (required) - Array of operations to execute
-  - Each operation has `type` ∈ {`query`, `update`, `applyPatch`}
-  - Each can specify selector (`branch`, `commit`, `asOf`)
-- `atomic` (optional, default `true`) - Execute all or nothing
-- `singleCommit` (optional, default `false`) - Combine all writes into one commit
+- `dataset` (query param, required) - Dataset name
+- `operations` (required) - Array of write operations
+  - `type` ∈ {`update`, `applyPatch`}
+  - `sparql` (for type=update) - SPARQL Update query
+  - `patch` (for type=applyPatch) - RDF Patch text
+  - `branch` (optional) - Override branch for this operation
+- `branch` (optional) - Default branch for all operations (default: "main")
+- `SPARQL-VC-Author` header - Author info (required)
+- `SPARQL-VC-Message` header - Commit message (required)
 
-**Response:** 200 OK
+**Validation Rules:**
+- All operations must target the same branch (fail if mixed)
+- All operations must be valid (syntax check) before executing any
+- Fail-fast: First validation error stops the entire batch
+
+**Response:** 202 Accepted (CQRS async pattern)
 ```json
 {
-  "results": [
-    {
-      "index": 0,
-      "type": "query",
-      "status": "success",
-      "result": { /* SPARQL query results */ }
-    },
-    {
-      "index": 1,
-      "type": "update",
-      "status": "success",
-      "commitId": "01933e4a-9d4e-7000-8000-000000000005"
-    },
-    {
-      "index": 2,
-      "type": "applyPatch",
-      "status": "success",
-      "commitId": "01933e4a-9d4e-7000-8000-000000000005"
-    }
-  ],
-  "overallStatus": "success",
-  "combinedCommitId": "01933e4a-9d4e-7000-8000-000000000005"
+  "status": "accepted",
+  "commitId": "01933e4a-9d4e-7000-8000-000000000005",
+  "branch": "main",
+  "operationCount": 3,
+  "message": "Batch update for migration"
 }
 ```
 
-**Error Response:** 400 Bad Request (atomic failure)
+**Error Response:** 400 Bad Request
 ```json
 {
   "type": "about:blank",
   "title": "Batch Operation Failed",
   "status": 400,
-  "code": "BATCH_FAILED",
+  "code": "BATCH_VALIDATION_FAILED",
   "failedAt": 1,
-  "detail": "SPARQL syntax error in operation 1"
+  "detail": "SPARQL syntax error in operation 1: Expected INSERT or DELETE"
 }
 ```
 
 **Headers:**
-- `SPARQL-VC-Status: pending` (if any writes occurred)
-- `Location: /version/commits/{combinedCommitId}` (if single commit mode)
-
-**CQRS Pattern:**
-- Command: `BatchOperationCommand(dataset, operations, atomic, singleCommit, author, message)`
-- Handler: `BatchOperationCommandHandler`
-- Event: `BatchOperationExecutedEvent` (if single commit)
-  - Or individual events for each operation
+- `Location: /version/commits/{commitId}` - Created commit
+- `SPARQL-VC-Status: pending` - Eventual consistency
 
 ---
 
@@ -125,192 +122,340 @@ SPARQL-VC-Message: Batch update for migration
 ### Step 1: Create DTOs
 
 **New Files:**
-- `dto/BatchRequest.java`
-- `dto/BatchOperation.java`
-- `dto/BatchResponse.java`
-- `dto/BatchOperationResult.java`
+- `dto/BatchWriteRequest.java`
+- `dto/WriteOperation.java`
+- `dto/BatchWriteResponse.java`
 
-**File:** `src/main/java/org/chucc/vcserver/dto/BatchRequest.java`
+**File:** `src/main/java/org/chucc/vcserver/dto/BatchWriteRequest.java`
 ```java
 package org.chucc.vcserver.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
-public record BatchRequest(
-    List<BatchOperation> operations,
-    @JsonProperty(defaultValue = "true") Boolean atomic,
-    @JsonProperty(defaultValue = "false") Boolean singleCommit
+/**
+ * Request DTO for batch write operations endpoint.
+ *
+ * <p>Combines multiple write operations (SPARQL updates or RDF patches) into a single commit.
+ * All operations must target the same branch.
+ *
+ * @param operations List of write operations to execute
+ * @param branch Default branch for all operations (can be overridden per operation)
+ */
+public record BatchWriteRequest(
+    @NotNull @NotEmpty @Valid List<WriteOperation> operations,
+    String branch  // Nullable, defaults to "main" if not specified
 ) {
+  /**
+   * Validates the batch request.
+   *
+   * @throws IllegalArgumentException if validation fails
+   */
   public void validate() {
     if (operations == null || operations.isEmpty()) {
       throw new IllegalArgumentException("Operations list cannot be empty");
     }
+
+    // Validate individual operations
     for (int i = 0; i < operations.size(); i++) {
       try {
         operations.get(i).validate();
       } catch (IllegalArgumentException e) {
-        throw new IllegalArgumentException("Invalid operation at index " + i + ": " + e.getMessage());
+        throw new IllegalArgumentException(
+            "Invalid operation at index " + i + ": " + e.getMessage(), e);
       }
     }
+
+    // Ensure all operations target same branch
+    String targetBranch = determineTargetBranch();
+    for (int i = 0; i < operations.size(); i++) {
+      WriteOperation op = operations.get(i);
+      String opBranch = op.branch() != null ? op.branch() : targetBranch;
+      if (!opBranch.equals(targetBranch)) {
+        throw new IllegalArgumentException(
+            "All operations must target the same branch. Operation " + i
+            + " targets '" + opBranch + "' but expected '" + targetBranch + "'");
+      }
+    }
+  }
+
+  /**
+   * Determines the target branch (from request or first operation).
+   *
+   * @return target branch name
+   */
+  public String determineTargetBranch() {
+    if (branch != null) {
+      return branch;
+    }
+    if (!operations.isEmpty() && operations.get(0).branch() != null) {
+      return operations.get(0).branch();
+    }
+    return "main";  // Default
   }
 }
 ```
 
-**File:** `src/main/java/org/chucc/vcserver/dto/BatchOperation.java`
+**File:** `src/main/java/org/chucc/vcserver/dto/WriteOperation.java`
 ```java
 package org.chucc.vcserver.dto;
 
-public record BatchOperation(
-    String type,  // "query", "update", "applyPatch"
-    String sparql,  // For query/update
-    String patch,  // For applyPatch (RDF Patch)
-    String branch,  // Selector
-    String commit,  // Selector
-    String asOf  // Selector
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+/**
+ * Single write operation in a batch request.
+ *
+ * @param type Operation type: "update" or "applyPatch"
+ * @param sparql SPARQL Update query (required if type=update)
+ * @param patch RDF Patch text (required if type=applyPatch)
+ * @param branch Target branch (overrides request-level branch)
+ */
+public record WriteOperation(
+    @NotNull @NotBlank String type,
+    String sparql,
+    String patch,
+    String branch
 ) {
+  /**
+   * Validates the write operation.
+   *
+   * @throws IllegalArgumentException if validation fails
+   */
   public void validate() {
-    if (type == null || !List.of("query", "update", "applyPatch").contains(type)) {
-      throw new IllegalArgumentException("Invalid type: " + type);
+    if (type == null || type.isBlank()) {
+      throw new IllegalArgumentException("Type is required");
     }
-    if ("query".equals(type) || "update".equals(type)) {
+
+    if (!type.equals("update") && !type.equals("applyPatch")) {
+      throw new IllegalArgumentException(
+          "Invalid type: '" + type + "'. Must be 'update' or 'applyPatch'");
+    }
+
+    if ("update".equals(type)) {
       if (sparql == null || sparql.isBlank()) {
-        throw new IllegalArgumentException("SPARQL required for type: " + type);
+        throw new IllegalArgumentException("SPARQL query required for type 'update'");
       }
     }
+
     if ("applyPatch".equals(type)) {
       if (patch == null || patch.isBlank()) {
-        throw new IllegalArgumentException("Patch required for type: applyPatch");
+        throw new IllegalArgumentException("Patch content required for type 'applyPatch'");
       }
-    }
-    // Validate selectors (mutually exclusive)
-    int selectorCount = (branch != null ? 1 : 0) + (commit != null ? 1 : 0) + (asOf != null ? 1 : 0);
-    if (selectorCount > 1) {
-      throw new IllegalArgumentException("Only one selector allowed (branch, commit, or asOf)");
     }
   }
 }
 ```
 
-### Step 2: Create Command & Event
+**File:** `src/main/java/org/chucc/vcserver/dto/BatchWriteResponse.java`
+```java
+package org.chucc.vcserver.dto;
 
-**File:** `src/main/java/org/chucc/vcserver/command/BatchOperationCommand.java`
-**File:** `src/main/java/org/chucc/vcserver/event/BatchOperationExecutedEvent.java`
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-### Step 3: Implement Command Handler
+/**
+ * Response DTO for batch write operations endpoint.
+ *
+ * @param status Status of the batch operation ("accepted")
+ * @param commitId ID of the created commit
+ * @param branch Target branch name
+ * @param operationCount Number of operations combined into the commit
+ * @param message Commit message
+ */
+public record BatchWriteResponse(
+    String status,
+    String commitId,
+    String branch,
+    @JsonProperty("operationCount") int operationCount,
+    String message
+) {
+  /**
+   * Creates a successful batch write response.
+   *
+   * @param commitId Created commit ID
+   * @param branch Target branch
+   * @param operationCount Number of operations
+   * @param message Commit message
+   * @return response DTO
+   */
+  public static BatchWriteResponse accepted(
+      String commitId,
+      String branch,
+      int operationCount,
+      String message) {
+    return new BatchWriteResponse("accepted", commitId, branch, operationCount, message);
+  }
+}
+```
 
-**File:** `src/main/java/org/chucc/vcserver/command/BatchOperationCommandHandler.java`
+### Step 2: Create Batch Service
+
+**File:** `src/main/java/org/chucc/vcserver/service/BatchOperationService.java`
+
+This service orchestrates the batch operation:
+1. Validates all operations upfront
+2. Converts SPARQL updates to RDF patches
+3. Combines all patches into one
+4. Delegates to existing `CreateCommitCommandHandler`
 
 ```java
-@Component
-public class BatchOperationCommandHandler implements CommandHandler {
+package org.chucc.vcserver.service;
 
-  private final SparqlQueryService queryService;
+import org.apache.jena.rdfpatch.RDFPatch;
+import org.chucc.vcserver.dto.WriteOperation;
+import org.springframework.stereotype.Service;
+import java.util.List;
+
+/**
+ * Service for batch write operations.
+ *
+ * <p>Combines multiple write operations (SPARQL updates or RDF patches) into a single commit.
+ */
+@Service
+public class BatchOperationService {
+
+  private final DatasetService datasetService;
   private final SparqlUpdateService updateService;
-  private final CommitService commitService;
 
-  @Override
-  public Event handle(Command command) {
-    BatchOperationCommand cmd = (BatchOperationCommand) command;
+  public BatchOperationService(DatasetService datasetService,
+                                SparqlUpdateService updateService) {
+    this.datasetService = datasetService;
+    this.updateService = updateService;
+  }
 
-    List<BatchOperationResult> results = new ArrayList<>();
-    List<RdfPatch> patches = new ArrayList<>();
+  /**
+   * Converts all operations to RDF patches and combines them.
+   *
+   * @param dataset Dataset name
+   * @param operations List of write operations
+   * @param branch Target branch
+   * @return Combined RDF patch
+   * @throws IllegalArgumentException if any operation is invalid
+   */
+  public RDFPatch combineOperations(
+      String dataset,
+      List<WriteOperation> operations,
+      String branch) {
 
-    for (int i = 0; i < cmd.operations().size(); i++) {
-      BatchOperation op = cmd.operations().get(i);
+    List<RDFPatch> patches = new ArrayList<>();
 
+    for (int i = 0; i < operations.size(); i++) {
+      WriteOperation op = operations.get(i);
       try {
-        BatchOperationResult result = executeOperation(cmd.dataset(), op);
-        results.add(result);
-
-        // Collect patches for single commit mode
-        if (cmd.singleCommit() && result.patch() != null) {
-          patches.add(result.patch());
-        }
-
+        RDFPatch patch = convertToPatch(dataset, op, branch);
+        patches.add(patch);
       } catch (Exception e) {
-        if (cmd.atomic()) {
-          // Atomic mode: rollback and fail entire batch
-          throw new BatchOperationException("Operation " + i + " failed", i, e);
-        } else {
-          // Non-atomic: record error and continue
-          results.add(new BatchOperationResult(i, op.type(), "error", null, e.getMessage()));
-        }
+        throw new IllegalArgumentException(
+            "Failed to process operation " + i + ": " + e.getMessage(), e);
       }
     }
 
-    // Single commit mode: combine all patches
-    String combinedCommitId = null;
-    if (cmd.singleCommit() && !patches.isEmpty()) {
-      RdfPatch combinedPatch = combinePatchs(patches);
-      combinedCommitId = createCommit(cmd.dataset(), combinedPatch, cmd.author(), cmd.message());
-    }
-
-    // Create event
-    BatchOperationExecutedEvent event = new BatchOperationExecutedEvent(
-        uuidGenerator.generateEventId(),
-        cmd.dataset(),
-        results,
-        combinedCommitId,
-        Instant.now()
-    );
-
-    eventPublisher.publish(event);
-    return event;
+    return RdfPatchUtil.combine(patches);
   }
 
-  private BatchOperationResult executeOperation(String dataset, BatchOperation op) {
+  private RDFPatch convertToPatch(String dataset, WriteOperation op, String branch) {
     return switch (op.type()) {
-      case "query" -> executeQuery(dataset, op);
-      case "update" -> executeUpdate(dataset, op);
-      case "applyPatch" -> executePatch(dataset, op);
+      case "update" -> {
+        // Execute SPARQL update against branch HEAD and extract patch
+        DatasetGraph before = datasetService.materializeBranch(dataset, branch);
+        DatasetGraph after = before.copy();
+        updateService.executeUpdate(after, op.sparql());
+        yield RdfPatchUtil.diff(before, after);
+      }
+      case "applyPatch" -> {
+        // Parse RDF patch directly
+        yield RdfPatchUtil.parse(op.patch());
+      }
       default -> throw new IllegalArgumentException("Unknown operation type: " + op.type());
     };
   }
 }
 ```
 
-### Step 4: Update Controller
+### Step 3: Update Controller
 
 **File:** `src/main/java/org/chucc/vcserver/controller/BatchController.java`
 
-Replace 501 stub with full implementation.
+Replace 501 stub with full implementation:
 
-### Step 5: Write Tests
+```java
+@PostMapping("/batch")
+public ResponseEntity<BatchWriteResponse> executeBatch(
+    @RequestParam String dataset,
+    @RequestHeader(value = "SPARQL-VC-Author", required = true) String author,
+    @RequestHeader(value = "SPARQL-VC-Message", required = true) String message,
+    @RequestBody @Valid BatchWriteRequest request) {
 
-**Integration Tests:**
-- Batch with multiple queries
-- Batch with multiple updates (single commit)
-- Batch with mixed operations
-- Atomic mode failure (rollback)
-- Non-atomic mode (partial success)
-- Selector validation (branch, commit, asOf)
+  try {
+    // Validate request
+    request.validate();
 
-**Unit Tests:**
-- `BatchOperationCommandHandlerTest.java`
-- Test operation execution
-- Test error handling
+    String targetBranch = request.determineTargetBranch();
 
----
+    // Combine operations into single patch
+    RDFPatch combinedPatch = batchOperationService.combineOperations(
+        dataset, request.operations(), targetBranch);
 
-## Atomic Execution
+    // Create single commit using existing command handler
+    CreateCommitCommand command = new CreateCommitCommand(
+        UUID.randomUUID().toString(),
+        dataset,
+        targetBranch,
+        combinedPatch.toString(),
+        message,
+        author,
+        Instant.now()
+    );
 
-**Atomic Mode (`atomic: true`):**
-- Execute operations in order
-- If any fails, rollback and return error
-- No commits created if batch fails
+    CommitCreatedEvent event = (CommitCreatedEvent) createCommitCommandHandler.handle(command);
 
-**Non-Atomic Mode (`atomic: false`):**
-- Execute all operations
-- Record errors for failed operations
-- Continue execution even if some fail
-- Return mixed success/error results
+    // Build response
+    BatchWriteResponse response = BatchWriteResponse.accepted(
+        event.commitId(),
+        targetBranch,
+        request.operations().size(),
+        message
+    );
 
-**Single Commit Mode (`singleCommit: true`):**
-- Collect all RDF Patch changes
-- Combine into single patch
-- Create one commit at the end
-- Requires atomic mode (otherwise inconsistent)
+    return ResponseEntity
+        .status(HttpStatus.ACCEPTED)
+        .header("Location", "/version/commits/" + event.commitId())
+        .header("SPARQL-VC-Status", "pending")
+        .body(response);
+
+  } catch (IllegalArgumentException e) {
+    // Validation error
+    throw new BadRequestException("Batch validation failed: " + e.getMessage());
+  }
+}
+```
+
+### Step 4: Write Tests
+
+**Integration Tests:** `src/test/java/org/chucc/vcserver/integration/BatchOperationsIT.java`
+
+Test cases:
+1. ✅ Batch with single update operation
+2. ✅ Batch with multiple updates
+3. ✅ Batch with applyPatch operations
+4. ✅ Batch with mixed update + applyPatch
+5. ✅ Empty operations list (400 error)
+6. ✅ Invalid operation type (400 error)
+7. ✅ Missing SPARQL for update (400 error)
+8. ✅ Missing patch for applyPatch (400 error)
+9. ✅ Mixed branches (400 error)
+10. ✅ Missing author header (400 error)
+
+**Unit Tests:** `src/test/java/org/chucc/vcserver/service/BatchOperationServiceTest.java`
+
+Test cases:
+1. ✅ Combine multiple updates
+2. ✅ Combine multiple patches
+3. ✅ Combine mixed operations
+4. ✅ Invalid SPARQL syntax error
+5. ✅ Invalid patch syntax error
 
 ---
 
@@ -318,24 +463,64 @@ Replace 501 stub with full implementation.
 
 - ✅ Endpoint implemented (no 501 response)
 - ✅ DTOs created with validation
-- ✅ Command/Event/Handler implemented
-- ✅ Atomic and non-atomic modes work
-- ✅ Single commit mode works
-- ✅ Mixed operations work (query + update + patch)
-- ✅ Selector validation works
-- ✅ Integration tests pass
-- ✅ Unit tests pass
+- ✅ BatchOperationService implemented
+- ✅ Single commit mode works (all writes combined)
+- ✅ SPARQL updates converted to patches correctly
+- ✅ Direct patch application works
+- ✅ Mixed operations work
+- ✅ Fail-fast validation prevents partial execution
+- ✅ Integration tests pass (10 tests)
+- ✅ Unit tests pass (5 tests)
 - ✅ Zero quality violations
 - ✅ Full build passes
 
 ---
 
-## Notes
+## Design Decisions
 
-- This endpoint is **SPARQL Protocol specific**
-- Distinct from `/version/batch-graphs` (Graph Store Protocol)
-- Useful for migrations and bulk operations
-- Atomic mode provides transaction-like semantics
+### Why Write-Only?
+
+**Queries (reads) don't fit the batch model:**
+- Reads don't produce events (no state change)
+- Can't combine query results with commit response
+- Client can easily make multiple query requests
+
+### Why Single Commit Only?
+
+**Multiple commits can be achieved by calling endpoints separately:**
+- Batch endpoint's value: cleaner history (1 commit instead of N)
+- Multiple commits = N API calls (no performance benefit from batching)
+
+### Why No Atomic Rollback?
+
+**Event sourcing makes true rollback impossible:**
+- Events published to Kafka immediately
+- Can't unpublish events
+- Eventual consistency model
+- Fail-fast validation is best we can do
+
+### CQRS Compliance
+
+**Reuses existing infrastructure:**
+- No new events (`CommitCreatedEvent` is sufficient)
+- No new command handlers (uses `CreateCommitCommandHandler`)
+- Controller orchestrates, existing services do work
+- Clean separation of concerns
+
+---
+
+## Files to Create/Modify
+
+### Create (5 files)
+- `src/main/java/org/chucc/vcserver/dto/BatchWriteRequest.java`
+- `src/main/java/org/chucc/vcserver/dto/WriteOperation.java`
+- `src/main/java/org/chucc/vcserver/dto/BatchWriteResponse.java`
+- `src/main/java/org/chucc/vcserver/service/BatchOperationService.java`
+- `src/test/java/org/chucc/vcserver/integration/BatchOperationsIT.java`
+- `src/test/java/org/chucc/vcserver/service/BatchOperationServiceTest.java`
+
+### Modify (1 file)
+- `src/main/java/org/chucc/vcserver/controller/BatchController.java` (replace 501 stub)
 
 ---
 
@@ -343,4 +528,5 @@ Replace 501 stub with full implementation.
 
 - [SPARQL 1.2 Protocol VC Extension §3.6](../../protocol/SPARQL_1_2_Protocol_Version_Control_Extension.md)
 - [BatchController.java](../../src/main/java/org/chucc/vcserver/controller/BatchController.java)
-- [BatchGraphsController.java](../../src/main/java/org/chucc/vcserver/controller/BatchGraphsController.java) (GSP variant for reference)
+- [CreateCommitCommandHandler.java](../../src/main/java/org/chucc/vcserver/command/CreateCommitCommandHandler.java)
+- [RdfPatchUtil.java](../../src/main/java/org/chucc/vcserver/util/RdfPatchUtil.java)

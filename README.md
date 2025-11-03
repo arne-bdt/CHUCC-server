@@ -37,7 +37,7 @@ This server implements:
 - ✅ **Tags** - Create, list, get, and delete tags with immutability enforcement
 - ✅ **Diff** - Compare any two commits with RDFPatch output (configurable endpoint)
 - ✅ **Blame** - Last-writer attribution per quad with graph-scoped analysis and pagination
-- ⏳ **Batch operations** - Apply multiple SPARQL operations atomically (in progress)
+- ✅ **Batch operations** - Apply multiple write operations (SPARQL updates or RDF patches) in single commit
 
 ### Advanced Features
 - ✅ **Optimistic Concurrency** - ETags and If-Match headers
@@ -231,9 +231,7 @@ To temporarily increase test logging, override in your test:
 - ✅ **Merge Operations API** (POST /version/merge) - Completed 2025-10-28
 - ✅ **History & Diff API** (GET /version/history, GET /version/diff) - Completed 2025-11-01
 - ✅ **Blame API** (GET /version/blame) - Completed 2025-11-02
-
-**In Progress:**
-- ⏳ Batch Operations API (POST /version/batch)
+- ✅ **Batch Operations API** (POST /version/batch) - Completed 2025-11-03
 
 See [.tasks/README.md](.tasks/README.md) for detailed task roadmap.
 - ✅ Kafka best practices: Aggregate-ID partition key strategy
@@ -248,7 +246,7 @@ See [.tasks/README.md](.tasks/README.md) for detailed task roadmap.
 - ✅ Zero SpotBugs warnings
 - ✅ Zero PMD violations
 - ✅ Zero compiler warnings (enforced by `-Werror`)
-- ✅ All 1222 tests passing
+- ✅ All 1244 tests passing
 
 See [Task Roadmap](./.tasks/README.md) for complete implementation history.
 

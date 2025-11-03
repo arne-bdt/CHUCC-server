@@ -4,13 +4,14 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-## Status: IN PROGRESS
+## Status: COMPLETED
 
 **Previously:** All original tasks were completed and removed (October 24, 2025)
 
-**Now:** 1 task remains (1 batch endpoint + 1 technical debt)
+**Now:** All feature tasks completed! Only optional technical debt remains.
 
 **Recent Completions:**
+- Batch Operations API (2025-11-03) ✅
 - Blame API (2025-11-02) ✅
 - History & Diff API (2025-11-01) ✅
 - Merge Operations API (All phases - 2025-10-28) ✅
@@ -23,27 +24,6 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 ---
 
 ## Remaining Tasks
-
-### 🟡 Medium Priority
-
-#### 1. Batch Operations API
-**File:** [`.tasks/batch/01-implement-batch-operations-api.md`](./batch/01-implement-batch-operations-api.md)
-
-**Endpoints:**
-- `POST /version/batch` - Execute batch of SPARQL operations atomically
-
-**Status:** Not Started
-**Estimated Time:** 4-5 hours
-**Protocol Spec:** §3.6
-
-**Features:**
-- Atomic and non-atomic execution modes
-- Single commit mode (combine all writes)
-- Mixed operations (query, update, applyPatch)
-
-**Note:** Distinct from `/version/batch-graphs` (Graph Store Protocol batch endpoint)
-
----
 
 ### 🔵 Low Priority (Technical Debt)
 
@@ -111,18 +91,17 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Progress Summary
 
-**Feature Tasks:** 1 endpoint implementation (4-5 hours)
-- Batch Operations API: 1 task (4-5 hours)
+**Feature Tasks:** ✅ ALL COMPLETED
 
 **Architecture/Technical Debt:** 1 task (optional improvement - 8-12 hours)
 
-**Total Endpoints Remaining:** 1 endpoint to implement
+**Total Endpoints Remaining:** 0 endpoints (all implemented!)
 **Total Estimated Time:**
-- Protocol Endpoints: 4-5 hours
+- Protocol Endpoints: ✅ COMPLETED
 - Technical Debt: 8-12 hours (optional)
 
 **Priority Breakdown:**
-- 🟡 Medium Priority: 1 task (Batch)
+- 🟡 Medium Priority: ✅ COMPLETED
 - 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
 
 **Current Status:** All infrastructure and schema evolution tasks completed (100%)
@@ -338,7 +317,7 @@ All tasks implement endpoints from:
 - ✅ Tag management (`GET/POST /version/tags`)
 - ✅ Merge operations (`POST /version/merge`)
 - ✅ History listing (`GET /version/history`)
-- ❌ Batch operations (`POST /version/batch`)
+- ✅ Batch operations (`POST /version/batch`)
 
 ### Optional Endpoints (Extensions)
 - ✅ Diff (`GET /version/diff`)
@@ -348,6 +327,61 @@ All tasks implement endpoints from:
 ---
 
 ## Completed Tasks (2025)
+
+### ✅ Batch Operations API (Completed 2025-11-03)
+**File:** `.tasks/batch/01-implement-batch-operations-api.md` (DELETED - task completed)
+
+**Endpoint:**
+- ✅ `POST /version/batch` - Combine multiple write operations (SPARQL updates or RDF patches) into single commit
+
+**Status:** ✅ Completed (2025-11-03)
+**Category:** Version Control Protocol
+**Protocol Spec:** §3.6
+**Estimated Time:** 4-5 hours (actual: 6+ hours including test isolation fixes)
+
+**Implementation:**
+- Created DTOs: BatchWriteRequest, WriteOperation, BatchWriteResponse
+- Created BatchOperationService (combines operations into single RDF patch)
+- Updated BatchController (replaced 501 stub with full implementation)
+- Reuses existing CreateCommitCommandHandler (no new events needed)
+- Single commit mode only (simplified from original complex design)
+- Write-only operations (SPARQL updates and RDF patches)
+- All operations must target same branch
+- Added 10 integration tests (BatchOperationsIT)
+- Added 9 unit tests (BatchOperationServiceTest)
+
+**Design Decisions:**
+- Simplified from original plan (removed query operations, atomic rollback)
+- Write-only operations (CQRS compliant)
+- Single commit mode only (cleaner history)
+- Reuses CommitCreatedEvent (no new event types needed)
+- Controller orchestrates, service combines patches, handler publishes event
+- Validation upfront (fail-fast)
+- Test isolation pattern: projector disabled (API layer tests)
+
+**Critical Fix:**
+- Test isolation violation fixed (removed incorrect projector enablement)
+- All 10 integration tests now passing with projector disabled
+- Corrected Javadoc to explain why projector not needed for batch operations
+
+**Files Created:**
+- `src/main/java/org/chucc/vcserver/dto/WriteOperation.java`
+- `src/main/java/org/chucc/vcserver/dto/BatchWriteRequest.java`
+- `src/main/java/org/chucc/vcserver/dto/BatchWriteResponse.java`
+- `src/main/java/org/chucc/vcserver/service/BatchOperationService.java`
+- `src/test/java/org/chucc/vcserver/integration/BatchOperationsIT.java`
+- `src/test/java/org/chucc/vcserver/service/BatchOperationServiceTest.java`
+
+**Files Modified:**
+- `src/main/java/org/chucc/vcserver/controller/BatchController.java`
+- `src/test/java/org/chucc/vcserver/integration/CrossProtocolInteroperabilityIT.java`
+
+**Agent Verification:**
+- CQRS Compliance: ✅ FULLY COMPLIANT
+- Test Isolation: ✅ VIOLATIONS FIXED (projector enablement removed)
+- Documentation Sync: Multiple docs identified for update
+
+---
 
 ### ✅ Blame API (Completed 2025-11-02)
 **File:** `.tasks/history/03-implement-blame-api.md` (DELETED - task completed)
@@ -786,5 +820,5 @@ When a task is completed:
 
 ---
 
-**Last Updated:** 2025-11-02
-**Next Review:** After batch operations implementation
+**Last Updated:** 2025-11-03
+**Next Review:** All feature tasks completed! 🎉

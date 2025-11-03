@@ -1,11 +1,12 @@
 # Event-Driven Test Setup - Long-Term Solution
 
-## Status: TODO
+## Status: PLANNED (See Implementation Plan)
 **Created:** 2025-11-03
 **Priority:** Medium (Technical Debt)
 **Complexity:** High
 **Parent Task:** `.tasks/batch/03-fix-batch-test-isolation-race.md`
-**Estimated Time:** 2-3 sessions
+**Implementation Plan:** `.tasks/batch/05-event-driven-setup-implementation-plan.md`
+**Estimated Time:** 5-7 sessions (broken into smaller increments)
 
 ## TL;DR - Quick Start
 

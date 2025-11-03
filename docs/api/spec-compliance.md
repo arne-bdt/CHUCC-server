@@ -82,7 +82,9 @@ This implementation supports **Level 2 (Advanced)** conformance.
 | Read model projectors | ✅ Implemented | Async repository updates |
 | Command handlers | ✅ Implemented | CQRS pattern |
 
-## Extensions (Not in Spec)
+## Protocol Enhancements (Extensions Not in Spec)
+
+These extensions enhance the SPARQL 1.2 Protocol Version Control Extension but remain compatible with the spec.
 
 | Endpoint | Status | Configurable | Notes |
 |----------|--------|--------------|-------|
@@ -93,6 +95,47 @@ This implementation supports **Level 2 (Advanced)** conformance.
 **Extension Configuration:**
 - `vc.diff-enabled` - Enable/disable diff endpoint (default: true)
 - `vc.blame-enabled` - Enable/disable blame endpoint (default: true for Level 2)
+
+---
+
+## CHUCC-Specific Extensions (Not in Protocol)
+
+These endpoints are **specific to CHUCC Server** and not part of any protocol specification. They provide operational capabilities for multi-dataset deployments and performance optimization.
+
+| Endpoint | Status | Purpose | Rationale |
+|----------|--------|---------|-----------|
+| POST /version/datasets/{name} | ✅ Implemented | Create dataset with Kafka provisioning | Multi-tenant deployments require dynamic dataset creation |
+| DELETE /version/datasets/{name} | ✅ Implemented | Delete dataset and optionally Kafka topics | Dataset lifecycle management for multi-tenant systems |
+| POST /version/batch-graphs | ✅ Implemented | Batch Graph Store Protocol operations | Performance optimization for bulk GSP operations (PUT, POST, PATCH, DELETE) |
+
+**Key Differences from Protocol:**
+
+1. **Dataset Management (POST/DELETE /version/datasets/{name})**
+   - The official protocol assumes datasets are pre-configured (e.g., via config files)
+   - CHUCC supports dynamic multi-dataset deployments where datasets are created on-demand
+   - Each dataset gets isolated Kafka topics: `vc.{dataset}.events` and `vc.{dataset}.events.dlq`
+   - Cannot be disabled (core operational feature)
+
+2. **Batch Graphs (POST /version/batch-graphs)**
+   - Similar to `/version/batch` (SPARQL Updates) but for Graph Store Protocol operations
+   - Allows atomic execution of multiple GSP operations (PUT, POST, PATCH, DELETE)
+   - Supports two modes: `single-commit` (default) or `multi-commit`
+   - Complements `/version/batch` endpoint (which handles SPARQL QUERY and UPDATE operations)
+   - Cannot be disabled (core feature)
+
+**Dataset Creation Flow:**
+1. Creates Kafka topic: `vc.{dataset}.events` with configurable partitions/replication
+2. Creates DLQ topic: `vc.{dataset}.events.dlq` (7-day retention)
+3. Creates initial empty commit (message: "Initial commit")
+4. Creates main branch (protected) pointing to initial commit
+5. Publishes `DatasetCreatedEvent` to Kafka
+6. Returns `202 Accepted` (eventual consistency)
+
+**Integration with Protocol:**
+- All protocol-defined endpoints work with dynamically created datasets
+- Selectors (branch, commit, asOf) work identically across static and dynamic datasets
+- Version control operations (merge, cherry-pick, revert, etc.) fully supported
+- CQRS/Event Sourcing patterns apply to all datasets
 
 ## Notes
 

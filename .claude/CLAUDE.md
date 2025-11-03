@@ -209,6 +209,115 @@ class MyTest {
 
 📖 **For conceptual understanding**: See [CQRS + Event Sourcing Guide - Testing Implications](../docs/architecture/cqrs-event-sourcing.md#testing-implications)
 
+### Dataset Creation in Integration Tests
+
+**Problem:** Integration tests often need datasets, but how to create them is not always obvious.
+
+**Solution:** Use the `POST /version/datasets/{name}` REST API endpoint programmatically.
+
+#### Method 1: Direct REST API Call (Recommended)
+
+```java
+@SpringBootTest(webEnvironment = RANDOM_PORT)
+@ActiveProfiles("it")
+class MyIntegrationTest extends IntegrationTestFixture {
+
+  @Autowired
+  private TestRestTemplate restTemplate;
+
+  @BeforeEach
+  void setUp() {
+    // Create dataset via REST API
+    CreateDatasetRequest request = new CreateDatasetRequest(
+        "Test dataset description",
+        null,  // No initial graph
+        null   // Use default Kafka config
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+
+    HttpEntity<CreateDatasetRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    ResponseEntity<DatasetCreationResponse> response = restTemplate.postForEntity(
+        "/version/datasets/test-dataset",
+        httpEntity,
+        DatasetCreationResponse.class
+    );
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+  }
+}
+```
+
+#### Method 2: Command Handler (When Testing Internal Components)
+
+```java
+@SpringBootTest
+@ActiveProfiles("it")
+class MyServiceTest {
+
+  @Autowired
+  private CreateDatasetCommandHandler createDatasetCommandHandler;
+
+  @BeforeEach
+  void setUp() {
+    // Create dataset via command handler (bypasses HTTP layer)
+    CreateDatasetCommand command = new CreateDatasetCommand(
+        "test-dataset",
+        Optional.of("Test dataset"),
+        "test-author",
+        Optional.empty(),  // No initial graph
+        null               // Use default Kafka config
+    );
+
+    createDatasetCommandHandler.handle(command);
+  }
+}
+```
+
+#### What Happens During Dataset Creation
+
+When a dataset is created (via either method above):
+
+1. **Kafka topics created:**
+   - `vc.{dataset}.events` - Main event stream
+   - `vc.{dataset}.events.dlq` - Dead Letter Queue (7-day retention)
+
+2. **Initial commit created:**
+   - Empty commit with message "Initial commit"
+   - Generates UUIDv7 commit ID
+
+3. **Main branch created:**
+   - Protected by default
+   - Points to initial commit
+
+4. **Returns 202 Accepted:**
+   - Response includes: dataset name, main branch, initial commit ID, Kafka topic
+   - Follows CQRS pattern (eventual consistency)
+
+#### Cleanup Between Tests
+
+```java
+@Autowired
+private BranchRepository branchRepository;
+
+@BeforeEach
+void setUp() {
+  // Clean up any existing datasets
+  branchRepository.deleteAllByDataset("test-dataset");
+}
+```
+
+**Note:** Most integration tests use `IntegrationTestFixture` as a base class, which provides common setup/cleanup utilities.
+
+#### Examples to Reference
+
+- **DatasetCreationIT**: Complete dataset creation workflow
+- **GraphStoreControllerIT**: Tests using existing "default" dataset
+- **VersionControlProjectorIT**: Tests with projector enabled (awaits projection)
+
 ---
 
 ## Code Quality Standards

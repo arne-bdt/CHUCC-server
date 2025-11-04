@@ -35,6 +35,14 @@ class EventualConsistencyProjectorIT extends ITFixture {
   private TestRestTemplate restTemplate;
 
   /**
+   * Uses event-driven setup (Session 6 migration - projector-enabled test).
+   */
+  @Override
+  protected void createInitialCommitAndBranch(String dataset) {
+    createInitialCommitAndBranchViaEvents(dataset);
+  }
+
+  /**
    * Verifies eventual consistency when projector is enabled.
    * Data becomes queryable via branch selector after async projection.
    */

@@ -33,6 +33,14 @@ class GraphStoreDeleteIT extends ITFixture {
   @Autowired
   private TestRestTemplate restTemplate;
 
+  /**
+   * Uses event-driven setup (Session 6 migration - projector-enabled test).
+   */
+  @Override
+  protected void createInitialCommitAndBranch(String dataset) {
+    createInitialCommitAndBranchViaEvents(dataset);
+  }
+
   // ========== API Layer Tests (synchronous response validation) ==========
 
   @Test

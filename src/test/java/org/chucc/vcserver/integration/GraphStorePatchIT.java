@@ -33,6 +33,14 @@ class GraphStorePatchIT extends ITFixture {
   @Autowired
   private TestRestTemplate restTemplate;
 
+  /**
+   * Uses event-driven setup (Session 6 migration - projector-enabled test).
+   */
+  @Override
+  protected void createInitialCommitAndBranch(String dataset) {
+    createInitialCommitAndBranchViaEvents(dataset);
+  }
+
   private static final String RDF_PATCH_ADD = """
       TX .
       A <http://example.org/subject2> <http://example.org/predicate2> "newValue" .

@@ -23,48 +23,6 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ---
 
-## Current Work
-
-### 5. Event-Driven Migration for Projector Tests (Sessions 5-7)
-
-**Status:** 🟡 IN PROGRESS (Session 5 completed, ready for Session 6)
-
-**Current Session:** Between Session 5 and Session 6
-
-**Files:**
-- Current status: [batch/07-current-status-and-next-steps.md](./batch/07-current-status-and-next-steps.md)
-- Investigation notes: [batch/06-kafka-listener-investigation.md](./batch/06-kafka-listener-investigation.md)
-- Implementation plan: [batch/05-event-driven-setup-implementation-plan.md](./batch/05-event-driven-setup-implementation-plan.md)
-
-**Progress:**
-- ✅ Session 1-4: Infrastructure setup + EventualConsistencyIT migrated
-- ✅ Investigation: Fixed `handleDatasetCreated()` to create materialized graphs
-- ✅ Session 5: BatchOperationsProjectorIT migrated successfully
-  - All 3 tests pass in isolation
-  - 5/5 consecutive runs successful (100% stability)
-  - No nested transaction errors
-  - Code review passed with Javadoc improvements
-- ✅ Session 6: 8 projector-enabled tests migrated successfully
-  - GraphStoreDeleteIT, GraphStorePatchIT, GraphStorePostIT, GraphStorePutIT
-  - ConcurrentGraphOperationsIT, EventualConsistencyProjectorIT
-  - MaterializedViewRebuildIT, TimeTravelQueryIT
-  - All tests pass (verified with GraphStoreDeleteIT: 10/10)
-  - Full build successful (exit code 0)
-  - Code review score: 10/10 (no issues)
-- ⏳ Session 7: Switch default & deprecate old method
-
-**Problem Being Solved:**
-- Tests using direct repository saves bypass event-driven architecture
-- Causes "Could not rebuild graph" warnings and nested transaction errors
-- Solution: Use `createInitialCommitAndBranchViaEvents()` instead
-
-**Next Steps:**
-1. Start Session 6: Migrate remaining projector-enabled tests
-2. Follow same pattern as BatchOperationsProjectorIT (override method + Javadoc)
-3. Expected tests: MaterializedViewEvictionIT, SparqlQueryIT, SparqlQueryPostIT, SelectorValidationIT, SparqlUpdateIT, BatchGraphsIT
-
----
-
 ## Remaining Tasks
 
 ### 🔵 Low Priority (Technical Debt)

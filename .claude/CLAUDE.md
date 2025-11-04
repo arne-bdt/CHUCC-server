@@ -200,6 +200,55 @@ class MyTest {
 ```
 **Fix:** Use `await()` to wait for projection
 
+### Integration Test Setup Best Practices
+
+**✅ CORRECT: Event-Driven Setup (Default since 2025-11-04)**
+
+All integration tests now use event-driven dataset setup automatically via `ITFixture`:
+
+```java
+@SpringBootTest(webEnvironment = RANDOM_PORT)
+@ActiveProfiles("it")
+class MyTest extends IntegrationTestFixture {
+  // Event-driven setup happens automatically in @BeforeEach
+  // No manual setup needed!
+
+  @Test
+  void myTest() {
+    // Initial commit and main branch already exist
+    // Safe for both projector-enabled and projector-disabled tests
+  }
+}
+```
+
+**How it works:**
+- `ITFixture.setUpIntegrationTestFixture()` calls `createInitialCommitAndBranchViaEvents()`
+- Creates dataset via `CreateDatasetCommand` → publishes `DatasetCreatedEvent`
+- **Projector disabled:** Command handler saves to repositories immediately
+- **Projector enabled:** Uses `await()` to wait for async projection
+
+**❌ WRONG: Direct Repository Writes**
+
+```java
+// ❌ NEVER DO THIS - causes nested transaction errors!
+@BeforeEach
+void setUp() {
+  Commit commit = new Commit(...);
+  commitRepository.save(dataset, commit, patch);  // ❌ Bypasses event architecture
+
+  Branch branch = new Branch("main", commitId);
+  branchRepository.save(dataset, branch);  // ❌ Causes test isolation issues
+}
+```
+
+**Why this is wrong:**
+- Bypasses CQRS/Event Sourcing architecture
+- Causes nested transaction errors in projector-enabled tests
+- Leads to "Could not rebuild graph" warnings
+- Breaks test isolation (cross-test contamination)
+
+**Key Lesson:** Always use event-driven setup. Direct repository writes are anti-patterns.
+
 ### Test Organization
 
 - **GraphEventProjectorIT**: GSP event handlers

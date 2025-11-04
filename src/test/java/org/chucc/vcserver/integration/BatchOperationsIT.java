@@ -42,14 +42,6 @@ public class BatchOperationsIT extends ITFixture {
   @Autowired
   private TestRestTemplate restTemplate;
 
-  /**
-   * Uses event-driven setup (Session 4 migration).
-   */
-  @Override
-  protected void createInitialCommitAndBranch(String dataset) {
-    createInitialCommitAndBranchViaEvents(dataset);
-  }
-
   @Test
   void batchUpdate_shouldCreateSingleCommit_whenMultipleRdfPatches() {
     // Given: Batch with multiple RDF patches

@@ -45,14 +45,6 @@ class ConcurrentGraphOperationsIT extends ITFixture {
   @Autowired
   private TestRestTemplate restTemplate;
 
-  /**
-   * Uses event-driven setup (Session 6 migration - projector-enabled test).
-   */
-  @Override
-  protected void createInitialCommitAndBranch(String dataset) {
-    createInitialCommitAndBranchViaEvents(dataset);
-  }
-
   private static final String GRAPH_IRI = "http://example.org/graph1";
 
   @Test

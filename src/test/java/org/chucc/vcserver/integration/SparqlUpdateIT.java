@@ -38,14 +38,6 @@ public class SparqlUpdateIT extends ITFixture {
   @Autowired
   private TestRestTemplate restTemplate;
 
-  /**
-   * Uses event-driven setup (Session 4 migration).
-   */
-  @Override
-  protected void createInitialCommitAndBranch(String dataset) {
-    createInitialCommitAndBranchViaEvents(dataset);
-  }
-
   @Test
   void sparqlUpdate_shouldCreateCommit_whenUpdateModifiesData() {
     // Given

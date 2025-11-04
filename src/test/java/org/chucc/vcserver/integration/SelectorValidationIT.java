@@ -29,14 +29,6 @@ class SelectorValidationIT extends ITFixture {
 
   private final ObjectMapper objectMapper = new ObjectMapper();
 
-  /**
-   * Uses event-driven setup (Session 4 migration).
-   */
-  @Override
-  protected void createInitialCommitAndBranch(String dataset) {
-    createInitialCommitAndBranchViaEvents(dataset);
-  }
-
   @Test
   void testBranchAndCommitConflict_returns400() throws Exception {
     // When: query with both branch and commit selectors

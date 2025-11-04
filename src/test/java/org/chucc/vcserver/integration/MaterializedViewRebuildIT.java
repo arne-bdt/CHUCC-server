@@ -50,14 +50,6 @@ class MaterializedViewRebuildIT extends ITFixture {
   @Autowired
   private KafkaProperties kafkaProperties;
 
-  /**
-   * Uses event-driven setup (Session 6 migration - projector-enabled test).
-   */
-  @Override
-  protected void createInitialCommitAndBranch(String dataset) {
-    createInitialCommitAndBranchViaEvents(dataset);
-  }
-
   @Override
   protected String getDatasetName() {
     return REBUILD_DATASET;

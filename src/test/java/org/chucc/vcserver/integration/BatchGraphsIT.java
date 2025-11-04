@@ -30,14 +30,6 @@ class BatchGraphsIT extends ITFixture {
   @Autowired
   private ObjectMapper objectMapper;
 
-  /**
-   * Uses event-driven setup (Session 4 migration).
-   */
-  @Override
-  protected void createInitialCommitAndBranch(String dataset) {
-    createInitialCommitAndBranchViaEvents(dataset);
-  }
-
   @Test
   void batchGraphs_shouldReturn200WithCommits_whenModeSingleAndChangesExist() throws Exception {
     // Given

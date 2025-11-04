@@ -34,14 +34,6 @@ class GraphStorePostIT extends ITFixture {
   @Autowired
   private TestRestTemplate restTemplate;
 
-  /**
-   * Uses event-driven setup (Session 6 migration - projector-enabled test).
-   */
-  @Override
-  protected void createInitialCommitAndBranch(String dataset) {
-    createInitialCommitAndBranchViaEvents(dataset);
-  }
-
   private static final String TURTLE_ADDITIONAL = "@prefix ex: <http://example.org/> .\n"
       + "ex:subject2 ex:predicate2 \"additional\" .";
 

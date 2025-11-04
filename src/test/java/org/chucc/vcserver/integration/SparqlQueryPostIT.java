@@ -30,6 +30,14 @@ class SparqlQueryPostIT extends ITFixture {
   @Autowired
   private TestRestTemplate restTemplate;
 
+  /**
+   * Uses event-driven setup (Session 4 migration).
+   */
+  @Override
+  protected void createInitialCommitAndBranch(String dataset) {
+    createInitialCommitAndBranchViaEvents(dataset);
+  }
+
   @Test
   void sparqlQueryPost_shouldExecuteWithQueryContentType() {
     // Given: Query in POST body with application/sparql-query

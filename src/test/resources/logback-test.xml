@@ -40,8 +40,6 @@
     <!-- Suppress INFO/WARN from specific packages -->
     <!-- Jena RIOT: Errors from validation tests are expected and indicate proper error handling -->
     <logger name="org.apache.jena.riot" level="WARN"/>
-    <!-- ReadModelProjector: Errors from exception handling tests are expected -->
-    <logger name="org.chucc.vcserver.projection.ReadModelProjector" level="WARN"/>
 
     <!-- Suppress INFO/WARN from command handlers in unit tests -->
     <logger name="org.chucc.vcserver.command.CreateBranchCommandHandler" level="ERROR"/>

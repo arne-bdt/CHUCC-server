@@ -148,6 +148,8 @@ public class ReadModelProjector {
     this.processedEventIds = Caffeine.newBuilder()
         .maximumSize(projectorProperties.getDeduplication().getCacheSize())
         .<String, Boolean>build();
+
+    logger.info("ReadModelProjector initialized (listener will be configured by Spring)");
   }
 
   /**
@@ -548,7 +550,15 @@ public class ReadModelProjector {
         CommitId.of(event.initialCommitId())
     );
 
-    logger.info("Dataset {} created and tracked in cache",
+    // Create empty materialized graph for main branch
+    // This ensures the graph exists for subsequent SPARQL operations
+    materializedBranchRepo.createBranch(
+        event.dataset(),
+        event.mainBranch(),
+        java.util.Optional.empty()  // Empty graph for initial commit
+    );
+
+    logger.info("Dataset {} created and tracked in cache, materialized graph initialized",
         event.dataset());
   }
 

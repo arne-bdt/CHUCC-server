@@ -54,6 +54,18 @@ public abstract class ITFixture {
   @Autowired(required = false)
   protected org.chucc.vcserver.repository.MaterializedBranchRepository materializedBranchRepo;
 
+  @Autowired(required = false)
+  protected org.springframework.context.ApplicationEventPublisher eventPublisher;
+
+  @Autowired(required = false)
+  protected org.chucc.vcserver.event.EventPublisher kafkaEventPublisher;
+
+  @Autowired(required = false)
+  protected org.chucc.vcserver.command.CreateDatasetCommandHandler createDatasetCommandHandler;
+
+  @org.springframework.beans.factory.annotation.Value("${projector.kafka-listener.enabled:false}")
+  protected boolean projectorEnabled;
+
   protected static final String DEFAULT_DATASET = "default";
   protected static final String TEST_DATASET = "test-dataset";
   protected static final String DEFAULT_BRANCH = "main";
@@ -74,6 +86,15 @@ public abstract class ITFixture {
     // Unique consumer group per test class to prevent cross-test event consumption
     registry.add("spring.kafka.consumer.group-id",
         () -> "test-" + System.currentTimeMillis() + "-" + Math.random());
+  }
+
+  /**
+   * Checks if the ReadModelProjector (Kafka listener) is enabled for this test.
+   *
+   * @return true if projector is enabled, false otherwise
+   */
+  protected boolean isProjectorEnabled() {
+    return projectorEnabled;
   }
 
   /**
@@ -142,8 +163,9 @@ public abstract class ITFixture {
       if (shouldCreateInitialSetup() && commitRepository != null && branchRepository != null) {
         createInitialCommitAndBranch(dataset);
 
-        // Create empty materialized graph for initial branch
-        if (materializedBranchRepo != null) {
+        // Create empty materialized graph for initial branch (only when projector disabled)
+        // When projector is enabled, it will create the materialized graph via event processing
+        if (materializedBranchRepo != null && !projectorEnabled) {
           materializedBranchRepo.createBranch(dataset, getInitialBranchName(),
               java.util.Optional.empty());
         }
@@ -152,24 +174,145 @@ public abstract class ITFixture {
   }
 
   /**
+   * Creates an initial empty commit and main branch via event-driven approach (dual-mode).
+   * This method supports both projector-enabled and projector-disabled tests.
+   *
+   * <p><strong>Mode 1 (Projector Disabled - Default):</strong>
+   * <ul>
+   *   <li>Publishes {@link org.chucc.vcserver.event.CommitCreatedEvent} to Kafka (no consumer)</li>
+   *   <li>Directly saves to repositories for immediate test assertions</li>
+   *   <li>Use case: Most integration tests (HTTP API layer testing)</li>
+   * </ul>
+   *
+   * <p><strong>Mode 2 (Projector Enabled):</strong>
+   * <ul>
+   *   <li>Publishes {@link org.chucc.vcserver.event.CommitCreatedEvent} to Kafka</li>
+   *   <li>ReadModelProjector consumes event and updates repositories</li>
+   *   <li>Uses {@code await()} to wait for async projection to complete</li>
+   *   <li>Use case: Tests verifying event projection (e.g., GraphEventProjectorIT)</li>
+   * </ul>
+   *
+   * <p><strong>Example usage (projector-disabled test):</strong>
+   * <pre>{@code
+   * @SpringBootTest(webEnvironment = RANDOM_PORT)
+   * @ActiveProfiles("it")
+   * class MyApiTest extends ITFixture {
+   *   @Override
+   *   protected void createInitialCommitAndBranch(String dataset) {
+   *     createInitialCommitAndBranchViaEvents(dataset);  // Works immediately, no await()
+   *   }
+   * }
+   * }</pre>
+   *
+   * <p><strong>Example usage (projector-enabled test):</strong>
+   * <pre>{@code
+   * @SpringBootTest(webEnvironment = RANDOM_PORT)
+   * @ActiveProfiles("it")
+   * @TestPropertySource(properties = "projector.kafka-listener.enabled=true")
+   * class GraphEventProjectorIT extends ITFixture {
+   *   @Override
+   *   protected void createInitialCommitAndBranch(String dataset) {
+   *     createInitialCommitAndBranchViaEvents(dataset);  // Uses await() internally
+   *   }
+   * }
+   * }</pre>
+   *
+   * @param dataset the dataset name
+   */
+  protected void createInitialCommitAndBranchViaEvents(String dataset) {
+    // Create dataset using command handler, which automatically:
+    // 1. Creates Kafka topics (vc.{dataset}.events and vc.{dataset}.events.dlq)
+    // 2. Creates initial commit with empty patch
+    // 3. Creates main branch pointing to initial commit
+    // 4. Publishes DatasetCreatedEvent to Kafka
+    if (createDatasetCommandHandler != null) {
+      org.chucc.vcserver.command.CreateDatasetCommand command =
+          new org.chucc.vcserver.command.CreateDatasetCommand(
+              dataset,
+              java.util.Optional.of("Integration test dataset"),
+              DEFAULT_AUTHOR,
+              java.util.Optional.empty(),  // No initial graph
+              null                          // Use default Kafka config
+          );
+
+      org.chucc.vcserver.event.VersionControlEvent event = createDatasetCommandHandler.handle(command);
+      if (event instanceof org.chucc.vcserver.event.DatasetCreatedEvent datasetEvent) {
+        initialCommitId = CommitId.of(datasetEvent.initialCommitId());
+      }
+    }
+
+    // Mode 2: Projector enabled - await() for async projection
+    if (projectorEnabled) {
+      org.awaitility.Awaitility.await()
+          .atMost(java.time.Duration.ofSeconds(10))
+          .untilAsserted(() -> {
+            java.util.Optional<Commit> commit = commitRepository.findByDatasetAndId(dataset, initialCommitId);
+            org.assertj.core.api.Assertions.assertThat(commit).isPresent();
+
+            java.util.Optional<Branch> branch =
+                branchRepository.findByDatasetAndName(dataset, getInitialBranchName());
+            org.assertj.core.api.Assertions.assertThat(branch).isPresent();
+
+            // Also verify materialized graph was created by projector
+            if (materializedBranchRepo != null) {
+              boolean graphExists = materializedBranchRepo.exists(dataset, getInitialBranchName());
+              org.assertj.core.api.Assertions.assertThat(graphExists).isTrue();
+            }
+          });
+    }
+    // Note: When projector disabled, CreateDatasetCommandHandler already saved to repositories
+    // No need for manual repository saves
+  }
+
+  /**
    * Creates an initial empty commit and main branch.
+   * Also publishes a {@link org.chucc.vcserver.event.CommitCreatedEvent} for infrastructure testing.
+   * The event is ignored by default (projector disabled) but allows for event-driven setup migration.
    *
    * @param dataset the dataset name
    */
   protected void createInitialCommitAndBranch(String dataset) {
     initialCommitId = CommitId.generate();
+    org.apache.jena.rdfpatch.RDFPatch emptyPatch = RDFPatchOps.emptyPatch();
+    Instant timestamp = Instant.now();
+
     Commit initialCommit = new Commit(
         initialCommitId,
         List.of(),
         DEFAULT_AUTHOR,
         "Initial commit",
-        Instant.now(),
+        timestamp,
         0
     );
-    commitRepository.save(dataset, initialCommit, RDFPatchOps.emptyPatch());
+
+    // Direct repository saves (existing behavior preserved)
+    commitRepository.save(dataset, initialCommit, emptyPatch);
 
     Branch mainBranch = new Branch(getInitialBranchName(), initialCommitId);
     branchRepository.save(dataset, mainBranch);
+
+    // Publish event for infrastructure testing (only when projector disabled to avoid conflicts)
+    // Session 1: Test event publishing mechanism without side effects
+    if (eventPublisher != null && !projectorEnabled) {
+      // Serialize patch to string
+      java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+      RDFPatchOps.write(out, emptyPatch);
+      String patchString = out.toString(java.nio.charset.StandardCharsets.UTF_8);
+
+      org.chucc.vcserver.event.CommitCreatedEvent event =
+          new org.chucc.vcserver.event.CommitCreatedEvent(
+              dataset,
+              initialCommitId.toString(),
+              List.of(),
+              getInitialBranchName(),
+              "Initial commit",
+              DEFAULT_AUTHOR,
+              timestamp,
+              patchString,
+              0
+          );
+      eventPublisher.publishEvent(event);
+    }
   }
 
   /**

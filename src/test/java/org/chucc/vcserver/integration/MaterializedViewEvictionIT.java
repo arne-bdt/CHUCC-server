@@ -36,6 +36,14 @@ class MaterializedViewEvictionIT extends ITFixture {
   @Autowired
   private InMemoryMaterializedBranchRepository materializedBranchRepo;
 
+  /**
+   * Uses event-driven setup (Session 4 migration).
+   */
+  @Override
+  protected void createInitialCommitAndBranch(String dataset) {
+    createInitialCommitAndBranchViaEvents(dataset);
+  }
+
   @Test
   void cacheLimit_shouldNotExceedMaxBranches() throws Exception {
     String dataset = getDatasetName();

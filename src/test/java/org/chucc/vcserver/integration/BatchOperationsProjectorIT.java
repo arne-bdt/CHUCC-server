@@ -39,6 +39,14 @@ public class BatchOperationsProjectorIT extends ITFixture {
   @Autowired
   private TestRestTemplate restTemplate;
 
+  /**
+   * Uses event-driven setup (Session 5 migration - projector-enabled test).
+   */
+  @Override
+  protected void createInitialCommitAndBranch(String dataset) {
+    createInitialCommitAndBranchViaEvents(dataset);
+  }
+
   @Test
   void batchUpdate_shouldCreateSingleCommit_whenMultipleSparqlUpdates() throws Exception {
     // Given: Batch with multiple SPARQL updates

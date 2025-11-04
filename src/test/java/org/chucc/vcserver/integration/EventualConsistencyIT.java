@@ -39,6 +39,14 @@ class EventualConsistencyIT extends ITFixture {
   private TestRestTemplate restTemplate;
 
   /**
+   * Uses event-driven setup (Session 3 migration - proof of concept).
+   */
+  @Override
+  protected void createInitialCommitAndBranch(String dataset) {
+    createInitialCommitAndBranchViaEvents(dataset);
+  }
+
+  /**
    * Verifies that PUT /data returns HTTP 202 Accepted.
    */
   @Test

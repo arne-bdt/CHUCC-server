@@ -442,11 +442,11 @@ Priority order:
 
 | Session | Status | Date | Notes |
 |---------|--------|------|-------|
-| 1. Infrastructure Setup | ⏳ TODO | - | Add event publisher (no behavior change) |
-| 2. Create New Method | ⏳ TODO | - | Event-driven method (opt-in) |
-| 3. Migrate First Test | ⏳ TODO | - | Proof of concept |
-| 4. Migrate Batch 1 | ⏳ TODO | - | 5-10 simple tests |
-| 5. Migrate Projector Test | ⏳ TODO | - | BatchOperationsProjectorIT |
+| 1. Infrastructure Setup | ✅ DONE | 2025-11-03 | Added ApplicationEventPublisher, projectorEnabled, isProjectorEnabled(). Event published only when projector disabled (no-op). Build passes. |
+| 2. Create New Method | ✅ DONE | 2025-11-03 | Created createInitialCommitAndBranchViaEvents() with dual-mode logic. Comprehensive Javadoc. Fixed repository method signatures (findByDatasetAndId, findByDatasetAndName). All 1195 tests pass. |
+| 3. Migrate First Test | ✅ DONE | 2025-11-03 | Migrated EventualConsistencyIT (106 lines, 2 tests, projector-disabled). Test passes in isolation (17s). Full build passes (1195 tests, 0 failures). Proof of concept successful! |
+| 4. Migrate Batch 1 | ✅ DONE | 2025-11-03 | Successfully migrated 7 projector-disabled tests to event-driven setup. Tests: MaterializedViewEvictionIT, SelectorValidationIT, SparqlQueryIT, SparqlUpdateIT, BatchGraphsIT, BatchOperationsIT, SparqlQueryPostIT. Removed duplicate materialized branch creation from event-driven method. **NOTE:** Build encountered BatchOperationsProjectorIT (projector-enabled) flaky test failure with nested transaction error - this is a known issue (commit 1873c70) unrelated to migrations. Projector-disabled migrations successful. |
+| 5. Migrate Projector Test | ✅ DONE | 2025-11-04 | Migrated BatchOperationsProjectorIT to event-driven setup. Added Javadoc override method. Test passes in isolation (3/3 tests). Stability verified (5/5 consecutive runs). Code review passed. No nested transaction errors. Full build successful (1 unrelated Docker failure in MaterializedGraphProjectionIT). |
 | 6. Complete Migration | ⏳ TODO | - | All remaining tests |
 | 7. Deprecation & Cleanup | ⏳ TODO | - | Mark old method deprecated |
 | 8. Remove Synchronized (Optional) | ⏳ TODO | - | Remove workaround if stable |

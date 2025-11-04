@@ -243,9 +243,26 @@ class EventSerializationTest {
         "01934f8e-1234-7890-abcd-ef1234567890",
         "testDataset",
         "feature-branch",
-        "01934f8e-5678-7890-abcd-ef1234567890", // newHead
+        "commit2", // newHead (points to last rebased commit)
         "01934f8e-9012-7890-abcd-ef1234567890", // previousHead
-        List.of("commit1", "commit2"), // newCommits
+        List.of(
+            new BranchRebasedEvent.RebasedCommitData(
+                "commit1",
+                List.of("01934f8e-9012-7890-abcd-ef1234567890"),  // parent
+                "Original Author",
+                "First commit message",
+                "A <http://example.org/s1> <http://example.org/p> \"value1\" .",
+                1
+            ),
+            new BranchRebasedEvent.RebasedCommitData(
+                "commit2",
+                List.of("commit1"),  // parent
+                "Original Author",
+                "Second commit message",
+                "A <http://example.org/s2> <http://example.org/p> \"value2\" .",
+                1
+            )
+        ),
         "Dave",
         Instant.parse("2025-01-15T10:00:00Z")
     );
@@ -262,7 +279,10 @@ class EventSerializationTest {
     assertThat(result.branch()).isEqualTo(original.branch());
     assertThat(result.newHead()).isEqualTo(original.newHead());
     assertThat(result.previousHead()).isEqualTo(original.previousHead());
-    assertThat(result.newCommits()).isEqualTo(original.newCommits());
+    assertThat(result.rebasedCommits()).hasSize(2);
+    assertThat(result.rebasedCommits().get(0).commitId()).isEqualTo("commit1");
+    assertThat(result.rebasedCommits().get(0).rdfPatch()).contains("value1");
+    assertThat(result.rebasedCommits().get(1).commitId()).isEqualTo("commit2");
     assertThat(result.author()).isEqualTo(original.author());
     assertThat(result.timestamp()).isEqualTo(original.timestamp());
   }
@@ -276,10 +296,13 @@ class EventSerializationTest {
         "main",
         "01934f8e-5678-7890-abcd-ef1234567890", // newCommitId
         List.of("commit1", "commit2", "commit3"), // squashedCommitIds
+        List.of("baseCommit"), // parents
         "Eve",
         "Squashed commit message",
         Instant.parse("2025-01-15T10:00:00Z"),
-        "01934f8e-9012-7890-abcd-ef1234567890" // previousHead
+        "01934f8e-9012-7890-abcd-ef1234567890", // previousHead
+        "A <http://example.org/s> <http://example.org/p> \"combined\" .", // rdfPatch
+        3 // patchSize
     );
 
     // Act
@@ -294,9 +317,12 @@ class EventSerializationTest {
     assertThat(result.branch()).isEqualTo(original.branch());
     assertThat(result.newCommitId()).isEqualTo(original.newCommitId());
     assertThat(result.squashedCommitIds()).isEqualTo(original.squashedCommitIds());
+    assertThat(result.parents()).isEqualTo(List.of("baseCommit"));
     assertThat(result.author()).isEqualTo(original.author());
     assertThat(result.message()).isEqualTo(original.message());
     assertThat(result.timestamp()).isEqualTo(original.timestamp());
+    assertThat(result.rdfPatch()).contains("combined");
+    assertThat(result.patchSize()).isEqualTo(3);
     assertThat(result.previousHead()).isEqualTo(original.previousHead());
   }
 

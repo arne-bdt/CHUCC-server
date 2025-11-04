@@ -344,10 +344,16 @@ eventPublisher.publish(event);
 ## Recommended Approach: Option A (Enrich Events)
 
 **Rationale:**
-1. Balances simplicity with correctness
-2. Maintains semantic meaning of operations
-3. Atomic events (all data in one place)
-4. Easier migration path from current state
+1. **Atomicity**: Rebase is a single business transaction (like Git rebase - all or nothing)
+2. **Event size**: Kafka configured for hundreds of MBs (graphs), so 1-5MB events are trivial
+3. **Semantic clarity**: Maintains meaning of squash/rebase operations
+4. **Single transaction boundary**: Projector creates all commits atomically
+5. **Simpler failure handling**: Single event = single retry boundary
+
+**Why not multiple events?**
+- Partial rebase on failure = broken state (50 of 100 commits created)
+- Complex compensating logic needed for rollback
+- Violates atomicity requirement of rebase operation
 
 ---
 
@@ -787,17 +793,23 @@ void handleSquash(VersionControlEvent event) {
 
 ### High Complexity
 - Multiple commits in one event (rebase)
-- Large event payloads
-- More complex projector logic
+- More complex projector logic (creates multiple commits atomically)
 
-### Event Size
-- Rebase of 100 commits = very large event
-- May hit Kafka message size limits (default 1MB)
-- Consider pagination or split events if needed
+### Event Size - NOT A CONCERN ✅
+- **Context**: Kafka configured for several hundred MBs (needed for storing graphs)
+- Rebase of 100 commits = ~1-5MB (well within limits)
+- Even 1000 commits would be manageable
+- **No pagination needed**
+
+### Atomicity - REQUIRED FOR CORRECTNESS ✅
+- **Rebase is conceptually atomic** (like Git rebase)
+- Single event ensures all commits created together or none
+- Multiple events would risk partial rebase on failure
+- **Option A correctly models business semantics**
 
 ### Migration Challenges
 - Breaking change to event schema
-- Need backward compatibility strategy
+- Need backward compatibility strategy (or clear event store)
 - Careful testing required
 
 ---

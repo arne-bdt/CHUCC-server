@@ -23,6 +23,18 @@ import org.springframework.stereotype.Component;
 /**
  * Handles SquashCommand by combining multiple commits into a single commit
  * and producing a CommitsSquashedEvent.
+ *
+ * <p><b>CQRS Pattern:</b> This handler does NOT write to repositories.
+ * Instead, it publishes a {@link CommitsSquashedEvent} containing all data needed
+ * to recreate the commit. The {@link org.chucc.vcserver.projection.ReadModelProjector}
+ * consumes the event and updates repositories asynchronously.</p>
+ *
+ * <p>This ensures:
+ * <ul>
+ *   <li>No dual-write pattern (single source of truth: Kafka)</li>
+ *   <li>Event replay works correctly (event contains full commit data)</li>
+ *   <li>Eventual consistency (HTTP 202 returned before repository update)</li>
+ * </ul>
  */
 @Component
 @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
@@ -94,37 +106,27 @@ public class SquashCommandHandler implements CommandHandler<SquashCommand> {
     // 7. Compute combined patch (diff between before and after)
     RDFPatch combinedPatch = RdfPatchUtil.diff(beforeState, afterState);
 
-    // 8. Create new squashed commit
+    // 8. Prepare commit metadata
     CommitId newCommitId = CommitId.generate();
     String author = command.author() != null ? command.author() : firstCommit.author();
     int patchSize = RdfPatchUtil.countOperations(combinedPatch);
-    Commit newCommit = new Commit(
-        newCommitId,
-        List.of(baseCommitId),
-        author,
-        command.message(),
-        Instant.now(),
-        patchSize
-    );
-
-    // 9. Save new commit with combined patch
-    commitRepository.save(command.dataset(), newCommit, combinedPatch);
-
-    // 10. Update branch to point to new commit
+    String patchString = RdfPatchUtil.toString(combinedPatch);
     String previousHead = branch.getCommitId().value();
-    branch.updateCommit(newCommitId);
-    branchRepository.save(command.dataset(), branch);
 
-    // 11. Produce event
+    // 9. Produce event with ALL data needed to recreate the commit
+    // The projector will handle repository updates asynchronously
     VersionControlEvent event = new CommitsSquashedEvent(
         command.dataset(),
         command.branch(),
         newCommitId.value(),
         command.commitIds(),
+        List.of(baseCommitId.value()),  // parents
         author,
         command.message(),
         Instant.now(),
-        previousHead
+        previousHead,
+        patchString,  // full RDF patch for replay
+        patchSize     // operations count
     );
 
     // Publish event to Kafka (async, with proper error logging)

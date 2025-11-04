@@ -123,15 +123,22 @@ class RebaseCommandHandlerTest {
     assertEquals("feature", rebaseEvent.branch());
     assertEquals(commitDId, rebaseEvent.previousHead());
     assertNotNull(rebaseEvent.newHead());
-    assertEquals(1, rebaseEvent.newCommits().size());
+    assertEquals(1, rebaseEvent.rebasedCommits().size());
     assertEquals("alice", rebaseEvent.author());
     assertNotNull(rebaseEvent.timestamp());
 
-    // Verify branch was updated
-    verify(branchRepository).save(eq("test-dataset"), any(Branch.class));
+    // Verify event contains full commit data for CQRS replay
+    BranchRebasedEvent.RebasedCommitData commitData = rebaseEvent.rebasedCommits().get(0);
+    assertNotNull(commitData.commitId());
+    assertNotNull(commitData.parents());
+    assertNotNull(commitData.author());
+    assertNotNull(commitData.message());
+    assertNotNull(commitData.rdfPatch());
+    assertTrue(commitData.patchSize() > 0);
 
-    // Verify new commit was saved
-    verify(commitRepository).save(eq("test-dataset"), any(Commit.class), any(RDFPatch.class));
+    // Verify repositories were NOT written to (CQRS pattern - projector handles this)
+    verify(branchRepository, never()).save(any(), any());
+    verify(commitRepository, never()).save(any(), any(), any());
   }
 
   @Test

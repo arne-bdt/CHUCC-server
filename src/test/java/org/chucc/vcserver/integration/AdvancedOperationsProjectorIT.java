@@ -360,47 +360,37 @@ class AdvancedOperationsProjectorIT {
         .until(() -> branchRepository.findByDatasetAndName(DEFAULT_DATASET, "feature")
             .isPresent());
 
-    // Create squashed commit (the actual commit creation happens separately)
+    // Create CommitsSquashedEvent with full commit data
+    // (no separate CommitCreatedEvent needed - squash event creates the commit)
     CommitId squashedCommitId = CommitId.generate();
 
-    CommitCreatedEvent squashedCommit =
-        new CommitCreatedEvent(
-        DEFAULT_DATASET,
-        squashedCommitId.value(),
-        List.of(initialCommitId.value()),
-        null,
-        "Squashed commits 1-3",
-        "Alice",
-        Instant.now(),
-        PATCH_CONTENT,
-        1
-    );
-    eventPublisher.publish(squashedCommit).get();
-
-    // Wait for squashed commit
-    await().atMost(Duration.ofSeconds(5))
-        .until(() -> commitRepository.findByDatasetAndId(DEFAULT_DATASET, squashedCommitId)
-            .isPresent());
-
-    // Create CommitsSquashedEvent
     CommitsSquashedEvent squashEvent =
         new CommitsSquashedEvent(
         DEFAULT_DATASET,
         "feature",
         squashedCommitId.value(), // new head
         List.of(commit1Id.value(), commit2Id.value(), commit3Id.value()), // squashed commits
+        List.of(initialCommitId.value()), // parents
         "Alice",
         "Squashed commits 1-3",
         Instant.now(),
-        commit3Id.value() // previous head
+        commit3Id.value(), // previous head
+        PATCH_CONTENT, // rdfPatch
+        1 // patchSize
     );
 
-    // When - Publish squash event
+    // When - Publish squash event (creates commit AND updates branch)
     eventPublisher.publish(squashEvent).get();
 
-    // Then - Wait for branch update
+    // Then - Wait for both commit creation and branch update
     await().atMost(Duration.ofSeconds(10))
         .untilAsserted(() -> {
+          // Verify squashed commit was created
+          var commit = commitRepository.findByDatasetAndId(DEFAULT_DATASET, squashedCommitId);
+          assertThat(commit).isPresent();
+          assertThat(commit.get().message()).isEqualTo("Squashed commits 1-3");
+          assertThat(commit.get().parents()).containsExactly(initialCommitId);
+
           // Verify feature branch now points to squashed commit
           var branch = branchRepository.findByDatasetAndName(DEFAULT_DATASET, "feature");
           assertThat(branch).isPresent();

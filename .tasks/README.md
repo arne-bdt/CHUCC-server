@@ -25,9 +25,41 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Remaining Tasks
 
+### 🟢 Optional Enhancement (Standards Compliance)
+
+#### 1. SPARQL 1.1 Service Description
+**File:** `.tasks/service-description/`
+
+**Overview:**
+Implement SPARQL 1.1 Service Description to provide machine-readable metadata about CHUCC-server's capabilities, datasets, and version control features.
+
+**Phases:**
+1. Research & Design (2-3 hours)
+2. Core SD Endpoint (3-4 hours)
+3. Dataset Integration (3-4 hours)
+4. Version Control Extension (3-4 hours)
+5. Dynamic Capabilities (1-2 hours)
+6. Documentation (1 hour)
+
+**Total Estimated Time:** 12-16 hours
+
+**Benefits:**
+- W3C standards compliance
+- Programmatic discovery of datasets, branches, tags
+- Better tooling integration
+- Self-documenting API
+- Federation support
+
+**Status:** ⏳ Ready to implement
+**Priority:** Optional (high value, but not critical for core functionality)
+
+See [Service Description README](./.tasks/service-description/README.md) for details.
+
+---
+
 ### 🔵 Low Priority (Technical Debt)
 
-#### 1. Fix CreateBranchCommandHandler Write-Through Pattern
+#### 2. Fix CreateBranchCommandHandler Write-Through Pattern
 **File:** TBD
 
 **Problem:**

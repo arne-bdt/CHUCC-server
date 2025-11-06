@@ -66,140 +66,193 @@ Tests incorrectly mix:
 
 This architectural inconsistency creates race conditions and test flakiness.
 
-## Solution Options
+## Understanding Test Intent
 
-### Option 1: Convert to Pure API Layer Tests (RECOMMENDED)
+**Critical Insight**: RebaseIT and SquashIT are **not** simple CRUD operations. They test **complex graph transformations** that warrant end-to-end verification:
 
-**Approach**: Disable projector, test only HTTP contract
+- ✅ Verify HTTP request → Command → Event → Projector → Repository updates
+- ✅ Verify commit graph structure correctness after complex operations
+- ✅ Verify parent relationships are preserved correctly
+- ✅ Verify patches are correctly applied/preserved
 
-**Benefits:**
-- Aligns with 90% of test patterns in codebase
-- No test isolation issues
-- Fast test execution (no async waiting)
-- Clear separation of concerns
+**Simplifying these to API-only tests would lose valuable test coverage.**
 
-**Implementation:**
+## Rock-Solid Solution (RECOMMENDED)
+
+**Approach**: Keep end-to-end testing, but fix the setup methodology
+
+**Key Principles:**
+- ✅ Extend ITFixture for cleanup synchronization
+- ✅ Use unique dataset names per test run (avoid cross-test contamination)
+- ✅ **Event-driven setup** - use command handlers (never direct repository writes)
+- ✅ Keep projector enabled + await() for verification
+- ✅ **Zero architectural violations**
+
+**Implementation Pattern:**
 ```java
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @ActiveProfiles("it")
-class RebaseIT extends ITFixture {
-  // No @TestPropertySource - projector DISABLED by default
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")  // ← Keep enabled!
+class RebaseIT extends ITFixture {  // ← Extend ITFixture
 
   @Override
   protected String getDatasetName() {
-    return "rebase-test-" + System.nanoTime(); // Unique per run
+    return "rebase-test-" + System.nanoTime();  // ← Unique per run
   }
 
   @Override
   protected boolean shouldCreateInitialSetup() {
-    return false; // Custom setup needed
+    return false;  // ← Custom commit graph needed
   }
 
   @BeforeEach
   void setUp() {
-    // Use event-driven setup via createInitialCommitAndBranchViaEvents()
-    // Or use HTTP API to create test data
+    String dataset = getDatasetName();
+
+    // ✅ Event-driven setup using ITFixture helpers
+    CommitId commitA = createCommitViaCommand(dataset, List.of(), "Alice", "Initial", "");
+    CommitId commitB = createCommitViaCommand(dataset, List.of(commitA), "Alice", "Main B", patchB);
+    CommitId commitE = createCommitViaCommand(dataset, List.of(commitB), "Alice", "Main E", patchE);
+
+    createBranchViaCommand(dataset, "main", commitE);
+
+    CommitId commitC = createCommitViaCommand(dataset, List.of(commitA), "Alice", "Feature C", patchC);
+    CommitId commitD = createCommitViaCommand(dataset, List.of(commitC), "Alice", "Feature D", patchD);
+
+    createBranchViaCommand(dataset, "feature", commitD);
+
+    // ✅ Wait for projector to finish setup
+    await().atMost(Duration.ofSeconds(10))
+        .untilAsserted(() -> {
+          assertThat(commitRepository.findByDatasetAndId(dataset, commitE)).isPresent();
+          assertThat(branchRepository.findByDatasetAndName(dataset, "main")).isPresent();
+        });
   }
 
   @Test
-  void rebase_shouldReturn202Accepted() {
-    // Act: HTTP request
+  void rebase_shouldRebaseCommitsOntoNewBase() {
+    // When: HTTP request
     ResponseEntity<String> response = restTemplate.exchange(...);
 
-    // Assert: API response ONLY (no repository checks)
+    // Then: Verify HTTP response
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-    assertThat(json.get("newHead").asText()).isNotNull();
-    // Note: Repository updates handled by ReadModelProjector (tested separately)
+
+    // ✅ AND verify end-to-end correctness (commit graph structure)
+    await().atMost(Duration.ofSeconds(10))
+        .untilAsserted(() -> {
+          Branch feature = branchRepository.findByDatasetAndName(dataset, "feature").orElseThrow();
+          Commit newHead = commitRepository.findByDatasetAndId(dataset, feature.getCommitId()).orElseThrow();
+          assertThat(newHead.message()).isEqualTo("Feature commit D");
+          assertThat(newHead.parents().get(0)).isEqualTo(expectedParent);
+          // ... more graph structure verification
+        });
   }
 }
 ```
 
-### Option 2: Split into API + Projector Tests
+**Why This is Rock-Solid:**
+- ✅ Preserves test value (end-to-end verification of complex operations)
+- ✅ No architectural violations (event-driven setup throughout)
+- ✅ Proper isolation (unique dataset names, extends ITFixture)
+- ✅ Follows CQRS strictly (no direct repository writes, ever)
+- ✅ Clear separation (setup via commands, verification via projector)
 
-**API Test** (projector disabled):
+## Alternative Patterns (Reference)
+
+### When to Use API-Only Tests
+For **simple CRUD operations** that don't require graph structure verification:
+- Create graph, update graph, delete graph
+- Create branch, update branch reference
+- Simple query operations
+
 ```java
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @ActiveProfiles("it")
-class RebaseIT extends ITFixture {
-  @Test
-  void rebase_shouldReturn202Accepted() {
-    // Test HTTP contract only
-  }
+class SimpleOperationIT extends ITFixture {
+  // No @TestPropertySource - projector DISABLED
+  // Only verify HTTP response
 }
 ```
 
-**Projector Test** (projector enabled):
+### When to Use End-to-End Tests
+For **complex domain operations** that modify graph structure:
+- Rebase (changes commit graph topology)
+- Squash (merges commits, changes history)
+- Merge (creates merge commits with multiple parents)
+- Three-way merge with conflict resolution
+
 ```java
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @ActiveProfiles("it")
 @TestPropertySource(properties = "projector.kafka-listener.enabled=true")
-class RebaseProjectorIT extends ITFixture {
-  @Test
-  void branchRebasedEvent_shouldUpdateRepositories() {
-    // Publish event directly, verify projection with await()
-  }
-}
-```
-
-### Option 3: Provide Test Command Handlers
-
-Create command handlers specifically for test data creation:
-
-```java
-/**
- * Test-only command handler for creating commits directly.
- * Should ONLY be used in integration tests for complex setup scenarios.
- */
-@Component
-@Profile("it")
-public class CreateTestCommitCommandHandler {
-  public CommitCreatedEvent handle(CreateTestCommitCommand command) {
-    // Create event and publish to Kafka
-    // Projector will update repositories async
-  }
+class ComplexOperationIT extends ITFixture {
+  // Projector enabled - verify commit graph correctness
 }
 ```
 
 ## Implementation Plan
 
-### Phase 1: Quick Fix (Immediate)
-- [ ] Disable projector in RebaseIT and SquashIT
-- [ ] Remove all `await()` and repository assertions from tests
-- [ ] Only verify HTTP API responses (status codes, JSON body)
-- [ ] Document that repository verification happens in separate projector tests
+### Phase 1: Fix Architecture, Preserve Coverage (Immediate)
+
+**Goal**: Make tests architecturally correct while keeping end-to-end verification
+
+- [ ] Check if ITFixture already has helper methods for event-driven commit/branch creation
+- [ ] Add missing helper methods to ITFixture if needed:
+  - `createCommitViaCommand(dataset, parents, author, message, patchContent)`
+  - `createBranchViaCommand(dataset, branchName, commitId)`
+- [ ] Update RebaseIT to extend ITFixture and use event-driven setup
+- [ ] Update SquashIT to extend ITFixture and use event-driven setup
+- [ ] Use unique dataset names: `"rebase-test-" + System.nanoTime()`
+- [ ] **Keep projector enabled** + keep `await()` verification
+- [ ] **Zero direct repository writes**
 
 **Files to modify:**
+- `src/test/java/org/chucc/vcserver/testutil/ITFixture.java` (add helpers if missing)
 - `src/test/java/org/chucc/vcserver/integration/RebaseIT.java`
 - `src/test/java/org/chucc/vcserver/integration/SquashIT.java`
 
-**Changes:**
-1. Remove `@TestPropertySource(properties = "projector.kafka-listener.enabled=true")`
-2. Remove `await()` blocks
-3. Remove all repository verification code
-4. Keep direct repository writes in setUp (acceptable when projector disabled)
+**Key Changes:**
+1. Extend ITFixture
+2. Override `getDatasetName()` to return unique names
+3. Override `shouldCreateInitialSetup()` to return false
+4. Replace direct repository writes in `setUp()` with command-based helpers
+5. Keep all existing `await()` verification (tests end-to-end correctness)
 
-### Phase 2: Proper Architecture (Follow-up)
-- [ ] Make RebaseIT and SquashIT extend ITFixture
-- [ ] Use unique dataset names per test run
-- [ ] Convert setUp to event-driven approach (use command handlers or HTTP API)
-- [ ] Create separate projector tests if repository verification needed
-- [ ] Remove duplicate Kafka configuration code
+### Phase 2: Documentation & Patterns (Follow-up)
+
+- [ ] Document "when to use end-to-end tests vs API-only tests" in CLAUDE.md
+- [ ] Add testing decision table entry for "complex graph operations"
+- [ ] Create example of complex commit graph setup in documentation
+- [ ] Update CLAUDE.md testing section with pattern guidance
+
+**Documentation Updates:**
+- Add section distinguishing simple CRUD from complex graph operations
+- Document that rebase/squash/merge warrant end-to-end testing
+- Provide concrete examples of both patterns
 
 ### Phase 3: Infrastructure (Long-term)
-- [ ] Provide TestDataBuilder utility for creating complex commit graphs via events
-- [ ] Document test patterns in CLAUDE.md
-- [ ] Create examples of correct event-driven test setup
-- [ ] Add Checkstyle rule to detect direct repository writes in integration tests
+
+- [ ] Consider `CommitGraphBuilder` utility for fluent commit graph creation:
+  ```java
+  new CommitGraphBuilder(dataset)
+      .commit("A", List.of(), "Alice", "Initial", "")
+      .commit("B", List.of("A"), "Alice", "Main B", patchB)
+      .branch("main", "B")
+      .build();
+  ```
+- [ ] Extract common commit graph patterns into reusable test utilities
+- [ ] Consider graph visualization helpers for debugging complex test scenarios
 
 ## Acceptance Criteria
 
-- [ ] All 398 tests pass consistently in full suite
+- [ ] All ~398 tests pass consistently in full suite
 - [ ] No Kafka timeout errors
-- [ ] RebaseIT and SquashIT pass when run together
-- [ ] Tests follow patterns documented in CLAUDE.md lines 156-227
-- [ ] No direct repository writes when projector enabled
-- [ ] Tests extend ITFixture
-- [ ] Event-driven setup used for all test data creation
+- [ ] RebaseIT and SquashIT pass when run together and in full suite
+- [ ] Tests follow CQRS/Event Sourcing architecture strictly
+- [ ] **Zero direct repository writes** (event-driven setup only)
+- [ ] Tests extend ITFixture (cleanup synchronization, unique datasets)
+- [ ] Projector kept enabled with await() verification
+- [ ] End-to-end commit graph correctness verified
 
 ## References
 
@@ -209,8 +262,34 @@ public class CreateTestCommitCommandHandler {
   - test-isolation-validator: Identified direct repository writes + projector enabled as critical violation
   - cqrs-compliance-checker: Confirmed architectural inconsistency in mixing direct writes with projector verification
 
+## Test Pattern Decision Table
+
+| Operation Type | Test Pattern | Projector | Verification | Example |
+|----------------|--------------|-----------|--------------|---------|
+| Simple CRUD | API-only | ❌ Disabled | HTTP response only | GraphStorePutIT |
+| Complex graph operations | End-to-end | ✅ Enabled | HTTP + await() + graph structure | RebaseIT, SquashIT |
+| Projector behavior | Projector-focused | ✅ Enabled | Event → await() → repository | GraphEventProjectorIT |
+
+## Key Insights
+
+**Why This Plan is Different:**
+- **Original plan**: Mistakenly treated rebase/squash as simple CRUD operations
+- **This plan**: Recognizes them as complex graph transformations requiring end-to-end verification
+- **Key realization**: The problem isn't the verification strategy, it's the setup methodology
+
+**What Was Wrong vs What's Right:**
+- ❌ **Wrong**: "These tests should be API-only" → loses valuable graph structure verification
+- ✅ **Right**: "These tests should keep end-to-end verification but fix setup" → preserves test value
+
+**Architecture Principle:**
+- Direct repository writes violate CQRS/Event Sourcing **always**, not just "when projector enabled"
+- Event-driven setup is not optional - it's an architectural requirement
+- Test isolation comes from unique datasets + ITFixture, not from disabling projector
+
 ## Notes
 
 - Tests currently pass individually but fail in full suite due to cross-test contamination
-- The core CQRS fixes (await patterns) are correct; issue is test setup methodology
-- Quick fix (Phase 1) can be done immediately; proper fix (Phase 2) requires more refactoring
+- Root cause: Direct repository writes + shared static dataset name + missing ITFixture benefits
+- The await() patterns for verification are **correct** - they verify end-to-end correctness
+- The issue is purely in setup methodology (direct writes instead of event-driven)
+- Fix preserves test coverage while achieving architectural correctness

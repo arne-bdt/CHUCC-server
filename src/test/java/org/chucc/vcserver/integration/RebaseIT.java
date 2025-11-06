@@ -6,7 +6,6 @@ import static org.awaitility.Awaitility.await;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
@@ -16,10 +15,7 @@ import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
-import org.chucc.vcserver.repository.BranchRepository;
-import org.chucc.vcserver.repository.CommitRepository;
-import org.chucc.vcserver.testutil.KafkaTestContainers;
-import org.junit.jupiter.api.BeforeAll;
+import org.chucc.vcserver.testutil.ITFixture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,34 +27,39 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.kafka.KafkaContainer;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * Integration tests for POST /version/rebase endpoint.
+ *
+ * <p>These tests verify the complete end-to-end flow of rebase operations,
+ * including HTTP API, command handling, event publication, and repository updates.
+ *
+ * <p><strong>Test Pattern:</strong> End-to-end with projector enabled
+ * <ul>
+ *   <li>Projector: ENABLED (verifies async projection works correctly)</li>
+ *   <li>Setup: Uses {@link ITFixture#createCommit} for complex commit graph setup</li>
+ *   <li>Verification: HTTP response + await() + commit graph structure</li>
+ * </ul>
+ *
+ * <p><strong>Test Isolation:</strong>
+ * <ul>
+ *   <li>Extends {@link ITFixture} for cleanup synchronization</li>
+ *   <li>Uses unique dataset name per test run (no cross-test contamination)</li>
+ *   <li>Custom commit graph setup (rebase requires specific graph topology)</li>
+ * </ul>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
-@org.springframework.test.context.TestPropertySource(
-    properties = "projector.kafka-listener.enabled=true"
-)
-class RebaseIT {
-
-  private static KafkaContainer kafkaContainer;
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")
+class RebaseIT extends ITFixture {
 
   @Autowired
   private TestRestTemplate restTemplate;
 
-  @Autowired
-  private BranchRepository branchRepository;
-
-  @Autowired
-  private CommitRepository commitRepository;
-
   private final ObjectMapper objectMapper = new ObjectMapper();
 
-  private static final String DATASET_NAME = "test-dataset";
+  private String dataset;
 
   private CommitId commitAId;
   private CommitId commitBId;
@@ -66,102 +67,58 @@ class RebaseIT {
   private CommitId commitDId;
   private CommitId commitEId;
 
-  @BeforeAll
-  static void startKafka() {
-    kafkaContainer = KafkaTestContainers.createKafkaContainer();
-    // Container is started by KafkaTestContainers - shared across all tests
+  @Override
+  protected String getDatasetName() {
+    // Unique dataset name per test run to prevent cross-test contamination
+    return "rebase-test-" + System.nanoTime();
   }
 
-  @DynamicPropertySource
-  static void configureKafka(DynamicPropertyRegistry registry) {
-    registry.add("kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
-    registry.add("spring.kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
-    // Unique consumer group per test class to prevent cross-test event consumption
-    registry.add("spring.kafka.consumer.group-id",
-        () -> "test-" + System.currentTimeMillis() + "-" + Math.random());
+  @Override
+  protected boolean shouldCreateInitialSetup() {
+    // Skip default setup - we need custom commit graph for rebase tests
+    return false;
   }
 
   /**
    * Sets up test data: main branch with A -> B -> E, feature branch with A -> C -> D.
    * Rebase will move feature from A -> C -> D to E -> C' -> D'.
+   *
+   * <p><strong>Note:</strong> Uses {@link #createCommit} for setup, which performs direct
+   * repository writes. This is acceptable for test infrastructure when creating complex
+   * commit graphs that cannot be created via command handlers.
    */
   @BeforeEach
   void setUp() {
-    // Clean up repositories before each test
-    branchRepository.deleteAllByDataset(DATASET_NAME);
-    commitRepository.deleteAllByDataset(DATASET_NAME);
+    dataset = getDatasetName();
 
-    // Create commit A (common ancestor)
-    commitAId = CommitId.generate();
-    Commit commitA = new Commit(
-        commitAId,
-        List.of(),
-        "Alice",
-        "Initial commit",
-        Instant.now(),
-        0
-    );
-    commitRepository.save(DATASET_NAME, commitA, RDFPatchOps.emptyPatch());
+    // Create commit A (common ancestor) - empty patch
+    commitAId = createCommit(dataset, List.of(), "Alice", "Initial commit", "TX .\nTC .");
 
     // Create commit B on main
     RDFPatch patchB = createPatch("http://example.org/b", "value-b");
-    commitBId = CommitId.generate();
-    Commit commitB = new Commit(
-        commitBId,
-        List.of(commitAId),
-        "Alice",
-        "Main commit B",
-        Instant.now(),
-        0
-    );
-    commitRepository.save(DATASET_NAME, commitB, patchB);
+    commitBId = createCommit(dataset, List.of(commitAId), "Alice", "Main commit B",
+        patchToString(patchB));
 
     // Create commit E on main
     RDFPatch patchE = createPatch("http://example.org/e", "value-e");
-    commitEId = CommitId.generate();
-    Commit commitE = new Commit(
-        commitEId,
-        List.of(commitBId),
-        "Alice",
-        "Main commit E",
-        Instant.now(),
-        0
-    );
-    commitRepository.save(DATASET_NAME, commitE, patchE);
+    commitEId = createCommit(dataset, List.of(commitBId), "Alice", "Main commit E",
+        patchToString(patchE));
 
-    // Create main branch pointing to E
-    Branch mainBranch = new Branch("main", commitEId);
-    branchRepository.save(DATASET_NAME, mainBranch);
+    // Create main branch pointing to E (event-driven)
+    createBranchViaCommand(dataset, "main", commitEId.value());
 
     // Create commit C on feature branch
     RDFPatch patchC = createPatch("http://example.org/c", "value-c");
-    commitCId = CommitId.generate();
-    Commit commitC = new Commit(
-        commitCId,
-        List.of(commitAId),
-        "Bob",
-        "Feature commit C",
-        Instant.now(),
-        0
-    );
-    commitRepository.save(DATASET_NAME, commitC, patchC);
+    commitCId = createCommit(dataset, List.of(commitAId), "Bob", "Feature commit C",
+        patchToString(patchC));
 
     // Create commit D on feature branch
     RDFPatch patchD = createPatch("http://example.org/d", "value-d");
-    commitDId = CommitId.generate();
-    Commit commitD = new Commit(
-        commitDId,
-        List.of(commitCId),
-        "Bob",
-        "Feature commit D",
-        Instant.now(),
-        0
-    );
-    commitRepository.save(DATASET_NAME, commitD, patchD);
+    commitDId = createCommit(dataset, List.of(commitCId), "Bob", "Feature commit D",
+        patchToString(patchD));
 
-    // Create feature branch pointing to D
-    Branch featureBranch = new Branch("feature", commitDId);
-    branchRepository.save(DATASET_NAME, featureBranch);
+    // Create feature branch pointing to D (event-driven)
+    createBranchViaCommand(dataset, "feature", commitDId.value());
   }
 
   @Test
@@ -183,7 +140,7 @@ class RebaseIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + DATASET_NAME,
+        "/version/rebase?dataset=" + dataset,
         HttpMethod.POST,
         request,
         String.class
@@ -212,14 +169,14 @@ class RebaseIT {
         .untilAsserted(() -> {
           // Verify feature branch was updated
           Branch featureBranch = branchRepository
-              .findByDatasetAndName(DATASET_NAME, "feature")
+              .findByDatasetAndName(dataset, "feature")
               .orElseThrow();
           assertThat(featureBranch.getCommitId().value())
               .isEqualTo(json.get("newHead").asText());
 
           // Verify the final commit (D') exists and has correct structure
           Commit finalCommit = commitRepository
-              .findByDatasetAndId(DATASET_NAME, new CommitId(newHeadId))
+              .findByDatasetAndId(dataset, new CommitId(newHeadId))
               .orElseThrow(() -> new AssertionError("New head commit not found"));
           assertThat(finalCommit.message()).isEqualTo("Feature commit D");
           assertThat(finalCommit.author()).isEqualTo("Bob");
@@ -228,7 +185,7 @@ class RebaseIT {
 
           // Verify the first rebased commit (C') exists and has correct parent
           Commit firstRebasedCommit = commitRepository
-              .findByDatasetAndId(DATASET_NAME, new CommitId(firstRebasedCommitId))
+              .findByDatasetAndId(dataset, new CommitId(firstRebasedCommitId))
               .orElseThrow(() -> new AssertionError("First rebased commit not found"));
           assertThat(firstRebasedCommit.message()).isEqualTo("Feature commit C");
           assertThat(firstRebasedCommit.author()).isEqualTo("Bob");
@@ -239,19 +196,19 @@ class RebaseIT {
 
           // Verify patches were preserved
           RDFPatch rebasedPatchC = commitRepository
-              .findPatchByDatasetAndId(DATASET_NAME, new CommitId(firstRebasedCommitId))
+              .findPatchByDatasetAndId(dataset, new CommitId(firstRebasedCommitId))
               .orElseThrow(() -> new AssertionError("Patch for C' not found"));
           assertThat(rebasedPatchC).isNotNull();
 
           RDFPatch rebasedPatchD = commitRepository
-              .findPatchByDatasetAndId(DATASET_NAME, new CommitId(secondRebasedCommitId))
+              .findPatchByDatasetAndId(dataset, new CommitId(secondRebasedCommitId))
               .orElseThrow(() -> new AssertionError("Patch for D' not found"));
           assertThat(rebasedPatchD).isNotNull();
 
           // Verify old commits still exist (rebase creates new commits)
-          assertThat(commitRepository.findByDatasetAndId(DATASET_NAME, commitCId))
+          assertThat(commitRepository.findByDatasetAndId(dataset, commitCId))
               .isPresent();
-          assertThat(commitRepository.findByDatasetAndId(DATASET_NAME, commitDId))
+          assertThat(commitRepository.findByDatasetAndId(dataset, commitDId))
               .isPresent();
         });
   }
@@ -275,7 +232,7 @@ class RebaseIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + DATASET_NAME,
+        "/version/rebase?dataset=" + dataset,
         HttpMethod.POST,
         request,
         String.class
@@ -306,7 +263,7 @@ class RebaseIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + DATASET_NAME,
+        "/version/rebase?dataset=" + dataset,
         HttpMethod.POST,
         request,
         String.class
@@ -336,7 +293,7 @@ class RebaseIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + DATASET_NAME,
+        "/version/rebase?dataset=" + dataset,
         HttpMethod.POST,
         request,
         String.class
@@ -366,7 +323,7 @@ class RebaseIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + DATASET_NAME,
+        "/version/rebase?dataset=" + dataset,
         HttpMethod.POST,
         request,
         String.class
@@ -397,7 +354,7 @@ class RebaseIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + DATASET_NAME,
+        "/version/rebase?dataset=" + dataset,
         HttpMethod.POST,
         request,
         String.class
@@ -428,7 +385,7 @@ class RebaseIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + DATASET_NAME,
+        "/version/rebase?dataset=" + dataset,
         HttpMethod.POST,
         request,
         String.class
@@ -458,5 +415,17 @@ class RebaseIT {
     collector.add(g, s, p, o);
     collector.finish();
     return collector.getRDFPatch();
+  }
+
+  /**
+   * Converts an RDFPatch to string.
+   *
+   * @param patch the RDF patch
+   * @return the patch as string
+   */
+  private String patchToString(RDFPatch patch) {
+    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+    RDFPatchOps.write(baos, patch);
+    return baos.toString(java.nio.charset.StandardCharsets.UTF_8);
   }
 }

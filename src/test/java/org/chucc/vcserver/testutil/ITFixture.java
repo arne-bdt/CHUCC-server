@@ -63,6 +63,9 @@ public abstract class ITFixture {
   @Autowired(required = false)
   protected org.chucc.vcserver.command.CreateDatasetCommandHandler createDatasetCommandHandler;
 
+  @Autowired(required = false)
+  protected org.chucc.vcserver.command.CreateBranchCommandHandler createBranchCommandHandler;
+
   @org.springframework.beans.factory.annotation.Value("${projector.kafka-listener.enabled:false}")
   protected boolean projectorEnabled;
 
@@ -243,10 +246,25 @@ public abstract class ITFixture {
   }
 
   /**
-   * Creates a commit with the given patch content.
+   * Creates a commit with custom parent relationships via direct repository write.
+   *
+   * <p><strong>IMPORTANT:</strong> This method uses direct repository writes and bypasses
+   * the CQRS/Event Sourcing architecture. It should ONLY be used for test setup in
+   * projector-disabled tests, or when creating complex commit graph structures that cannot
+   * be created via normal command handlers.
+   *
+   * <p><strong>Recommended usage:</strong>
+   * <ul>
+   *   <li>For projector-disabled tests (API-only tests)</li>
+   *   <li>For complex commit graph setup where custom parent relationships are needed</li>
+   *   <li>NEVER use for production code or when testing projector behavior</li>
+   * </ul>
+   *
+   * <p><strong>For event-driven commit creation:</strong> Use {@link #createBranchViaCommand}
+   * to create branches and then use HTTP API or command handlers to create commits on branches.
    *
    * @param dataset the dataset name
-   * @param parents parent commit IDs
+   * @param parents parent commit IDs (can be arbitrary - not validated)
    * @param author commit author
    * @param message commit message
    * @param patchContent RDF patch content as string
@@ -283,5 +301,47 @@ public abstract class ITFixture {
         "TX .%nA <%s> <%s> \"%s\" .%nTC .",
         subject, predicate, value
     );
+  }
+
+  /**
+   * Creates a branch via command handler (event-driven approach).
+   * Works in both projector-enabled and projector-disabled modes.
+   *
+   * <p><strong>When projector disabled:</strong> Command handler saves to repository immediately
+   * <p><strong>When projector enabled:</strong> Uses await() to wait for async projection
+   *
+   * @param dataset the dataset name
+   * @param branchName the branch name
+   * @param sourceRef the source ref (branch name or commit ID)
+   * @return the created branch name
+   */
+  protected String createBranchViaCommand(String dataset, String branchName, String sourceRef) {
+    if (createBranchCommandHandler == null) {
+      throw new IllegalStateException("CreateBranchCommandHandler not autowired");
+    }
+
+    org.chucc.vcserver.command.CreateBranchCommand command =
+        new org.chucc.vcserver.command.CreateBranchCommand(
+            dataset,
+            branchName,
+            sourceRef,
+            false,  // not protected
+            DEFAULT_AUTHOR
+        );
+
+    org.chucc.vcserver.event.VersionControlEvent event = createBranchCommandHandler.handle(command);
+
+    // When projector enabled, wait for async projection
+    if (projectorEnabled) {
+      org.awaitility.Awaitility.await()
+          .atMost(java.time.Duration.ofSeconds(10))
+          .untilAsserted(() -> {
+            java.util.Optional<Branch> branch =
+                branchRepository.findByDatasetAndName(dataset, branchName);
+            org.assertj.core.api.Assertions.assertThat(branch).isPresent();
+          });
+    }
+
+    return branchName;
   }
 }

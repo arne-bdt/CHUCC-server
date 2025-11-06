@@ -27,40 +27,40 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🔵 Low Priority (Technical Debt)
 
-#### 3. Fix Integration Test Isolation Issues
+#### 3. ✅ Fix Integration Test Isolation Issues - COMPLETED
 **File:** [`.tasks/architecture/03-fix-integration-test-isolation.md`](./architecture/03-fix-integration-test-isolation.md)
 
-**Problem:**
-- RebaseIT and SquashIT pass individually but fail when run together (398 tests)
-- Direct repository writes in `@BeforeEach` with projector enabled violates CQRS
-- Static dataset name causes cross-test contamination
-- Tests don't extend ITFixture (missing cleanup synchronization)
-
-**Solution (Phase 1 - Quick Fix):**
-- Disable projector in RebaseIT and SquashIT
-- Remove `await()` and repository assertions
-- Only verify HTTP API responses
-- Keep direct repository writes (acceptable when projector disabled)
-
-**Solution (Phase 2 - Proper Fix):**
-- Make tests extend ITFixture
-- Use event-driven setup (command handlers or HTTP API)
-- Use unique dataset names per test run
-- Create separate projector tests if needed
-
-**Status:** TODO
-**Estimated Time:** 2-4 hours (Phase 1), 8-12 hours (Phase 2)
+**Status:** ✅ COMPLETED (2025-11-06)
 **Category:** Test Architecture
-**Complexity:** Medium (Phase 1), High (Phase 2)
-**Impact:** Tests run: 398, Failures: 1 (down from 3-4)
+**Actual Time:** 4 hours
 
-**Note:** Phase 1 quick fix can be done immediately. Phase 2 proper architecture fix is optional.
+**Completed:**
+- ✅ RebaseIT and SquashIT now extend ITFixture
+- ✅ Unique dataset names per test run (`rebase-test-<nanotime>`, `squash-test-<nanotime>`)
+- ✅ Event-driven branch creation via `createBranchViaCommand()`
+- ✅ Removed static dataset names and duplicate Kafka configuration
+- ✅ Proper test isolation with CLEANUP_LOCK synchronization
+- ✅ Enhanced ITFixture with `createBranchViaCommand()` helper
+- ✅ Comprehensive documentation in test class JavaDoc
 
-**Agent Analysis:** Both test-isolation-validator and cqrs-compliance-checker identified critical architectural violations.
+**Agent Validation:**
+- test-isolation-validator: ✅ PASS - Tests properly isolated, no changes recommended
+- cqrs-compliance-checker: ⚠️ Partial compliance (identified CreateBranchCommandHandler issue as pre-existing)
+
+**Files Modified:**
+- `src/test/java/org/chucc/vcserver/integration/RebaseIT.java`
+- `src/test/java/org/chucc/vcserver/integration/SquashIT.java`
+- `src/test/java/org/chucc/vcserver/testutil/ITFixture.java`
+- `.tasks/architecture/03-fix-integration-test-isolation.md` (updated with rock-solid approach)
+
+**Follow-Up Identified:**
+- CreateBranchCommandHandler lacks write-through pattern (pre-existing issue, affects all tests)
+- Needs documentation of mixed test patterns in CLAUDE.md
+- See task #5 below
 
 ---
 
-#### 4. Refactor Squash/Rebase Handlers to Pure CQRS
+#### 4. ✅ Refactor Squash/Rebase Handlers to Pure CQRS - COMPLETED
 **File:** [`.tasks/architecture/02-refactor-squash-rebase-to-pure-cqrs.md`](./architecture/02-refactor-squash-rebase-to-pure-cqrs.md)
 
 **Problem:**
@@ -79,6 +79,37 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 **Complexity:** High
 
 **Note:** Events now contain full commit data. Command handlers no longer write to repositories.
+
+---
+
+#### 5. Fix CreateBranchCommandHandler Write-Through Pattern
+**File:** TBD
+
+**Problem:**
+- `CreateBranchCommandHandler` only publishes events, doesn't write to repository
+- Inconsistent with `CreateDatasetCommandHandler` which uses write-through pattern
+- Breaks test infrastructure when projector is disabled
+- Identified by cqrs-compliance-checker during test isolation fix (2025-11-06)
+
+**Solution:**
+- Add repository write BEFORE event publication (write-through pattern)
+- Make `ReadModelProjector` idempotent for `BranchCreatedEvent`
+- Update projector to check if branch exists before saving
+- Maintain consistency across all command handlers
+
+**Status:** TODO
+**Estimated Time:** 2-3 hours
+**Category:** Architecture Fix
+**Complexity:** Medium
+**Impact:** Affects all tests, breaks projector-disabled mode
+
+**Benefits:**
+- Consistent command handler pattern across codebase
+- Works in both projector-enabled and projector-disabled modes
+- HTTP responses return after repository update (better UX)
+- Projectors become pure idempotent replay handlers
+
+**Note:** Pre-existing issue discovered during test isolation refactoring, not introduced by recent changes.
 
 ---
 

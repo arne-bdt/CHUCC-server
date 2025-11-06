@@ -129,13 +129,17 @@ class SquashCommandHandlerTest {
     assertNotNull(squashEvent.timestamp());
     assertEquals(commitCId, squashEvent.previousHead());
 
-    // Verify branch was updated
-    ArgumentCaptor<Branch> branchCaptor = ArgumentCaptor.forClass(Branch.class);
-    verify(branchRepository).save(eq("test-dataset"), branchCaptor.capture());
-    assertNotEquals(idC, branchCaptor.getValue().getCommitId());
+    // Verify event contains full commit data for CQRS replay
+    assertNotNull(squashEvent.parents());
+    assertEquals(1, squashEvent.parents().size());
+    assertEquals(commitAId, squashEvent.parents().get(0));
+    assertNotNull(squashEvent.rdfPatch());
+    assertTrue(squashEvent.rdfPatch().contains("combined-value"));
+    assertTrue(squashEvent.patchSize() > 0);
 
-    // Verify new commit was saved
-    verify(commitRepository).save(eq("test-dataset"), any(Commit.class), any(RDFPatch.class));
+    // Verify repositories were NOT written to (CQRS pattern - projector handles this)
+    verify(branchRepository, never()).save(any(), any());
+    verify(commitRepository, never()).save(any(), any(), any());
   }
 
   @Test

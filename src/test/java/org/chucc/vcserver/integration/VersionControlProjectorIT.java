@@ -179,58 +179,55 @@ class VersionControlProjectorIT {
         .until(() -> branchRepository.findByDatasetAndName(DEFAULT_DATASET, "feature")
             .isPresent());
 
-    // Create rebased commits (would normally be created by rebase command handler)
-    CommitCreatedEvent rebasedCommit1 =
-        new CommitCreatedEvent(
-        DEFAULT_DATASET,
-        rebasedCommit1Id.value(),
-        List.of(initialCommitId.value()),
-        null,
-        "Feature commit (rebased 1)",
-        "Alice",
-        Instant.now(),
-        PATCH_CONTENT,
-        1
-    );
-    eventPublisher.publish(rebasedCommit1).get();
-
-    CommitCreatedEvent rebasedCommit2 =
-        new CommitCreatedEvent(
-        DEFAULT_DATASET,
-        rebasedCommit2Id.value(),
-        List.of(rebasedCommit1Id.value()),
-        null,
-        "Feature commit (rebased 2)",
-        "Alice",
-        Instant.now(),
-        PATCH_CONTENT,
-        1
-    );
-    eventPublisher.publish(rebasedCommit2).get();
-
-    // Wait for rebased commits
-    await().atMost(Duration.ofSeconds(5))
-        .until(() -> commitRepository.findByDatasetAndId(DEFAULT_DATASET, rebasedCommit2Id)
-            .isPresent());
-
-    // Create BranchRebasedEvent
+    // Create BranchRebasedEvent with full commit data
+    // (no separate CommitCreatedEvents needed - rebase event creates the commits)
     BranchRebasedEvent rebaseEvent =
         new BranchRebasedEvent(
         DEFAULT_DATASET,
         "feature",
-        rebasedCommit2Id.value(), // new head
+        rebasedCommit2Id.value(), // new head (final commit)
         featureBranchId.value(), // previous head
-        List.of(rebasedCommit1Id.value(), rebasedCommit2Id.value()), // new commits
+        List.of(
+            // First rebased commit
+            new BranchRebasedEvent.RebasedCommitData(
+                rebasedCommit1Id.value(),
+                List.of(initialCommitId.value()),
+                "Alice",
+                "Feature commit (rebased 1)",
+                PATCH_CONTENT,
+                1
+            ),
+            // Second rebased commit
+            new BranchRebasedEvent.RebasedCommitData(
+                rebasedCommit2Id.value(),
+                List.of(rebasedCommit1Id.value()),
+                "Alice",
+                "Feature commit (rebased 2)",
+                PATCH_CONTENT,
+                1
+            )
+        ),
         "Alice",
         Instant.now()
     );
 
-    // When - Publish rebase event
+    // When - Publish rebase event (creates commits AND updates branch)
     eventPublisher.publish(rebaseEvent).get();
 
-    // Then - Wait for branch update
+    // Then - Wait for both commit creation and branch update
     await().atMost(Duration.ofSeconds(10))
         .untilAsserted(() -> {
+          // Verify both rebased commits were created
+          var commit1 = commitRepository.findByDatasetAndId(DEFAULT_DATASET, rebasedCommit1Id);
+          assertThat(commit1).isPresent();
+          assertThat(commit1.get().message()).isEqualTo("Feature commit (rebased 1)");
+          assertThat(commit1.get().parents()).containsExactly(initialCommitId);
+
+          var commit2 = commitRepository.findByDatasetAndId(DEFAULT_DATASET, rebasedCommit2Id);
+          assertThat(commit2).isPresent();
+          assertThat(commit2.get().message()).isEqualTo("Feature commit (rebased 2)");
+          assertThat(commit2.get().parents()).containsExactly(rebasedCommit1Id);
+
           // Verify feature branch now points to final rebased commit
           var branch = branchRepository.findByDatasetAndName(DEFAULT_DATASET, "feature");
           assertThat(branch).isPresent();

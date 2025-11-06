@@ -588,16 +588,16 @@ public class ReadModelProjector {
   }
 
   /**
-   * Handles BranchRebasedEvent by updating the branch head.
-   * Note: The individual rebased commits are created via separate CommitCreatedEvents.
+   * Handles BranchRebasedEvent by creating all rebased commits and updating the branch head.
+   * All commits are created atomically from the event data, enabling proper event replay.
    *
-   * @param event the branch rebased event
+   * @param event the branch rebased event containing full commit data
    */
   void handleBranchRebased(BranchRebasedEvent event) {
     logger.debug("Processing BranchRebasedEvent: branch={}, previousHead={}, newHead={}, "
             + "rebasedCount={}, dataset={}",
         event.branch(), event.previousHead(), event.newHead(),
-        event.newCommits().size(), event.dataset());
+        event.rebasedCommits().size(), event.dataset());
 
     // Check if branch exists before rebasing
     if (branchRepository.findByDatasetAndName(event.dataset(), event.branch()).isEmpty()) {
@@ -605,6 +605,30 @@ public class ReadModelProjector {
               + "(event from different test/dataset)",
           event.branch(), event.dataset());
       return;
+    }
+
+    // Create all rebased commits from event data (atomic operation)
+    for (BranchRebasedEvent.RebasedCommitData commitData : event.rebasedCommits()) {
+      // Parse RDF patch from event
+      ByteArrayInputStream inputStream = new ByteArrayInputStream(
+          commitData.rdfPatch().getBytes(StandardCharsets.UTF_8));
+      RDFPatch patch = RDFPatchOps.read(inputStream);
+
+      // Create commit from event data
+      Commit commit = new Commit(
+          CommitId.of(commitData.commitId()),
+          commitData.parents().stream().map(CommitId::of).toList(),
+          commitData.author(),
+          commitData.message(),
+          event.timestamp(),
+          commitData.patchSize()
+      );
+
+      // Save commit with patch
+      commitRepository.save(event.dataset(), commit, patch);
+
+      logger.debug("Created rebased commit: {} (parent: {}) in dataset: {}",
+          commitData.commitId(), commitData.parents(), event.dataset());
     }
 
     // Update branch to point to final rebased commit
@@ -621,9 +645,9 @@ public class ReadModelProjector {
         CommitId.of(event.newHead())
     );
 
-    logger.debug("Rebased branch: {} from {} to {} ({} commits) in dataset: {}",
+    logger.debug("Rebased branch: {} from {} to {} ({} commits created) in dataset: {}",
         event.branch(), event.previousHead(), event.newHead(),
-        event.newCommits().size(), event.dataset());
+        event.rebasedCommits().size(), event.dataset());
 
     // Trigger snapshot check after branch update
     snapshotService.recordCommit(event.dataset(), event.branch(),
@@ -862,10 +886,10 @@ public class ReadModelProjector {
   }
 
   /**
-   * Handles CommitsSquashedEvent by updating the branch head.
-   * Note: The squashed commit is created by the command handler.
+   * Handles CommitsSquashedEvent by creating the squashed commit and updating the branch head.
+   * The commit is created from the event data, enabling proper event replay.
    *
-   * @param event the commits squashed event
+   * @param event the commits squashed event containing full commit data
    */
   void handleCommitsSquashed(CommitsSquashedEvent event) {
     logger.debug("Processing CommitsSquashedEvent: branch={}, previousHead={}, newCommitId={}, "
@@ -880,6 +904,26 @@ public class ReadModelProjector {
           event.branch(), event.dataset());
       return;
     }
+
+    // Create squashed commit from event data
+    ByteArrayInputStream inputStream = new ByteArrayInputStream(
+        event.rdfPatch().getBytes(StandardCharsets.UTF_8));
+    RDFPatch patch = RDFPatchOps.read(inputStream);
+
+    Commit commit = new Commit(
+        CommitId.of(event.newCommitId()),
+        event.parents().stream().map(CommitId::of).toList(),
+        event.author(),
+        event.message(),
+        event.timestamp(),
+        event.patchSize()
+    );
+
+    // Save commit with patch
+    commitRepository.save(event.dataset(), commit, patch);
+
+    logger.debug("Created squashed commit: {} (parents: {}) in dataset: {}",
+        event.newCommitId(), event.parents(), event.dataset());
 
     // Update branch to point to squashed commit
     branchRepository.updateBranchHead(

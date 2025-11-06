@@ -19,6 +19,7 @@ import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.CommitRepository;
 import org.chucc.vcserver.repository.TagRepository;
+import org.chucc.vcserver.util.RdfPatchUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,19 @@ import org.springframework.stereotype.Component;
 /**
  * Handles RebaseCommand by reapplying commits from one branch onto another
  * and producing a BranchRebasedEvent.
+ *
+ * <p><b>CQRS Pattern:</b> This handler does NOT write to repositories.
+ * Instead, it publishes a {@link BranchRebasedEvent} containing all data needed
+ * to recreate the rebased commits. The {@link org.chucc.vcserver.projection.ReadModelProjector}
+ * consumes the event and updates repositories asynchronously.</p>
+ *
+ * <p>This ensures:
+ * <ul>
+ *   <li>No dual-write pattern (single source of truth: Kafka)</li>
+ *   <li>Event replay works correctly (event contains full commit data)</li>
+ *   <li>Eventual consistency (HTTP 202 returned before repository update)</li>
+ *   <li>Atomic rebase (all commits created together or none)</li>
+ * </ul>
  */
 @Component
 @SuppressWarnings("PMD.GuardLogStatement") // SLF4J parameterized logging is efficient
@@ -101,9 +115,9 @@ public class RebaseCommandHandler implements CommandHandler<RebaseCommand> {
       );
     }
 
-    // 7. Rebase commits one by one
+    // 7. Collect rebased commit data (without writing to repository)
     CommitId currentCommitId = ontoCommitId;
-    List<String> newCommitIds = new ArrayList<>();
+    List<BranchRebasedEvent.RebasedCommitData> rebasedCommits = new ArrayList<>();
 
     for (Commit originalCommit : commitsToRebase) {
       // Get patch for this commit
@@ -118,36 +132,32 @@ public class RebaseCommandHandler implements CommandHandler<RebaseCommand> {
       // Note: A more sophisticated implementation would materialize the dataset state
       // and try to apply the patch
 
-      // Create new commit with same message and author but new ID and parent
+      // Prepare new commit metadata
       CommitId newCommitId = CommitId.generate();
-      Commit newCommit = new Commit(
-          newCommitId,
-          List.of(currentCommitId),
+      String patchString = RdfPatchUtil.toString(patch);
+
+      // Collect commit data for event (projector will create actual commits)
+      rebasedCommits.add(new BranchRebasedEvent.RebasedCommitData(
+          newCommitId.value(),
+          List.of(currentCommitId.value()),  // parent
           originalCommit.author(),
           originalCommit.message(),
-          Instant.now(),
-          originalCommit.patchSize()  // Preserve original patch size
-      );
-
-      // Save new commit
-      commitRepository.save(command.dataset(), newCommit, patch);
-      newCommitIds.add(newCommitId.value());
+          patchString,
+          originalCommit.patchSize()
+      ));
 
       // Update current commit for next iteration
       currentCommitId = newCommitId;
     }
 
-    // 8. Update branch to point to final rebased commit
-    branch.updateCommit(currentCommitId);
-    branchRepository.save(command.dataset(), branch);
-
-    // 9. Produce event
+    // 8. Produce event with ALL data needed to recreate the rebased commits
+    // The projector will handle repository updates asynchronously and atomically
     VersionControlEvent event = new BranchRebasedEvent(
         command.dataset(),
         command.branch(),
-        currentCommitId.value(),
+        currentCommitId.value(),  // final HEAD after rebase
         previousHead.value(),
-        newCommitIds,
+        rebasedCommits,  // full commit data for all rebased commits
         command.author(),
         Instant.now()
     );

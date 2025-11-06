@@ -447,8 +447,8 @@ class EventSerializationTest {
             "patch", 1),
         new BranchRebasedEvent(null, "test", "branch", "c1", "c2", List.of(), "author",
             Instant.now()),
-        new CommitsSquashedEvent(null, "test", "main", "c1", List.of(), "author", "msg",
-            Instant.now(), "c2"),
+        new CommitsSquashedEvent(null, "test", "main", "c1", List.of(), List.of("c0"),
+            "author", "msg", Instant.now(), "c2", "patch", 1),
         new BatchGraphsCompletedEvent(null, "test", List.of(), Instant.now()),
         new BranchDeletedEvent(null, "test", "branch", "c1", "author", Instant.now()),
         new DatasetDeletedEvent(null, "test", "author", Instant.now(), List.of(), 0, false)

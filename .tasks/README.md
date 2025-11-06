@@ -27,7 +27,40 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🔵 Low Priority (Technical Debt)
 
-#### 3. Refactor Squash/Rebase Handlers to Pure CQRS
+#### 3. Fix Integration Test Isolation Issues
+**File:** [`.tasks/architecture/03-fix-integration-test-isolation.md`](./architecture/03-fix-integration-test-isolation.md)
+
+**Problem:**
+- RebaseIT and SquashIT pass individually but fail when run together (398 tests)
+- Direct repository writes in `@BeforeEach` with projector enabled violates CQRS
+- Static dataset name causes cross-test contamination
+- Tests don't extend ITFixture (missing cleanup synchronization)
+
+**Solution (Phase 1 - Quick Fix):**
+- Disable projector in RebaseIT and SquashIT
+- Remove `await()` and repository assertions
+- Only verify HTTP API responses
+- Keep direct repository writes (acceptable when projector disabled)
+
+**Solution (Phase 2 - Proper Fix):**
+- Make tests extend ITFixture
+- Use event-driven setup (command handlers or HTTP API)
+- Use unique dataset names per test run
+- Create separate projector tests if needed
+
+**Status:** TODO
+**Estimated Time:** 2-4 hours (Phase 1), 8-12 hours (Phase 2)
+**Category:** Test Architecture
+**Complexity:** Medium (Phase 1), High (Phase 2)
+**Impact:** Tests run: 398, Failures: 1 (down from 3-4)
+
+**Note:** Phase 1 quick fix can be done immediately. Phase 2 proper architecture fix is optional.
+
+**Agent Analysis:** Both test-isolation-validator and cqrs-compliance-checker identified critical architectural violations.
+
+---
+
+#### 4. Refactor Squash/Rebase Handlers to Pure CQRS
 **File:** [`.tasks/architecture/02-refactor-squash-rebase-to-pure-cqrs.md`](./architecture/02-refactor-squash-rebase-to-pure-cqrs.md)
 
 **Problem:**
@@ -40,12 +73,12 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 - Remove repository writes from command handlers
 - Let projector handle all repository updates
 
-**Status:** Not Started
+**Status:** ✅ COMPLETED (2025-11-06)
 **Estimated Time:** 8-12 hours
 **Category:** Architectural Refactoring
 **Complexity:** High
 
-**Note:** This is technical debt, not a critical bug. Can be deferred.
+**Note:** Events now contain full commit data. Command handlers no longer write to repositories.
 
 ---
 

@@ -30,6 +30,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
 
 /**
  * Unit tests for RebaseCommandHandler.
@@ -80,7 +81,7 @@ class RebaseCommandHandlerTest {
     // Create commits
     Commit commitA = new Commit(idA, List.of(), "alice", "Commit A", Instant.now(), 0);
     Commit commitC = new Commit(idC, List.of(idB), "alice", "Commit C", Instant.now(), 0);
-    Commit commitD = new Commit(idD, List.of(idA), "bob", "Commit D", Instant.now(), 0);
+    Commit commitD = new Commit(idD, List.of(idA), "bob", "Commit D", Instant.now(), 1);
 
     // Create patches (non-conflicting)
     RDFPatch patchD = createPatch("http://example.org/d", "value-d");
@@ -234,7 +235,7 @@ class RebaseCommandHandlerTest {
 
     Commit commitA = new Commit(idA, List.of(), "alice", "Commit A", Instant.now(), 0);
     Commit commitC = new Commit(idC, List.of(), "alice", "Commit C", Instant.now(), 0);
-    Commit commitD = new Commit(idD, List.of(idA), "bob", "Commit D", Instant.now(), 0);
+    Commit commitD = new Commit(idD, List.of(idA), "bob", "Commit D", Instant.now(), 1);
     Commit commitE = new Commit(idE, List.of(idD), "bob", "Commit E", Instant.now(), 0);
 
     RDFPatch patchD = createPatch("http://example.org/d", "value-d");
@@ -271,11 +272,10 @@ class RebaseCommandHandlerTest {
 
     // Then
     BranchRebasedEvent rebaseEvent = (BranchRebasedEvent) event;
-    assertEquals(2, rebaseEvent.newCommits().size());
+    assertEquals(2, rebaseEvent.rebasedCommits().size());
 
-    // Verify 2 new commits were saved
-    verify(commitRepository, times(2))
-        .save(eq("test-dataset"), any(Commit.class), any(RDFPatch.class));
+    // Verify commits were NOT saved (CQRS pattern - projector handles this)
+    verify(commitRepository, never()).save(any(), any(), any());
   }
 
   /**

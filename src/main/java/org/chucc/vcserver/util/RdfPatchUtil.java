@@ -1,5 +1,7 @@
 package org.chucc.vcserver.util;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.jena.graph.Graph;
@@ -19,6 +21,23 @@ public final class RdfPatchUtil {
 
   private RdfPatchUtil() {
     // Utility class - prevent instantiation
+  }
+
+  /**
+   * Serializes an RDF Patch to a string representation.
+   *
+   * @param patch the RDF Patch to serialize
+   * @return the serialized patch string in RDF Patch format
+   * @throws IllegalArgumentException if patch is null
+   */
+  public static String toString(RDFPatch patch) {
+    if (patch == null) {
+      throw new IllegalArgumentException("RDFPatch cannot be null");
+    }
+
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    RDFPatchOps.write(outputStream, patch);
+    return outputStream.toString(StandardCharsets.UTF_8);
   }
 
   /**

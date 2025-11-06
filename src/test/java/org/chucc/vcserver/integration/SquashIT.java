@@ -1,7 +1,11 @@
 package org.chucc.vcserver.integration;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import org.apache.jena.graph.Node;
@@ -31,13 +35,14 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.kafka.KafkaContainer;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * Integration tests for POST /version/squash endpoint.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
+@org.springframework.test.context.TestPropertySource(
+    properties = "projector.kafka-listener.enabled=true"
+)
 class SquashIT {
 
   private static KafkaContainer kafkaContainer;
@@ -170,31 +175,38 @@ class SquashIT {
     assertThat(json.get("squashedCommits").get(1).asText()).isEqualTo(commitCId.value());
     assertThat(json.get("previousHead").asText()).isEqualTo(commitCId.value());
 
-    // Verify feature branch was updated
-    Branch featureBranch = branchRepository
-        .findByDatasetAndName(DATASET_NAME, "feature")
-        .orElseThrow();
     String newCommitId = json.get("newCommit").asText();
-    assertThat(featureBranch.getCommitId().value()).isEqualTo(newCommitId);
 
-    // Verify the squashed commit exists and has correct structure
-    Commit squashedCommit = commitRepository
-        .findByDatasetAndId(DATASET_NAME, new CommitId(newCommitId))
-        .orElseThrow(() -> new AssertionError("Squashed commit not found in repository"));
-    assertThat(squashedCommit.message()).isEqualTo("Squashed B and C");
-    assertThat(squashedCommit.author()).isEqualTo("Alice");
-    assertThat(squashedCommit.parents()).hasSize(1);
-    assertThat(squashedCommit.parents().get(0).value()).isEqualTo(commitAId.value());
+    // Wait for projector to update repository (CQRS eventual consistency)
+    await().atMost(Duration.ofSeconds(10))
+        .untilAsserted(() -> {
+          // Verify feature branch was updated
+          Branch featureBranch = branchRepository
+              .findByDatasetAndName(DATASET_NAME, "feature")
+              .orElseThrow();
+          assertThat(featureBranch.getCommitId().value()).isEqualTo(newCommitId);
 
-    // Verify patch exists for squashed commit
-    RDFPatch squashedPatch = commitRepository
-        .findPatchByDatasetAndId(DATASET_NAME, new CommitId(newCommitId))
-        .orElseThrow(() -> new AssertionError("Patch for squashed commit not found"));
-    assertThat(squashedPatch).isNotNull();
+          // Verify the squashed commit exists and has correct structure
+          Commit squashedCommit = commitRepository
+              .findByDatasetAndId(DATASET_NAME, new CommitId(newCommitId))
+              .orElseThrow(() -> new AssertionError("Squashed commit not found"));
+          assertThat(squashedCommit.message()).isEqualTo("Squashed B and C");
+          assertThat(squashedCommit.author()).isEqualTo("Alice");
+          assertThat(squashedCommit.parents()).hasSize(1);
+          assertThat(squashedCommit.parents().get(0).value()).isEqualTo(commitAId.value());
 
-    // Verify old commits still exist (orphaned)
-    assertThat(commitRepository.findByDatasetAndId(DATASET_NAME, commitBId)).isPresent();
-    assertThat(commitRepository.findByDatasetAndId(DATASET_NAME, commitCId)).isPresent();
+          // Verify patch exists for squashed commit
+          RDFPatch squashedPatch = commitRepository
+              .findPatchByDatasetAndId(DATASET_NAME, new CommitId(newCommitId))
+              .orElseThrow(() -> new AssertionError("Patch for squashed commit not found"));
+          assertThat(squashedPatch).isNotNull();
+
+          // Verify old commits still exist (orphaned)
+          assertThat(commitRepository.findByDatasetAndId(DATASET_NAME, commitBId))
+              .isPresent();
+          assertThat(commitRepository.findByDatasetAndId(DATASET_NAME, commitCId))
+              .isPresent();
+        });
   }
 
   @Test
@@ -227,11 +239,15 @@ class SquashIT {
     JsonNode json = objectMapper.readTree(response.getBody());
     String newCommitId = json.get("newCommit").asText();
 
-    // Verify author is from first commit (B)
-    Commit squashedCommit = commitRepository
-        .findByDatasetAndId(DATASET_NAME, new CommitId(newCommitId))
-        .orElseThrow();
-    assertThat(squashedCommit.author()).isEqualTo("Bob");
+    // Wait for projector to update repository (CQRS eventual consistency)
+    await().atMost(Duration.ofSeconds(10))
+        .untilAsserted(() -> {
+          // Verify author is from first commit (B)
+          Commit squashedCommit = commitRepository
+              .findByDatasetAndId(DATASET_NAME, new CommitId(newCommitId))
+              .orElseThrow();
+          assertThat(squashedCommit.author()).isEqualTo("Bob");
+        });
   }
 
   @Test

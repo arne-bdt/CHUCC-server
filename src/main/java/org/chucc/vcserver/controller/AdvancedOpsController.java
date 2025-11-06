@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import org.chucc.vcserver.command.CherryPickCommand;
 import org.chucc.vcserver.command.CherryPickCommandHandler;
 import org.chucc.vcserver.command.RebaseCommand;
@@ -486,11 +487,16 @@ public class AdvancedOpsController {
       BranchRebasedEvent event = (BranchRebasedEvent) rebaseCommandHandler.handle(command);
 
       // Build response
+      List<String> newCommitIds = event.rebasedCommits()
+          .stream()
+          .map(BranchRebasedEvent.RebasedCommitData::commitId)
+          .toList();
+
       RebaseResponse response = new RebaseResponse(
           event.branch(),
           event.newHead(),
-          event.newCommits(),
-          event.newCommits().size()
+          newCommitIds,
+          newCommitIds.size()
       );
 
       return ResponseEntity

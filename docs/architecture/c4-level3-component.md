@@ -763,13 +763,34 @@ class DatasetGraphRepository {
 
 #### 7.5 Utilities
 
+##### General Utilities
+
 **Package**: `org.chucc.vcserver.util`
 
-**Purpose**: Helper classes
+**Purpose**: Core helper classes
 
 **Components**:
 - `EventValidation` - Event validation utilities
 - `EventHeaders` - Event header constants
+
+##### Controller Utilities
+
+**Package**: `org.chucc.vcserver.controller.util`
+
+**Purpose**: HTTP routing and response header helpers for semantic routing
+
+**Components**:
+- `VersionControlUrls` - URL construction for semantic routing patterns
+  - Builds RESTful URLs: `/{dataset}/version/{ref-type}/{ref-name}/{service}`
+  - Methods for datasets, branches, commits, tags, SPARQL, GSP endpoints
+  - Used by controllers to generate `Content-Location` and `Link` headers
+- `ResponseHeaderBuilder` - Response header utilities for HATEOAS
+  - `Content-Location` headers pointing to canonical URLs
+  - `Link` headers for resource navigation (rel="version", rel="branch", etc.)
+
+**Why Added**: Foundation for semantic routing refactoring (Session 1 of 11-session roadmap).
+These utilities enable controllers to generate shareable, bookmarkable URLs without hardcoding
+path construction logic.
 
 ---
 

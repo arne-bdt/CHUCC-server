@@ -47,13 +47,16 @@ GET /mydata/version/tags/v1.0/sparql?query=...
 
 ### Session 1: Foundation - URL Utilities and OpenAPI Updates
 **File:** [session-1-url-utilities-and-openapi.md](./session-1-url-utilities-and-openapi.md)
-**Status:** ⏳ Not Started
+**Status:** ✅ Complete
 **Estimated Time:** 3-4 hours
+**Actual Time:** ~2.5 hours
+**Completion Date:** 2025-11-06
 
 **Deliverables:**
-- `VersionControlUrls` utility class for URL construction
-- OpenAPI spec updates with new path structures
-- Response header helpers (`Content-Location`, `Link`)
+- ✅ `VersionControlUrls` utility class for URL construction (371 lines, 35 methods)
+- ✅ `ResponseHeaderBuilder` utility class for response headers (71 lines, 7 methods)
+- ✅ Unit tests: `VersionControlUrlsTest` (26 tests) and `ResponseHeaderBuilderTest` (9 tests)
+- ✅ Enhanced OpenAPI annotations in BranchController
 
 **Why First:** Provides foundation for all subsequent tasks
 
@@ -310,7 +313,7 @@ mvn -q clean install
 
 | Session | Status | Estimated | Actual | Completion Date |
 |---------|--------|-----------|--------|-----------------|
-| 1. URL Utilities | ⏳ Not Started | 3-4h | - | - |
+| 1. URL Utilities | ✅ Complete | 3-4h | ~2.5h | 2025-11-06 |
 | 2. Dataset Param | ⏳ Not Started | 4-5h | - | - |
 | 3. Versioned SPARQL | ⏳ Not Started | 5-6h | - | - |
 | 4. Versioned GSP | ⏳ Not Started | 5-6h | - | - |

@@ -71,14 +71,18 @@ public class BranchController {
    * @return list of branches
    */
   @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-  @Operation(summary = "List branches", description = "List all branches in the repository")
+  @Operation(
+      summary = "List branches",
+      description = "Returns a list of all branches in the dataset with metadata including "
+          + "HEAD commit ID, protection status, and timestamps"
+  )
   @ApiResponse(
       responseCode = "200",
-      description = "Branch list",
+      description = "Branch list returned successfully",
       content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
   )
   public ResponseEntity<BranchListResponse> listBranches(
-      @Parameter(description = "Dataset name")
+      @Parameter(description = "Dataset name", example = "default")
       @RequestParam(defaultValue = "default") String dataset
   ) {
     List<BranchInfo> branches = branchService.listBranches(dataset);
@@ -140,9 +144,11 @@ public class BranchController {
   )
   public ResponseEntity<?> createBranch(
       @RequestBody CreateBranchRequest request,
-      @Parameter(description = "Dataset name")
+      @Parameter(description = "Dataset name", example = "default")
       @RequestParam(defaultValue = "default") String dataset,
-      @Parameter(description = "Author of the branch creation")
+      @Parameter(
+          description = "Author of the branch creation",
+          example = "John Doe <john@example.org>")
       @RequestHeader(name = "SPARQL-VC-Author", required = false) String author
   ) {
     // Validate request
@@ -216,10 +222,14 @@ public class BranchController {
    * @return branch information
    */
   @GetMapping(value = "/{name}", produces = MediaType.APPLICATION_JSON_VALUE)
-  @Operation(summary = "Get branch", description = "Get branch information")
+  @Operation(
+      summary = "Get branch",
+      description = "Returns metadata for a specific branch including HEAD commit ID, "
+          + "protection status, and timestamps"
+  )
   @ApiResponse(
       responseCode = "200",
-      description = "Branch info",
+      description = "Branch details returned successfully",
       headers = @Header(
           name = "ETag",
           description = "Head commit id (strong ETag)",
@@ -229,13 +239,13 @@ public class BranchController {
   )
   @ApiResponse(
       responseCode = "404",
-      description = "Branch not found",
+      description = "Branch or dataset not found",
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<?> getBranch(
-      @Parameter(description = "Branch name", required = true)
+      @Parameter(description = "Branch name", example = "main", required = true)
       @PathVariable String name,
-      @Parameter(description = "Dataset name")
+      @Parameter(description = "Dataset name", example = "default")
       @RequestParam(defaultValue = "default") String dataset
   ) {
     return branchService.getBranchInfo(dataset, name)
@@ -277,11 +287,13 @@ public class BranchController {
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<Void> deleteBranch(
-      @Parameter(description = "Branch name", required = true)
+      @Parameter(description = "Branch name", example = "feature-branch", required = true)
       @PathVariable String name,
-      @Parameter(description = "Dataset name")
+      @Parameter(description = "Dataset name", example = "default")
       @RequestParam(defaultValue = "default") String dataset,
-      @Parameter(description = "Author of the deletion operation")
+      @Parameter(
+          description = "Author of the deletion operation",
+          example = "John Doe <john@example.org>")
       @RequestHeader(value = "X-Author", defaultValue = "anonymous") String author
   ) {
     // Create command

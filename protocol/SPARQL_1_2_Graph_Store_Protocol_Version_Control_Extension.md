@@ -103,7 +103,35 @@ All version control operations defined in the Protocol extension are **shared** 
   ```
 
 ## L. Security Considerations
-Match Protocol §11. Additionally, ensure graph IRIs are validated/authorized per tenant/policy; avoid open redirect-like misuse via `graph` parameters.
+
+### L.1 General Security
+Match Protocol §12.1. Additionally, ensure graph IRIs are validated/authorized per tenant/policy; avoid open redirect-like misuse via `graph` parameters.
+
+### L.2 Naming Security
+**Identifier validation** is critical to prevent security vulnerabilities:
+
+1. **Path Traversal Prevention**: The character set FORBIDS forward slash `/` and parent directory references `..`, preventing attacks like `/../../../etc/passwd`.
+
+2. **URL Injection Prevention**: Reserved characters (`?`, `#`, `@`, `:`) are forbidden to prevent query injection, fragment injection, and authority hijacking.
+
+3. **Unicode Security**: Unicode NFC normalization is REQUIRED to prevent homograph attacks (e.g., Latin 'a' vs. Cyrillic 'а' U+0430).
+
+4. **Git Notation Conflicts**: Characters with special Git meaning (`^`, `~`, `@{`) are forbidden to prevent confusion with Git reflog/ancestry notation.
+
+5. **Kafka Topic Security**: Dataset names must comply with Kafka topic naming rules (max 249 characters, no `/\, \0\n\r\t`). Names starting with `_` SHOULD be rejected (reserved for internal topics).
+
+**Servers MUST:**
+- Validate identifiers AFTER URL decoding (prevent double-encoding attacks)
+- Reject identifiers not in Unicode NFC form
+- Reject reserved names (`.`, `..`)
+- Enforce maximum length limits
+
+**Clients MUST:**
+- Normalize identifiers to Unicode NFC before sending
+- Use only allowed characters (`[A-Za-z0-9._-]`)
+- NOT percent-encode identifiers (they consist only of unreserved characters)
+
+**For detailed security analysis, see:** `protocol/NAMING_CONVENTIONS.md` and `docs/architecture/naming-conventions-analysis.md`
 
 ## M. IANA Considerations
 Same as Protocol §12.
@@ -124,12 +152,124 @@ This enables workflows like:
 
 ## O. ABNF (normative snippets)
 ```
-iri          = URI-reference        ; per RFC 3986/3987
-selector     = ( "branch=" branch ) / ( "commit=" commit-id ) / ( "asOf=" date-time )
-param-def    = "default=" ( "true" / "false" )
+iri             = URI-reference        ; per RFC 3986/3987
+selector        = ( "branch=" branch-name ) / ( "commit=" commit-id ) / ( "asOf=" date-time )
+param-def       = "default=" ( "true" / "false" )
+
+commit-id       = 8HEXDIG "-" 4HEXDIG "-" 4HEXDIG "-" 4HEXDIG "-" 12HEXDIG
+                ; Servers MUST validate the version nibble = 7 for commit IDs
+
+dataset-name    = 1*249identifier-char
+                ; Maximum 249 characters (Kafka topic name limit)
+                ; Cannot be "." or ".."
+                ; SHOULD NOT start with "_" (reserved for internal Kafka topics)
+
+branch-name     = 1*255identifier-char
+                ; Maximum 255 characters (recommended)
+                ; Cannot be "." or ".."
+                ; SHOULD NOT start or end with "."
+                ; SHOULD NOT start with "_" (reserved for internal use)
+
+tag-name        = 1*255identifier-char
+                ; Maximum 255 characters (recommended)
+                ; Cannot be "." or ".."
+                ; SHOULD NOT start or end with "."
+                ; SHOULD NOT start with "_" (reserved for internal use)
+                ; Tags are immutable once created
+
+identifier-char = ALPHA / DIGIT / "." / "_" / "-"
+ALPHA           = %x41-5A / %x61-7A   ; A-Z / a-z (case-sensitive)
+DIGIT           = %x30-39             ; 0-9
 ```
 
-## P. Examples
+**Additional constraints (all identifier types):**
+- Unicode NFC normalization REQUIRED
+- Case-sensitive (preserve user input)
+- Forward slash `/` is FORBIDDEN (prevents URL routing ambiguity in semantic routing)
+
+**Rationale:**
+- Dataset names map to Kafka topics: `vc.{dataset}.events`
+- Identifiers become URL path segments: `/{dataset}/version/branches/{branch}/data`
+- Character set consists only of RFC 3986 "unreserved characters" (no percent-encoding needed)
+- Restrictions prevent path traversal, injection attacks, and Git notation conflicts
+
+**For detailed naming conventions, see:** `protocol/NAMING_CONVENTIONS.md`
+
+**Note:** These definitions are shared with the SPARQL 1.2 Protocol – Version Control Extension.
+
+## P. URL Encoding and Semantic Routing
+
+### P.1 Identifier Encoding in URLs
+
+Dataset names, branch names, tag names, and commit IDs appear as **path segments** in versioned URIs according to the semantic routing pattern:
+
+```
+/{dataset}/version/branches/{branch}/data?graph={iri}
+/{dataset}/version/commits/{commitId}/data?default
+/{dataset}/version/tags/{tag}/data?graph={iri}
+```
+
+### P.2 Encoding Requirements
+
+1. **Identifiers** (datasets, branches, tags) use a restricted character set (`[A-Za-z0-9._-]`) that consists **only of RFC 3986 unreserved characters**. These characters require **no percent-encoding** when used in URL path segments.
+
+2. **Commit IDs** (UUIDv7 format) consist only of hexadecimal digits and hyphens, which also require no encoding.
+
+3. **Graph IRIs** in query parameters (`?graph={iri}`) MUST be percent-encoded according to RFC 3986 rules.
+
+4. **Clients MUST NOT percent-encode identifiers** (dataset, branch, tag, commit) when constructing URLs, as this would result in incorrect resource references.
+
+5. **Servers MUST validate identifiers AFTER URL decoding** to prevent double-encoding attacks.
+
+### P.3 Examples
+
+**Correct (identifiers not encoded, graph IRI encoded):**
+```http
+GET /mydata/version/branches/feature-login/data?graph=http%3A%2F%2Fexample.org%2Femployees
+GET /mydata/version/branches/release.v2/data?default
+GET /mydata/version/tags/v1.0.0/data?graph=http%3A%2F%2Fexample.org%2Fmetadata
+```
+
+**Incorrect (identifiers needlessly encoded):**
+```http
+GET /mydata/version/branches/feature%2Dlogin/data?graph=...       # Wrong
+GET /mydata/version/branches/release%2Ev2/data?default            # Wrong
+```
+
+### P.4 Rationale for Restricted Character Set
+
+The forbidden forward slash (`/`) would create URL ambiguity:
+
+```
+# If branch name were "feature/login" (with slash):
+GET /mydata/version/branches/feature/login/data?graph=...
+                             └─────┬─────┘
+                    Is this one path variable or two?
+
+# URL routing sees:
+/{dataset}/version/branches/{var1}/{var2}/data  # Ambiguous!
+
+# Would require percent-encoding:
+GET /mydata/version/branches/feature%2Flogin/data?graph=...  # Not human-readable
+```
+
+**Solution:** Use alternative separators for hierarchy:
+- Dot notation: `feature.login` (like Java packages)
+- Hyphen notation: `feature-login`
+- Underscore notation: `feature_login`
+
+### P.5 Security Note
+
+The restricted character set prevents common URL-based attacks including:
+- Path traversal (`../../../etc/passwd`)
+- Null byte injection (`admin%00.txt`)
+- Query injection (`branch?query=...`)
+- Fragment injection (`branch#fragment`)
+- Double-encoding attacks (`%252F` → `%2F` → `/`)
+
+**For complete URL encoding guidelines, see:** SPARQL 1.2 Protocol – Version Control Extension §15.
+
+## Q. Examples
 
 ### Example 1: Retrieve Graph at Branch Head
 ```http

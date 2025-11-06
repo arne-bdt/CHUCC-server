@@ -27,62 +27,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### 🔵 Low Priority (Technical Debt)
 
-#### 3. ✅ Fix Integration Test Isolation Issues - COMPLETED
-**File:** [`.tasks/architecture/03-fix-integration-test-isolation.md`](./architecture/03-fix-integration-test-isolation.md)
-
-**Status:** ✅ COMPLETED (2025-11-06)
-**Category:** Test Architecture
-**Actual Time:** 4 hours
-
-**Completed:**
-- ✅ RebaseIT and SquashIT now extend ITFixture
-- ✅ Unique dataset names per test run (`rebase-test-<nanotime>`, `squash-test-<nanotime>`)
-- ✅ Event-driven branch creation via `createBranchViaCommand()`
-- ✅ Removed static dataset names and duplicate Kafka configuration
-- ✅ Proper test isolation with CLEANUP_LOCK synchronization
-- ✅ Enhanced ITFixture with `createBranchViaCommand()` helper
-- ✅ Comprehensive documentation in test class JavaDoc
-
-**Agent Validation:**
-- test-isolation-validator: ✅ PASS - Tests properly isolated, no changes recommended
-- cqrs-compliance-checker: ⚠️ Partial compliance (identified CreateBranchCommandHandler issue as pre-existing)
-
-**Files Modified:**
-- `src/test/java/org/chucc/vcserver/integration/RebaseIT.java`
-- `src/test/java/org/chucc/vcserver/integration/SquashIT.java`
-- `src/test/java/org/chucc/vcserver/testutil/ITFixture.java`
-- `.tasks/architecture/03-fix-integration-test-isolation.md` (updated with rock-solid approach)
-
-**Follow-Up Identified:**
-- CreateBranchCommandHandler lacks write-through pattern (pre-existing issue, affects all tests)
-- Needs documentation of mixed test patterns in CLAUDE.md
-- See task #5 below
-
----
-
-#### 4. ✅ Refactor Squash/Rebase Handlers to Pure CQRS - COMPLETED
-**File:** [`.tasks/architecture/02-refactor-squash-rebase-to-pure-cqrs.md`](./architecture/02-refactor-squash-rebase-to-pure-cqrs.md)
-
-**Problem:**
-- `SquashCommandHandler` and `RebaseCommandHandler` write directly to repository
-- Violates CQRS pattern (dual-write, no event replay)
-- Breaks eventual consistency promise
-
-**Solution:**
-- Enrich events with full commit data (patch, patchSize, parents)
-- Remove repository writes from command handlers
-- Let projector handle all repository updates
-
-**Status:** ✅ COMPLETED (2025-11-06)
-**Estimated Time:** 8-12 hours
-**Category:** Architectural Refactoring
-**Complexity:** High
-
-**Note:** Events now contain full commit data. Command handlers no longer write to repositories.
-
----
-
-#### 5. Fix CreateBranchCommandHandler Write-Through Pattern
+#### 1. Fix CreateBranchCommandHandler Write-Through Pattern
 **File:** TBD
 
 **Problem:**
@@ -157,24 +102,26 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 **Feature Tasks:** ✅ ALL COMPLETED
 
-**Architecture/Technical Debt:** 1 task (optional improvement - 8-12 hours)
+**Architecture/Technical Debt:** 1 task (optional improvement - 2-3 hours)
 
 **Total Endpoints Remaining:** 0 endpoints (all implemented!)
 **Total Estimated Time:**
 - Protocol Endpoints: ✅ COMPLETED
-- Technical Debt: 8-12 hours (optional)
+- Technical Debt: 2-3 hours (optional - CreateBranchCommandHandler write-through pattern)
 
 **Priority Breakdown:**
 - 🟡 Medium Priority: ✅ COMPLETED
-- 🔵 Low Priority: 1 task (Squash/Rebase refactoring - optional)
+- 🔵 Low Priority: 1 task (CreateBranchCommandHandler write-through - optional)
 
-**Current Status:** All infrastructure and schema evolution tasks completed (100%)
+**Current Status:** All feature tasks and major architecture refactoring completed (100%)
 - ✅ CommitCreatedEvent patchSize (completed 2025-01-24)
 - ✅ Revert/CherryPick patchSize (completed 2025-01-25)
 - ✅ Commit Metadata API (completed 2025-01-25)
 - ✅ Branch Management API (completed 2025-10-24)
 - ✅ Tag Management API (completed 2025-10-25)
 - ✅ Dataset Management + Kafka Integration (completed 2025-10-26)
+- ✅ Squash/Rebase Pure CQRS Refactoring (completed 2025-11-06)
+- ✅ Integration Test Isolation (completed 2025-11-06)
 
 ---
 
@@ -239,13 +186,16 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ### Architecture/Technical Debt (Optional)
 
-This task improves CQRS compliance but is not required for feature completeness:
+This remaining task improves consistency across command handlers:
 
-**Refactor Squash/Rebase to Pure CQRS** (8-12 hours)
-   - High complexity, significant refactoring
-   - Fixes dual-write pattern and event replay
-   - Enables proper eventual consistency testing
-   - **Recommended:** Defer until production deployment is planned
+**✅ Refactor Squash/Rebase to Pure CQRS** - COMPLETED (2025-11-06)
+
+**Fix CreateBranchCommandHandler Write-Through Pattern** (2-3 hours)
+   - Medium complexity, targeted fix
+   - Adds write-through pattern to CreateBranchCommandHandler
+   - Makes projector idempotent for BranchCreatedEvent
+   - Improves consistency with CreateDatasetCommandHandler
+   - **Recommended:** Optional improvement, not critical for production
 
 ---
 
@@ -444,6 +394,71 @@ All tasks implement endpoints from:
 - CQRS Compliance: ✅ FULLY COMPLIANT
 - Test Isolation: ✅ VIOLATIONS FIXED (projector enablement removed)
 - Documentation Sync: Multiple docs identified for update
+
+---
+
+### ✅ Architecture Refactoring - Pure CQRS (Completed 2025-11-06)
+
+#### Refactor Squash/Rebase Handlers to Pure CQRS
+**Status:** ✅ COMPLETED (2025-11-06)
+**Category:** Architectural Refactoring
+**Estimated Time:** 8-12 hours
+**Complexity:** High
+
+**Problem:**
+- `SquashCommandHandler` and `RebaseCommandHandler` wrote directly to repository
+- Violated CQRS pattern (dual-write, no event replay)
+- Broke eventual consistency promise
+
+**Solution:**
+- Enriched events with full commit data (patch, patchSize, parents)
+- Removed repository writes from command handlers
+- Let projector handle all repository updates
+
+**Files Modified:**
+- `src/main/java/org/chucc/vcserver/event/CommitsSquashedEvent.java`
+- `src/main/java/org/chucc/vcserver/event/BranchRebasedEvent.java`
+- `src/main/java/org/chucc/vcserver/command/SquashCommandHandler.java`
+- `src/main/java/org/chucc/vcserver/command/RebaseCommandHandler.java`
+- `src/main/java/org/chucc/vcserver/projection/ReadModelProjector.java`
+- 20+ test files for event schema updates
+
+**Note:** Events now contain full commit data. Command handlers no longer write to repositories.
+
+---
+
+### ✅ Integration Test Isolation (Completed 2025-11-06)
+
+#### Fix RebaseIT and SquashIT Test Isolation
+**Status:** ✅ COMPLETED (2025-11-06)
+**Category:** Test Architecture
+**Actual Time:** 4 hours
+
+**Problem:**
+- RebaseIT and SquashIT used direct repository writes in setup
+- Violated CQRS/Event Sourcing pattern
+- Failed when run in full test suite due to cross-test contamination
+- Used static dataset names causing Kafka topic conflicts
+
+**Solution:**
+- Extended ITFixture for cleanup synchronization
+- Implemented unique dataset names per test run (`rebase-test-<nanotime>`, `squash-test-<nanotime>`)
+- Event-driven setup via `createBranchViaCommand()` helper
+- Removed all direct repository writes
+- Proper test isolation with CLEANUP_LOCK synchronization
+
+**Files Modified:**
+- `src/test/java/org/chucc/vcserver/integration/RebaseIT.java`
+- `src/test/java/org/chucc/vcserver/integration/SquashIT.java`
+- `src/test/java/org/chucc/vcserver/testutil/ITFixture.java`
+
+**Agent Validation:**
+- test-isolation-validator: ✅ PASS - Tests properly isolated, no changes recommended
+- cqrs-compliance-checker: ⚠️ Partial compliance (identified CreateBranchCommandHandler issue as pre-existing)
+
+**Follow-Up:**
+- Identified CreateBranchCommandHandler lacks write-through pattern (pre-existing issue)
+- See remaining task #1: Fix CreateBranchCommandHandler Write-Through Pattern
 
 ---
 
@@ -884,5 +899,5 @@ When a task is completed:
 
 ---
 
-**Last Updated:** 2025-11-03
-**Next Review:** All feature tasks completed! 🎉
+**Last Updated:** 2025-11-06
+**Next Review:** All feature tasks and major architecture refactoring completed! 🎉

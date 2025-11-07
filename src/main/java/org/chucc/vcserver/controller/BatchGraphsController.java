@@ -24,10 +24,10 @@ import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.service.SelectorResolutionService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Implements /version/batch-graphs endpoint for atomic batch updates.
  */
 @RestController
-@RequestMapping("/version")
+@RequestMapping("/{dataset}/version")
 @Tag(name = "Batch Operations",
     description = "Batch graph operations for atomic multi-graph updates")
 public class BatchGraphsController {
@@ -101,8 +101,8 @@ public class BatchGraphsController {
       }
   )
   public ResponseEntity<String> executeBatch(
-      @Parameter(description = "Dataset name")
-      @RequestParam(defaultValue = "default") String dataset,
+      @Parameter(description = "Dataset name", required = true)
+      @PathVariable String dataset,
       @RequestBody BatchGraphsRequest request)
       throws JsonProcessingException {
     // Validate request

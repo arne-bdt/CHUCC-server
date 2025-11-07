@@ -62,7 +62,7 @@ class BatchGraphsIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/batch-graphs",
+        "/default/version/batch-graphs",
         HttpMethod.POST,
         request,
         String.class
@@ -117,7 +117,7 @@ class BatchGraphsIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/batch-graphs",
+        "/default/version/batch-graphs",
         HttpMethod.POST,
         request,
         String.class
@@ -162,7 +162,7 @@ class BatchGraphsIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/batch-graphs",
+        "/default/version/batch-graphs",
         HttpMethod.POST,
         request,
         String.class
@@ -198,7 +198,7 @@ class BatchGraphsIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/batch-graphs",
+        "/default/version/batch-graphs",
         HttpMethod.POST,
         request,
         String.class
@@ -257,7 +257,7 @@ class BatchGraphsIT extends ITFixture {
     HttpEntity<String> request = new HttpEntity<>(batchRequest, headers2);
 
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/batch-graphs",
+        "/default/version/batch-graphs",
         HttpMethod.POST,
         request,
         String.class

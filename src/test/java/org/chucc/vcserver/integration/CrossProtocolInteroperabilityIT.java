@@ -292,7 +292,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
     );
 
     ResponseEntity<String> protocolResponse = restTemplate.exchange(
-        "/version/batch",
+        "/default/version/batch",
         HttpMethod.POST,
         protocolRequest,
         String.class
@@ -309,7 +309,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
     HttpEntity<String> gspRequest = new HttpEntity<>("{}", gspHeaders);
 
     ResponseEntity<String> gspResponse = restTemplate.exchange(
-        "/version/batch-graphs",
+        "/default/version/batch-graphs",
         HttpMethod.POST,
         gspRequest,
         String.class

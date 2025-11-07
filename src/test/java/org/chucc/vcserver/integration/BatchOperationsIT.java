@@ -76,7 +76,7 @@ public class BatchOperationsIT extends ITFixture {
     // When
     @SuppressWarnings("rawtypes")
     ResponseEntity<Map> response = restTemplate.exchange(
-        "/version/batch?dataset=default",
+        "/default/version/batch",
         HttpMethod.POST,
         httpRequest,
         Map.class
@@ -112,7 +112,7 @@ public class BatchOperationsIT extends ITFixture {
     // When
     @SuppressWarnings("rawtypes")
     ResponseEntity<Map> response = restTemplate.exchange(
-        "/version/batch?dataset=default",
+        "/default/version/batch",
         HttpMethod.POST,
         httpRequest,
         Map.class
@@ -145,7 +145,7 @@ public class BatchOperationsIT extends ITFixture {
     // When
     @SuppressWarnings("rawtypes")
     ResponseEntity<Map> response = restTemplate.exchange(
-        "/version/batch?dataset=default",
+        "/default/version/batch",
         HttpMethod.POST,
         httpRequest,
         Map.class
@@ -178,7 +178,7 @@ public class BatchOperationsIT extends ITFixture {
     // When
     @SuppressWarnings("rawtypes")
     ResponseEntity<Map> response = restTemplate.exchange(
-        "/version/batch?dataset=default",
+        "/default/version/batch",
         HttpMethod.POST,
         httpRequest,
         Map.class
@@ -211,7 +211,7 @@ public class BatchOperationsIT extends ITFixture {
     // When
     @SuppressWarnings("rawtypes")
     ResponseEntity<Map> response = restTemplate.exchange(
-        "/version/batch?dataset=default",
+        "/default/version/batch",
         HttpMethod.POST,
         httpRequest,
         Map.class
@@ -244,7 +244,7 @@ public class BatchOperationsIT extends ITFixture {
     // When
     @SuppressWarnings("rawtypes")
     ResponseEntity<Map> response = restTemplate.exchange(
-        "/version/batch?dataset=default",
+        "/default/version/batch",
         HttpMethod.POST,
         httpRequest,
         Map.class
@@ -277,7 +277,7 @@ public class BatchOperationsIT extends ITFixture {
     // When
     @SuppressWarnings("rawtypes")
     ResponseEntity<Map> response = restTemplate.exchange(
-        "/version/batch?dataset=default",
+        "/default/version/batch",
         HttpMethod.POST,
         httpRequest,
         Map.class

@@ -16,11 +16,11 @@ import org.chucc.vcserver.service.BatchOperationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * This is useful for bulk operations and data migrations where you want cleaner history.
  */
 @RestController
-@RequestMapping("/version/batch")
+@RequestMapping("/{dataset}/version/batch")
 @Tag(name = "Version Control", description = "Batch update operations")
 public class BatchController {
 
@@ -88,7 +88,7 @@ public class BatchController {
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<BatchWriteResponse> executeBatch(
-      @RequestParam String dataset,
+      @PathVariable String dataset,
       @RequestHeader(value = "SPARQL-VC-Author", required = true) String author,
       @RequestHeader(value = "SPARQL-VC-Message", required = true) String message,
       @RequestBody @Valid BatchWriteRequest request) {
@@ -133,7 +133,7 @@ public class BatchController {
 
       return ResponseEntity
           .status(HttpStatus.ACCEPTED)
-          .header("Location", "/version/commits/" + event.commitId())
+          .header("Location", "/" + dataset + "/version/commits/" + event.commitId())
           .header("SPARQL-VC-Status", "pending")
           .body(response);
 

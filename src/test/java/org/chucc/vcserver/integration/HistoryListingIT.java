@@ -340,15 +340,15 @@ class HistoryListingIT {
   }
 
   @Test
-  void listHistory_missingDatasetParameter_shouldReturn400() {
-    // When: Call without dataset parameter
+  void listHistory_withDatasetInPath_shouldWork() {
+    // When: Call with dataset in path (new pattern)
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/history",
+        "/" + DATASET_NAME + "/version/history",
         String.class
     );
 
-    // Then: Should return 400 Bad Request
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    // Then: Should return 200 OK (dataset is now required in path)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
   }
 
   @Test

@@ -53,7 +53,7 @@ class DiffEndpointIT extends ITFixture {
 
     // When: Request diff from commit1 to commit2
     String url = String.format(
-        "/version/diff?dataset=%s&from=%s&to=%s",
+        "/%s/version/diff?from=%s&to=%s",
         dataset, commit1.value(), commit2.value()
     );
     ResponseEntity<String> response = restTemplate.exchange(
@@ -108,7 +108,7 @@ class DiffEndpointIT extends ITFixture {
 
     // When: Request diff from commit1 to commit2
     String url = String.format(
-        "/version/diff?dataset=%s&from=%s&to=%s",
+        "/%s/version/diff?from=%s&to=%s",
         dataset, commit1.value(), commit2.value()
     );
     ResponseEntity<String> response = restTemplate.exchange(
@@ -138,7 +138,7 @@ class DiffEndpointIT extends ITFixture {
 
     // When: Request diff from commit to itself
     String url = String.format(
-        "/version/diff?dataset=%s&from=%s&to=%s",
+        "/%s/version/diff?from=%s&to=%s",
         dataset, commit1.value(), commit1.value()
     );
     ResponseEntity<String> response = restTemplate.exchange(
@@ -158,12 +158,21 @@ class DiffEndpointIT extends ITFixture {
   }
 
   @Test
-  void diffCommits_missingDatasetParameter_shouldReturn400() {
-    // When: Call without dataset parameter
-    CommitId dummyId = CommitId.generate();
+  void diffCommits_withDatasetInPath_shouldWork() {
+    // Given: Dataset in path (now required)
+    String dataset = "test-diff-path";
+    CommitId commit1 = createCommit(
+        dataset,
+        List.of(),
+        "Alice <alice@example.org>",
+        "Initial commit",
+        createSimplePatch("http://ex.org/s1", "http://ex.org/p1", "value1")
+    );
+
+    // When: Call with dataset in path
     String url = String.format(
-        "/version/diff?from=%s&to=%s",
-        dummyId.value(), dummyId.value()
+        "/%s/version/diff?from=%s&to=%s",
+        dataset, commit1.value(), commit1.value()
     );
     ResponseEntity<String> response = restTemplate.exchange(
         url,
@@ -172,8 +181,8 @@ class DiffEndpointIT extends ITFixture {
         String.class
     );
 
-    // Then: Should return 400 Bad Request
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    // Then: Should return 200 OK (diff from same commit to itself)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
   }
 
   @Test
@@ -181,7 +190,7 @@ class DiffEndpointIT extends ITFixture {
     // When: Call without from parameter
     CommitId dummyId = CommitId.generate();
     String url = String.format(
-        "/version/diff?dataset=test&to=%s",
+        "/test/version/diff?to=%s",
         dummyId.value()
     );
     ResponseEntity<String> response = restTemplate.exchange(
@@ -200,7 +209,7 @@ class DiffEndpointIT extends ITFixture {
     // When: Call without to parameter
     CommitId dummyId = CommitId.generate();
     String url = String.format(
-        "/version/diff?dataset=test&from=%s",
+        "/test/version/diff?from=%s",
         dummyId.value()
     );
     ResponseEntity<String> response = restTemplate.exchange(
@@ -229,7 +238,7 @@ class DiffEndpointIT extends ITFixture {
     // When: Request diff with non-existent 'from' commit
     CommitId nonExistent = CommitId.generate();
     String url = String.format(
-        "/version/diff?dataset=%s&from=%s&to=%s",
+        "/%s/version/diff?from=%s&to=%s",
         dataset, nonExistent.value(), validCommit.value()
     );
     ResponseEntity<String> response = restTemplate.exchange(
@@ -258,7 +267,7 @@ class DiffEndpointIT extends ITFixture {
     // When: Request diff with non-existent 'to' commit
     CommitId nonExistent = CommitId.generate();
     String url = String.format(
-        "/version/diff?dataset=%s&from=%s&to=%s",
+        "/%s/version/diff?from=%s&to=%s",
         dataset, validCommit.value(), nonExistent.value()
     );
     ResponseEntity<String> response = restTemplate.exchange(
@@ -275,7 +284,7 @@ class DiffEndpointIT extends ITFixture {
   @Test
   void diffCommits_invalidFromCommitId_shouldReturn400() {
     // When: Request diff with invalid commit ID format
-    String url = "/version/diff?dataset=test&from=invalid-id&to=another-invalid-id";
+    String url = "/test/version/diff?from=invalid-id&to=another-invalid-id";
     ResponseEntity<String> response = restTemplate.exchange(
         url,
         HttpMethod.GET,
@@ -312,11 +321,11 @@ class DiffEndpointIT extends ITFixture {
 
     // When: Request diff in both directions
     String forwardUrl = String.format(
-        "/version/diff?dataset=%s&from=%s&to=%s",
+        "/%s/version/diff?from=%s&to=%s",
         dataset, commit1.value(), commit2.value()
     );
     String reverseUrl = String.format(
-        "/version/diff?dataset=%s&from=%s&to=%s",
+        "/%s/version/diff?from=%s&to=%s",
         dataset, commit2.value(), commit1.value()
     );
 
@@ -365,7 +374,7 @@ class DiffEndpointIT extends ITFixture {
 
       // When: Request diff endpoint
       String url = String.format(
-          "/version/diff?dataset=test&from=%s&to=%s",
+          "/test/version/diff?from=%s&to=%s",
           commit1.value(), commit2.value()
       );
       ResponseEntity<String> response = restTemplate.exchange(

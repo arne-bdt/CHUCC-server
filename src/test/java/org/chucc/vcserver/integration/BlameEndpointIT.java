@@ -72,7 +72,7 @@ class BlameEndpointIT extends ITFixture {
 
     // When: Blame graph at commit2
     String url = String.format(
-        "/version/blame?dataset=%s&commit=%s&graph=%s",
+        "/%s/version/blame?commit=%s&graph=%s",
         dataset, commit2.value(), graph
     );
     ResponseEntity<BlameResponse> response = restTemplate.exchange(
@@ -152,7 +152,7 @@ class BlameEndpointIT extends ITFixture {
 
     // When: Blame at commit3
     String url = String.format(
-        "/version/blame?dataset=%s&commit=%s&graph=%s",
+        "/%s/version/blame?commit=%s&graph=%s",
         dataset, commit3.value(), graph
     );
     ResponseEntity<BlameResponse> response = restTemplate.exchange(
@@ -208,7 +208,7 @@ class BlameEndpointIT extends ITFixture {
 
     // When: Blame graph1
     String url1 = String.format(
-        "/version/blame?dataset=%s&commit=%s&graph=%s",
+        "/%s/version/blame?commit=%s&graph=%s",
         dataset, commit2.value(), graph1
     );
     ResponseEntity<BlameResponse> response1 = restTemplate.exchange(
@@ -227,7 +227,7 @@ class BlameEndpointIT extends ITFixture {
 
     // When: Blame graph2
     String url2 = String.format(
-        "/version/blame?dataset=%s&commit=%s&graph=%s",
+        "/%s/version/blame?commit=%s&graph=%s",
         dataset, commit2.value(), graph2
     );
     ResponseEntity<BlameResponse> response2 = restTemplate.exchange(
@@ -271,7 +271,7 @@ class BlameEndpointIT extends ITFixture {
 
     // When: Request first page (offset=0, limit=100)
     String url1 = String.format(
-        "/version/blame?dataset=%s&commit=%s&graph=%s&offset=0&limit=100",
+        "/%s/version/blame?commit=%s&graph=%s&offset=0&limit=100",
         dataset, commit1.value(), graph
     );
     ResponseEntity<BlameResponse> response1 = restTemplate.exchange(
@@ -291,7 +291,7 @@ class BlameEndpointIT extends ITFixture {
 
     // When: Request second page (offset=100, limit=100)
     String url2 = String.format(
-        "/version/blame?dataset=%s&commit=%s&graph=%s&offset=100&limit=100",
+        "/%s/version/blame?commit=%s&graph=%s&offset=100&limit=100",
         dataset, commit1.value(), graph
     );
     ResponseEntity<BlameResponse> response2 = restTemplate.exchange(
@@ -335,7 +335,7 @@ class BlameEndpointIT extends ITFixture {
 
     // When: Request first page
     String url = String.format(
-        "/version/blame?dataset=%s&commit=%s&graph=%s&offset=0&limit=100",
+        "/%s/version/blame?commit=%s&graph=%s&offset=0&limit=100",
         dataset, commit1.value(), graph
     );
     ResponseEntity<BlameResponse> response = restTemplate.exchange(
@@ -379,7 +379,7 @@ class BlameEndpointIT extends ITFixture {
 
     // When: Blame default graph using canonical URI
     String url = String.format(
-        "/version/blame?dataset=%s&commit=%s&graph=urn:x-arq:DefaultGraph",
+        "/%s/version/blame?commit=%s&graph=urn:x-arq:DefaultGraph",
         dataset, commit1.value()
     );
     ResponseEntity<BlameResponse> response = restTemplate.exchange(
@@ -420,7 +420,7 @@ class BlameEndpointIT extends ITFixture {
 
     // When: Request without graph parameter
     String url = String.format(
-        "/version/blame?dataset=%s&commit=%s",
+        "/%s/version/blame?commit=%s",
         dataset, commit1.value()
     );
     ResponseEntity<String> response = restTemplate.exchange(
@@ -455,7 +455,7 @@ class BlameEndpointIT extends ITFixture {
 
     // When: Request blame for non-existent graph
     String url = String.format(
-        "/version/blame?dataset=%s&commit=%s&graph=%s",
+        "/%s/version/blame?commit=%s&graph=%s",
         dataset, commit1.value(), graph2
     );
     ResponseEntity<String> response = restTemplate.exchange(
@@ -489,7 +489,7 @@ class BlameEndpointIT extends ITFixture {
 
     // When: Request with limit > 1000
     String url = String.format(
-        "/version/blame?dataset=%s&commit=%s&graph=%s&limit=1001",
+        "/%s/version/blame?commit=%s&graph=%s&limit=1001",
         dataset, commit1.value(), graph
     );
     ResponseEntity<String> response = restTemplate.exchange(
@@ -506,7 +506,7 @@ class BlameEndpointIT extends ITFixture {
   @Test
   void blameGraph_commitNotFound_shouldReturn404() {
     // When: Request with non-existent commit
-    String url = "/version/blame?dataset=test&commit=01933e4a-0000-7000-8000-000000000000"
+    String url = "/test/version/blame?commit=01933e4a-0000-7000-8000-000000000000"
         + "&graph=http://example.org/data";
     ResponseEntity<String> response = restTemplate.exchange(
         url,

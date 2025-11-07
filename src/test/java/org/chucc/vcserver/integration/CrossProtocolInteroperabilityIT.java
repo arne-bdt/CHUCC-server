@@ -70,7 +70,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
   void versionHistoryEndpoint_shouldExist() throws Exception {
     // When - Query Protocol's /version/history endpoint
     ResponseEntity<String> historyResponse = restTemplate.getForEntity(
-        "/version/history?dataset=default&branch=main",
+        "/default/version/history?branch=main",
         String.class
     );
 
@@ -135,8 +135,9 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
     String location = putResponse.getHeaders().getFirst("Location");
 
     // When - Retrieve commit metadata via Protocol endpoint
+    // Dataset now in path, no query parameter needed
     ResponseEntity<String> commitResponse = restTemplate.getForEntity(
-        location + "?dataset=default",
+        location,
         String.class
     );
 
@@ -508,8 +509,9 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
         .substring("/default/version/commits/".length());
 
     // When - Retrieve via /version/commits/{id}
+    // Dataset now in path, no query parameter needed
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/default/version/commits/" + commitId + "?dataset=default",
+        "/default/version/commits/" + commitId,
         String.class
     );
 

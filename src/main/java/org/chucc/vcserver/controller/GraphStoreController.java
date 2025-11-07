@@ -471,7 +471,8 @@ public class GraphStoreController {
     // Handle successful commit creation
     if (event instanceof org.chucc.vcserver.event.CommitCreatedEvent commitEvent) {
       HttpHeaders headers = new HttpHeaders();
-      headers.set(HttpHeaders.LOCATION, "/version/commits/" + commitEvent.commitId());
+      headers.set(HttpHeaders.LOCATION,
+          "/" + dataset + "/version/commits/" + commitEvent.commitId());
       headers.setETag("\"" + commitEvent.commitId() + "\"");
       headers.set("SPARQL-Version-Control", "true");
       headers.set("SPARQL-VC-Status", "pending");
@@ -644,7 +645,8 @@ public class GraphStoreController {
     // Handle successful commit creation
     if (event instanceof org.chucc.vcserver.event.CommitCreatedEvent commitEvent) {
       HttpHeaders headers = new HttpHeaders();
-      headers.set(HttpHeaders.LOCATION, "/version/commits/" + commitEvent.commitId());
+      headers.set(HttpHeaders.LOCATION,
+          "/" + dataset + "/version/commits/" + commitEvent.commitId());
       headers.setETag("\"" + commitEvent.commitId() + "\"");
       headers.set("SPARQL-Version-Control", "true");
       headers.set("SPARQL-VC-Status", "pending");
@@ -793,7 +795,8 @@ public class GraphStoreController {
     // Handle successful commit creation
     if (event instanceof org.chucc.vcserver.event.CommitCreatedEvent commitEvent) {
       HttpHeaders headers = new HttpHeaders();
-      headers.set(HttpHeaders.LOCATION, "/version/commits/" + commitEvent.commitId());
+      headers.set(HttpHeaders.LOCATION,
+          "/" + dataset + "/version/commits/" + commitEvent.commitId());
       headers.setETag("\"" + commitEvent.commitId() + "\"");
       headers.set("SPARQL-Version-Control", "true");
       headers.set("SPARQL-VC-Status", "pending");
@@ -958,7 +961,8 @@ public class GraphStoreController {
     // Handle successful commit creation
     if (event instanceof org.chucc.vcserver.event.CommitCreatedEvent commitEvent) {
       HttpHeaders headers = new HttpHeaders();
-      headers.set(HttpHeaders.LOCATION, "/version/commits/" + commitEvent.commitId());
+      headers.set(HttpHeaders.LOCATION,
+          "/" + dataset + "/version/commits/" + commitEvent.commitId());
       headers.setETag("\"" + commitEvent.commitId() + "\"");
       headers.set("SPARQL-Version-Control", "true");
       headers.set("SPARQL-VC-Status", "pending");

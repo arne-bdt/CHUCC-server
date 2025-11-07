@@ -170,7 +170,7 @@ class CherryPickIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/cherry-pick?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/cherry-pick",
         HttpMethod.POST,
         request,
         String.class
@@ -191,7 +191,7 @@ class CherryPickIT {
     // Verify Location header
     String location = response.getHeaders().getFirst("Location");
     assertThat(location).isNotNull();
-    assertThat(location).contains("/default/version/commits/");
+    assertThat(location).contains("/" + DATASET_NAME + "/version/commits/");
 
     // Verify ETag header
     String etag = response.getHeaders().getFirst("ETag");
@@ -217,7 +217,7 @@ class CherryPickIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/cherry-pick?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/cherry-pick",
         HttpMethod.POST,
         request,
         String.class
@@ -271,7 +271,7 @@ class CherryPickIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/cherry-pick?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/cherry-pick",
         HttpMethod.POST,
         request,
         String.class
@@ -305,7 +305,7 @@ class CherryPickIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/cherry-pick?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/cherry-pick",
         HttpMethod.POST,
         request,
         String.class
@@ -334,7 +334,7 @@ class CherryPickIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/cherry-pick?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/cherry-pick",
         HttpMethod.POST,
         request,
         String.class
@@ -364,7 +364,7 @@ class CherryPickIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/cherry-pick?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/cherry-pick",
         HttpMethod.POST,
         request,
         String.class
@@ -394,7 +394,7 @@ class CherryPickIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/cherry-pick?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/cherry-pick",
         HttpMethod.POST,
         request,
         String.class
@@ -424,7 +424,7 @@ class CherryPickIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/cherry-pick?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/cherry-pick",
         HttpMethod.POST,
         request,
         String.class

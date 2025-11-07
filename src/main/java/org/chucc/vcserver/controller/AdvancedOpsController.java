@@ -38,11 +38,11 @@ import org.chucc.vcserver.service.PreconditionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -52,7 +52,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
  * Per SPARQL 1.2 Protocol §3.4.
  */
 @RestController
-@RequestMapping("/version")
+@RequestMapping("/{dataset}/version")
 @Tag(name = "Version Control", description = "Advanced version control operations")
 public class AdvancedOpsController {
 
@@ -133,8 +133,8 @@ public class AdvancedOpsController {
   )
   public ResponseEntity<?> resetBranch(
       @RequestBody ResetRequest request,
-      @Parameter(description = "Dataset name")
-      @RequestParam(defaultValue = "default") String dataset,
+      @Parameter(description = "Dataset name", required = true)
+      @PathVariable String dataset,
       @Parameter(description = "ETag for optimistic concurrency control")
       @RequestHeader(name = "If-Match", required = false) String ifMatch
   ) {
@@ -236,8 +236,8 @@ public class AdvancedOpsController {
   )
   public ResponseEntity<?> cherryPick(
       @RequestBody CherryPickRequest request,
-      @Parameter(description = "Dataset name")
-      @RequestParam(defaultValue = "default") String dataset,
+      @Parameter(description = "Dataset name", required = true)
+      @PathVariable String dataset,
       @Parameter(description = "Author of the cherry-pick commit")
       @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
       @Parameter(description = "Optional commit message")
@@ -275,8 +275,8 @@ public class AdvancedOpsController {
       // Build Location URI
       String location = ServletUriComponentsBuilder
           .fromCurrentContextPath()
-          .path("/version/commits/{id}")
-          .buildAndExpand(event.newCommitId())
+          .path("/{dataset}/version/commits/{id}")
+          .buildAndExpand(dataset, event.newCommitId())
           .toUriString();
 
       return ResponseEntity
@@ -349,8 +349,8 @@ public class AdvancedOpsController {
   )
   public ResponseEntity<?> revertCommit(
       @RequestBody RevertRequest request,
-      @Parameter(description = "Dataset name")
-      @RequestParam(defaultValue = "default") String dataset,
+      @Parameter(description = "Dataset name", required = true)
+      @PathVariable String dataset,
       @Parameter(description = "Author of the revert commit")
       @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
       @Parameter(description = "Optional commit message")
@@ -388,8 +388,8 @@ public class AdvancedOpsController {
       // Build Location URI
       String location = ServletUriComponentsBuilder
           .fromCurrentContextPath()
-          .path("/version/commits/{id}")
-          .buildAndExpand(event.revertCommitId())
+          .path("/{dataset}/version/commits/{id}")
+          .buildAndExpand(dataset, event.revertCommitId())
           .toUriString();
 
       return ResponseEntity
@@ -449,8 +449,8 @@ public class AdvancedOpsController {
   )
   public ResponseEntity<?> rebaseBranch(
       @RequestBody RebaseRequest request,
-      @Parameter(description = "Dataset name")
-      @RequestParam(defaultValue = "default") String dataset,
+      @Parameter(description = "Dataset name", required = true)
+      @PathVariable String dataset,
       @Parameter(description = "Author of the rebase operation")
       @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
       @Parameter(description = "ETag for optimistic concurrency control")
@@ -553,8 +553,8 @@ public class AdvancedOpsController {
   )
   public ResponseEntity<?> squashCommits(
       @RequestBody SquashRequest request,
-      @Parameter(description = "Dataset name")
-      @RequestParam(defaultValue = "default") String dataset,
+      @Parameter(description = "Dataset name", required = true)
+      @PathVariable String dataset,
       @Parameter(description = "ETag for optimistic concurrency control")
       @RequestHeader(name = "If-Match", required = false) String ifMatch
   ) {

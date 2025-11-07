@@ -125,7 +125,7 @@ class SquashIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/squash?dataset=" + dataset,
+        "/" + dataset + "/version/squash",
         HttpMethod.POST,
         request,
         String.class
@@ -201,7 +201,7 @@ class SquashIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/squash?dataset=" + dataset,
+        "/" + dataset + "/version/squash",
         HttpMethod.POST,
         request,
         String.class
@@ -251,7 +251,7 @@ class SquashIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/squash?dataset=" + dataset,
+        "/" + dataset + "/version/squash",
         HttpMethod.POST,
         request,
         String.class
@@ -284,7 +284,7 @@ class SquashIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/squash?dataset=" + dataset,
+        "/" + dataset + "/version/squash",
         HttpMethod.POST,
         request,
         String.class
@@ -313,7 +313,7 @@ class SquashIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/squash?dataset=" + dataset,
+        "/" + dataset + "/version/squash",
         HttpMethod.POST,
         request,
         String.class
@@ -345,7 +345,7 @@ class SquashIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/squash?dataset=" + dataset,
+        "/" + dataset + "/version/squash",
         HttpMethod.POST,
         request,
         String.class

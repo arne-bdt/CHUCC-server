@@ -140,7 +140,7 @@ class RevertIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/revert?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/revert",
         HttpMethod.POST,
         request,
         String.class
@@ -154,7 +154,7 @@ class RevertIT {
     // Verify Location header
     String locationHeader = response.getHeaders().getFirst("Location");
     assertThat(locationHeader).isNotNull();
-    assertThat(locationHeader).contains("/default/version/commits/");
+    assertThat(locationHeader).contains("/" + DATASET_NAME + "/version/commits/");
 
     // Verify ETag header
     String etagHeader = response.getHeaders().getFirst("ETag");
@@ -190,7 +190,7 @@ class RevertIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/revert?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/revert",
         HttpMethod.POST,
         request,
         String.class
@@ -224,7 +224,7 @@ class RevertIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/revert?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/revert",
         HttpMethod.POST,
         request,
         String.class
@@ -254,7 +254,7 @@ class RevertIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/revert?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/revert",
         HttpMethod.POST,
         request,
         String.class
@@ -284,7 +284,7 @@ class RevertIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/revert?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/revert",
         HttpMethod.POST,
         request,
         String.class
@@ -318,7 +318,7 @@ class RevertIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/revert?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/revert",
         HttpMethod.POST,
         request,
         String.class
@@ -348,7 +348,7 @@ class RevertIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/revert?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/revert",
         HttpMethod.POST,
         request,
         String.class
@@ -414,9 +414,9 @@ class RevertIT {
 
     HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
-    // When - no dataset parameter provided
+    // When - dataset now required in path
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/revert",
+        "/default/version/revert",
         HttpMethod.POST,
         request,
         String.class

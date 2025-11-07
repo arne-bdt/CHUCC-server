@@ -137,7 +137,7 @@ class ResetOperationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/reset?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/reset",
         HttpMethod.POST,
         request,
         String.class
@@ -181,7 +181,7 @@ class ResetOperationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/reset?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/reset",
         HttpMethod.POST,
         request,
         String.class
@@ -217,7 +217,7 @@ class ResetOperationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/reset?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/reset",
         HttpMethod.POST,
         request,
         String.class
@@ -253,7 +253,7 @@ class ResetOperationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/reset?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/reset",
         HttpMethod.POST,
         request,
         String.class
@@ -286,7 +286,7 @@ class ResetOperationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/reset?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/reset",
         HttpMethod.POST,
         request,
         String.class
@@ -315,7 +315,7 @@ class ResetOperationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/reset?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/reset",
         HttpMethod.POST,
         request,
         String.class
@@ -344,7 +344,7 @@ class ResetOperationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/reset?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/reset",
         HttpMethod.POST,
         request,
         String.class
@@ -374,7 +374,7 @@ class ResetOperationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/reset?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/reset",
         HttpMethod.POST,
         request,
         String.class
@@ -404,7 +404,7 @@ class ResetOperationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/reset?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/reset",
         HttpMethod.POST,
         request,
         String.class
@@ -417,7 +417,7 @@ class ResetOperationIT {
   }
 
   @Test
-  void resetBranch_shouldUseDefaultDataset_whenNotProvided() throws Exception {
+  void resetBranch_withDatasetInPath_shouldWork() throws Exception {
     // Setup: Create branch in default dataset
     branchRepository.deleteAllByDataset("default");
     commitRepository.deleteAllByDataset("default");
@@ -463,9 +463,9 @@ class ResetOperationIT {
 
     HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
-    // When
+    // When: Dataset now required in path
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/reset",
+        "/default/version/reset",
         HttpMethod.POST,
         request,
         String.class

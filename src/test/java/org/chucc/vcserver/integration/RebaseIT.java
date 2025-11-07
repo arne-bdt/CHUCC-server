@@ -140,7 +140,7 @@ class RebaseIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + dataset,
+        "/" + dataset + "/version/rebase",
         HttpMethod.POST,
         request,
         String.class
@@ -232,7 +232,7 @@ class RebaseIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + dataset,
+        "/" + dataset + "/version/rebase",
         HttpMethod.POST,
         request,
         String.class
@@ -263,7 +263,7 @@ class RebaseIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + dataset,
+        "/" + dataset + "/version/rebase",
         HttpMethod.POST,
         request,
         String.class
@@ -293,7 +293,7 @@ class RebaseIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + dataset,
+        "/" + dataset + "/version/rebase",
         HttpMethod.POST,
         request,
         String.class
@@ -323,7 +323,7 @@ class RebaseIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + dataset,
+        "/" + dataset + "/version/rebase",
         HttpMethod.POST,
         request,
         String.class
@@ -354,7 +354,7 @@ class RebaseIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + dataset,
+        "/" + dataset + "/version/rebase",
         HttpMethod.POST,
         request,
         String.class
@@ -385,7 +385,7 @@ class RebaseIT extends ITFixture {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/rebase?dataset=" + dataset,
+        "/" + dataset + "/version/rebase",
         HttpMethod.POST,
         request,
         String.class

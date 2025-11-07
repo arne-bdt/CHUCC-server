@@ -12,12 +12,15 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import org.chucc.vcserver.command.CreateCommitCommand;
 import org.chucc.vcserver.command.CreateCommitCommandHandler;
+import org.chucc.vcserver.controller.util.ResponseHeaderBuilder;
+import org.chucc.vcserver.controller.util.VersionControlUrls;
 import org.chucc.vcserver.dto.CommitMetadataDto;
 import org.chucc.vcserver.dto.CommitResponse;
 import org.chucc.vcserver.dto.ProblemDetail;
 import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.service.CommitService;
 import org.chucc.vcserver.service.PreconditionService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Commit introspection and creation endpoints for version control.
  */
 @RestController
-@RequestMapping("/version/commits")
+@RequestMapping("/{dataset}/version/commits")
 @Tag(name = "Version Control", description = "Commit introspection and creation operations")
 public class CommitController {
 
@@ -121,6 +124,8 @@ public class CommitController {
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<?> createCommit(
+      @Parameter(description = "Dataset name", required = true)
+      @PathVariable String dataset,
       @RequestBody String patchBody,
       @Parameter(description = "Target branch for commit")
       @RequestParam(required = false) String branch,
@@ -128,8 +133,6 @@ public class CommitController {
       @RequestParam(required = false) String commit,
       @Parameter(description = "Timestamp selector (only with branch)")
       @RequestParam(required = false) String asOf,
-      @Parameter(description = "Dataset name")
-      @RequestParam(defaultValue = "default") String dataset,
       @Parameter(description = "Commit author")
       @RequestHeader(name = "SPARQL-VC-Author", required = false) String author,
       @Parameter(description = "Commit message")
@@ -210,6 +213,17 @@ public class CommitController {
       return ResponseEntity.noContent().build();
     }
 
+    // Build canonical URL
+    String canonicalUrl = VersionControlUrls.commit(dataset, event.commitId());
+
+    // Build headers
+    HttpHeaders headers = new HttpHeaders();
+    headers.setLocation(URI.create(canonicalUrl));
+    ResponseHeaderBuilder.addContentLocation(headers, canonicalUrl);
+    headers.setETag("\"" + event.commitId() + "\"");
+    headers.set("SPARQL-VC-Status", "pending");
+    headers.setContentType(MediaType.APPLICATION_JSON);
+
     // Build response
     CommitResponse response = new CommitResponse(
         event.commitId(),
@@ -221,10 +235,7 @@ public class CommitController {
 
     return ResponseEntity
         .accepted()
-        .location(URI.create("/version/commits/" + event.commitId()))
-        .eTag("\"" + event.commitId() + "\"")
-        .header("SPARQL-VC-Status", "pending")
-        .contentType(MediaType.APPLICATION_JSON)
+        .headers(headers)
         .body(response);
   }
 
@@ -267,15 +278,21 @@ public class CommitController {
   )
   @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<?> getCommit(
-      @Parameter(description = "Commit ID (UUIDv7)", required = true)
-      @PathVariable String id,
       @Parameter(description = "Dataset name", required = true)
-      @RequestParam String dataset
+      @PathVariable String dataset,
+      @Parameter(description = "Commit ID (UUIDv7)", required = true)
+      @PathVariable String id
   ) {
     return commitService.getCommitMetadata(dataset, id)
-        .<ResponseEntity<?>>map(metadata -> ResponseEntity.ok()
-            .eTag("\"" + id + "\"")  // Strong ETag (commit is immutable)
-            .body(metadata))
+        .<ResponseEntity<?>>map(metadata -> {
+          // Build headers with canonical URL
+          HttpHeaders headers = new HttpHeaders();
+          ResponseHeaderBuilder.addContentLocation(headers,
+              VersionControlUrls.commit(dataset, id));
+          headers.setETag("\"" + id + "\"");  // Strong ETag (commit is immutable)
+
+          return ResponseEntity.ok().headers(headers).body(metadata);
+        })
         .orElseGet(() -> {
           ProblemDetail problem = new ProblemDetail(
               "Commit not found",

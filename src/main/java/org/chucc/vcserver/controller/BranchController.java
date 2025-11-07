@@ -12,6 +12,8 @@ import org.chucc.vcserver.command.CreateBranchCommand;
 import org.chucc.vcserver.command.CreateBranchCommandHandler;
 import org.chucc.vcserver.command.DeleteBranchCommand;
 import org.chucc.vcserver.command.DeleteBranchCommandHandler;
+import org.chucc.vcserver.controller.util.ResponseHeaderBuilder;
+import org.chucc.vcserver.controller.util.VersionControlUrls;
 import org.chucc.vcserver.dto.BranchInfo;
 import org.chucc.vcserver.dto.BranchListResponse;
 import org.chucc.vcserver.dto.CreateBranchRequest;
@@ -32,15 +34,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
  * Branch management endpoints for version control.
  */
 @RestController
-@RequestMapping("/version/branches")
+@RequestMapping("/{dataset}/version/branches")
 @Tag(name = "Version Control", description = "Branch management operations")
 public class BranchController {
 
@@ -79,21 +79,31 @@ public class BranchController {
   @ApiResponse(
       responseCode = "200",
       description = "Branch list returned successfully",
-      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE),
+      headers = @Header(
+          name = "Content-Location",
+          description = "Canonical URL for this resource",
+          schema = @Schema(type = "string")
+      )
   )
   public ResponseEntity<BranchListResponse> listBranches(
-      @Parameter(description = "Dataset name", example = "default")
-      @RequestParam(defaultValue = "default") String dataset
+      @Parameter(description = "Dataset name", example = "default", required = true)
+      @PathVariable String dataset
   ) {
     List<BranchInfo> branches = branchService.listBranches(dataset);
-    return ResponseEntity.ok(new BranchListResponse(branches));
+
+    // Add Content-Location header with canonical URL
+    HttpHeaders headers = new HttpHeaders();
+    ResponseHeaderBuilder.addContentLocation(headers, VersionControlUrls.branches(dataset));
+
+    return ResponseEntity.ok().headers(headers).body(new BranchListResponse(branches));
   }
 
   /**
    * Create a new branch.
    *
-   * @param request the branch creation request
    * @param dataset the dataset name
+   * @param request the branch creation request
    * @param author the author of the branch creation
    * @return the created branch information
    */
@@ -112,6 +122,11 @@ public class BranchController {
           @Header(
               name = "Location",
               description = "URL of the created branch",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "Content-Location",
+              description = "Canonical URL for the created branch",
               schema = @Schema(type = "string")
           ),
           @Header(
@@ -143,9 +158,9 @@ public class BranchController {
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<?> createBranch(
+      @Parameter(description = "Dataset name", example = "default", required = true)
+      @PathVariable String dataset,
       @RequestBody CreateBranchRequest request,
-      @Parameter(description = "Dataset name", example = "default")
-      @RequestParam(defaultValue = "default") String dataset,
       @Parameter(
           description = "Author of the branch creation",
           example = "John Doe <john@example.org>")
@@ -174,6 +189,18 @@ public class BranchController {
     try {
       BranchCreatedEvent event = (BranchCreatedEvent) createBranchCommandHandler.handle(command);
 
+      // Build canonical URL
+      String canonicalUrl = VersionControlUrls.branch(dataset, event.branchName());
+
+      // Build headers
+      HttpHeaders headers = new HttpHeaders();
+      headers.setLocation(java.net.URI.create(canonicalUrl));
+      ResponseHeaderBuilder.addContentLocation(headers, canonicalUrl);
+      ResponseHeaderBuilder.addCommitLink(headers, dataset, event.commitId());
+      headers.setETag("\"" + event.commitId() + "\"");
+      headers.set("SPARQL-VC-Status", "pending");
+      headers.setContentType(MediaType.APPLICATION_JSON);
+
       // Build response
       CreateBranchResponse response = new CreateBranchResponse(
           event.branchName(),
@@ -182,19 +209,9 @@ public class BranchController {
           event.isProtected()
       );
 
-      // Build Location URI
-      String location = ServletUriComponentsBuilder
-          .fromCurrentRequest()
-          .path("/{name}")
-          .buildAndExpand(event.branchName())
-          .toUriString();
-
       return ResponseEntity
           .status(HttpStatus.ACCEPTED)  // 202, not 201 (eventual consistency)
-          .header(HttpHeaders.LOCATION, location)
-          .eTag("\"" + event.commitId() + "\"")
-          .header("SPARQL-VC-Status", "pending")
-          .contentType(MediaType.APPLICATION_JSON)
+          .headers(headers)
           .body(response);
     } catch (BranchAlreadyExistsException e) {
       return ResponseEntity.status(HttpStatus.CONFLICT)
@@ -217,8 +234,8 @@ public class BranchController {
   /**
    * Get branch information.
    *
-   * @param name the branch name
    * @param dataset the dataset name
+   * @param name the branch name
    * @return branch information
    */
   @GetMapping(value = "/{name}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -230,11 +247,23 @@ public class BranchController {
   @ApiResponse(
       responseCode = "200",
       description = "Branch details returned successfully",
-      headers = @Header(
-          name = "ETag",
-          description = "Head commit id (strong ETag)",
-          schema = @Schema(type = "string")
-      ),
+      headers = {
+          @Header(
+              name = "ETag",
+              description = "Head commit id (strong ETag)",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "Content-Location",
+              description = "Canonical URL for this branch",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "Link",
+              description = "Link to HEAD commit",
+              schema = @Schema(type = "string")
+          )
+      },
       content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
   )
   @ApiResponse(
@@ -243,15 +272,22 @@ public class BranchController {
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<?> getBranch(
+      @Parameter(description = "Dataset name", example = "default", required = true)
+      @PathVariable String dataset,
       @Parameter(description = "Branch name", example = "main", required = true)
-      @PathVariable String name,
-      @Parameter(description = "Dataset name", example = "default")
-      @RequestParam(defaultValue = "default") String dataset
+      @PathVariable String name
   ) {
     return branchService.getBranchInfo(dataset, name)
-        .<ResponseEntity<?>>map(info -> ResponseEntity.ok()
-            .eTag("\"" + info.headCommitId() + "\"")
-            .body(info))
+        .<ResponseEntity<?>>map(info -> {
+          // Build headers with canonical URL and links
+          HttpHeaders headers = new HttpHeaders();
+          ResponseHeaderBuilder.addContentLocation(headers,
+              VersionControlUrls.branch(dataset, name));
+          ResponseHeaderBuilder.addCommitLink(headers, dataset, info.headCommitId());
+          headers.setETag("\"" + info.headCommitId() + "\"");
+
+          return ResponseEntity.ok().headers(headers).body(info);
+        })
         .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
             .contentType(MediaType.APPLICATION_PROBLEM_JSON)
             .body(new ProblemDetail(
@@ -264,8 +300,8 @@ public class BranchController {
   /**
    * Delete a branch.
    *
+   * @param dataset dataset name
    * @param name branch name
-   * @param dataset dataset name (defaults to "default")
    * @param author the author of the deletion operation
    * @return no content on success
    */
@@ -287,10 +323,10 @@ public class BranchController {
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<Void> deleteBranch(
+      @Parameter(description = "Dataset name", example = "default", required = true)
+      @PathVariable String dataset,
       @Parameter(description = "Branch name", example = "feature-branch", required = true)
       @PathVariable String name,
-      @Parameter(description = "Dataset name", example = "default")
-      @RequestParam(defaultValue = "default") String dataset,
       @Parameter(
           description = "Author of the deletion operation",
           example = "John Doe <john@example.org>")

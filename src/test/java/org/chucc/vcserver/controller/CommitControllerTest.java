@@ -72,16 +72,16 @@ class CommitControllerTest {
         .thenReturn(event);
 
     // When & Then
-    mockMvc.perform(post("/version/commits")
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/commits")
             .param("branch", "main")
-            .param("dataset", DATASET_NAME)
             .contentType("text/rdf-patch")
             .header("SPARQL-VC-Author", "Alice <mailto:alice@example.org>")
             .header("SPARQL-VC-Message", "Add new triple")
             .content(PATCH_BODY))
         .andExpect(status().isAccepted())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(header().string("Location", "/version/commits/" + COMMIT_ID))
+        .andExpect(header().string("Location", "/" + DATASET_NAME + "/version/commits/" + COMMIT_ID))
+        .andExpect(header().string("Content-Location", "/" + DATASET_NAME + "/version/commits/" + COMMIT_ID))
         .andExpect(header().string("ETag", "\"" + COMMIT_ID + "\""))
         .andExpect(jsonPath("$.id").value(COMMIT_ID))
         .andExpect(jsonPath("$.parents[0]").value(PARENT_COMMIT_ID))
@@ -109,16 +109,16 @@ class CommitControllerTest {
         .thenReturn(event);
 
     // When & Then
-    mockMvc.perform(post("/version/commits")
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/commits")
             .param("commit", PARENT_COMMIT_ID)
-            .param("dataset", DATASET_NAME)
             .contentType("text/rdf-patch")
             .header("SPARQL-VC-Author", "Bob")
             .header("SPARQL-VC-Message", "Experimental change")
             .content(PATCH_BODY))
         .andExpect(status().isAccepted())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(header().string("Location", "/version/commits/" + COMMIT_ID))
+        .andExpect(header().string("Location", "/" + DATASET_NAME + "/version/commits/" + COMMIT_ID))
+        .andExpect(header().string("Content-Location", "/" + DATASET_NAME + "/version/commits/" + COMMIT_ID))
         .andExpect(header().string("ETag", "\"" + COMMIT_ID + "\""))
         .andExpect(jsonPath("$.id").value(COMMIT_ID));
   }
@@ -130,9 +130,8 @@ class CommitControllerTest {
         .thenReturn(null);
 
     // When & Then
-    mockMvc.perform(post("/version/commits")
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/commits")
             .param("branch", "main")
-            .param("dataset", DATASET_NAME)
             .contentType("text/rdf-patch")
             .header("SPARQL-VC-Author", "Alice")
             .header("SPARQL-VC-Message", "No-op change")
@@ -144,10 +143,9 @@ class CommitControllerTest {
   @Test
   void createCommit_shouldReturn400_whenBothBranchAndCommitProvided() throws Exception {
     // When & Then
-    mockMvc.perform(post("/version/commits")
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/commits")
             .param("branch", "main")
             .param("commit", PARENT_COMMIT_ID)
-            .param("dataset", DATASET_NAME)
             .contentType("text/rdf-patch")
             .content(PATCH_BODY))
         .andExpect(status().isBadRequest())
@@ -160,8 +158,7 @@ class CommitControllerTest {
   @Test
   void createCommit_shouldReturn400_whenNeitherBranchNorCommitProvided() throws Exception {
     // When & Then
-    mockMvc.perform(post("/version/commits")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/commits")
             .contentType("text/rdf-patch")
             .content(PATCH_BODY))
         .andExpect(status().isBadRequest())
@@ -174,10 +171,9 @@ class CommitControllerTest {
   @Test
   void createCommit_shouldReturn400_whenAsOfWithCommitSelector() throws Exception {
     // When & Then
-    mockMvc.perform(post("/version/commits")
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/commits")
             .param("commit", PARENT_COMMIT_ID)
             .param("asOf", "2025-01-01T00:00:00Z")
-            .param("dataset", DATASET_NAME)
             .contentType("text/rdf-patch")
             .content(PATCH_BODY))
         .andExpect(status().isBadRequest())
@@ -190,9 +186,8 @@ class CommitControllerTest {
   @Test
   void createCommit_shouldReturn415_whenInvalidContentType() throws Exception {
     // When & Then
-    mockMvc.perform(post("/version/commits")
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/commits")
             .param("branch", "main")
-            .param("dataset", DATASET_NAME)
             .contentType(MediaType.APPLICATION_JSON)
             .content("{}"))
         .andExpect(status().isUnsupportedMediaType());
@@ -220,10 +215,9 @@ class CommitControllerTest {
         .thenReturn(event);
 
     // When & Then
-    mockMvc.perform(post("/version/commits")
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/commits")
             .param("branch", "main")
             .param("asOf", "2025-01-01T00:00:00Z")
-            .param("dataset", DATASET_NAME)
             .contentType("text/rdf-patch")
             .header("SPARQL-VC-Author", "Alice")
             .header("SPARQL-VC-Message", "Historical commit")
@@ -233,7 +227,7 @@ class CommitControllerTest {
   }
 
   @Test
-  void createCommit_shouldUseDefaultDataset_whenNotProvided() throws Exception {
+  void createCommit_shouldUseDefaultDataset_whenProvidedInPath() throws Exception {
     // Given
     CommitCreatedEvent event = new CommitCreatedEvent(
         "default",
@@ -251,7 +245,7 @@ class CommitControllerTest {
         .thenReturn(event);
 
     // When & Then
-    mockMvc.perform(post("/version/commits")
+    mockMvc.perform(post("/default/version/commits")
             .param("branch", "main")
             .contentType("text/rdf-patch")
             .header("SPARQL-VC-Author", "Alice")

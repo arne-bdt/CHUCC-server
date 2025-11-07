@@ -328,6 +328,11 @@ public class InMemoryMaterializedBranchRepository implements MaterializedBranchR
 
     if (graph != null) {
       logger.info("Deleted materialized graph for {}/{}", dataset, branch);
+      // Abort any active transactions before closing to prevent nested transaction errors
+      if (graph.isInTransaction()) {
+        logger.warn("Aborting active transaction on graph {}/{} during cleanup", dataset, branch);
+        graph.abort();
+      }
       graph.close();
     }
   }

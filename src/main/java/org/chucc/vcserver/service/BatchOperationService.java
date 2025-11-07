@@ -12,6 +12,8 @@ import org.apache.jena.update.UpdateRequest;
 import org.chucc.vcserver.dto.WriteOperation;
 import org.chucc.vcserver.exception.MalformedUpdateException;
 import org.chucc.vcserver.util.RdfPatchUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
@@ -25,6 +27,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class BatchOperationService {
+
+  private static final Logger logger = LoggerFactory.getLogger(BatchOperationService.class);
 
   private final DatasetService datasetService;
   private final RdfPatchService rdfPatchService;
@@ -125,6 +129,12 @@ public class BatchOperationService {
     // Clone for modification
     DatasetGraph modifiedDataset = cloneDataset(currentDataset);
 
+    // Defensive check: Clone should not have active transaction
+    if (modifiedDataset.isInTransaction()) {
+      logger.warn("Clone has unexpected active transaction - aborting for safety");
+      modifiedDataset.abort();
+    }
+
     // Execute SPARQL update
     try {
       UpdateRequest updateRequest = UpdateFactory.create(sparql);
@@ -149,7 +159,22 @@ public class BatchOperationService {
    */
   private DatasetGraph cloneDataset(DatasetGraph dataset) {
     DatasetGraph clone = new org.apache.jena.sparql.core.mem.DatasetGraphInMemory();
-    dataset.find().forEachRemaining(clone::add);
+
+    // Wrap iteration in READ transaction if one isn't already active
+    boolean startedTransaction = false;
+    if (!dataset.isInTransaction()) {
+      dataset.begin(org.apache.jena.query.ReadWrite.READ);
+      startedTransaction = true;
+    }
+
+    try {
+      dataset.find().forEachRemaining(clone::add);
+    } finally {
+      if (startedTransaction) {
+        dataset.end();
+      }
+    }
+
     return clone;
   }
 

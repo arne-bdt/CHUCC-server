@@ -45,7 +45,7 @@ This server implements:
 - ✅ **Conflict detection** - Structured representation of merge conflicts
 - ✅ **Conflict resolution** - Automatic strategies (ours, theirs) with configurable scope (graph-level, dataset-level)
 - ✅ **RFC 7807 Problem Details** - Standardized error responses
-- ✅ **Multi-dataset** - Dataset parameter support consistently across all endpoints
+- ✅ **RESTful API** - Dataset-in-path routing (`/{dataset}/version/{endpoint}`) following Apache Jena Fuseki pattern
 
 ### Performance & Scalability
 - ✅ **Snapshot Optimization** - Fast recovery and query materialization from snapshots

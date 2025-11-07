@@ -18,6 +18,7 @@ import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
+import org.apache.jena.rdfpatch.changes.RDFChangesApply;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
 import org.chucc.vcserver.config.CacheProperties;
@@ -277,6 +278,15 @@ public class DatasetService {
       logger.debug("Using materialized graph for branch {}/{}", datasetName, branchName);
       DatasetGraph graph = materializedBranchRepo.getBranchGraph(datasetName, branchName);
 
+      // Abort any active transaction to prevent nested transaction errors
+      // This can happen during test isolation issues when graphs are reused across Spring contexts
+      if (graph.isInTransaction()) {
+        logger.warn("Found active transaction on cached graph {}/{} - aborting for safety",
+            datasetName, branchName);
+        graph.abort();
+        logger.debug("Aborted transaction on {}/{}", datasetName, branchName);
+      }
+
       // Return directly - MaterializedBranchRepository returns DatasetGraph
       return graph;
     } else {
@@ -421,7 +431,7 @@ public class DatasetService {
     // Apply patches in order
     for (Commit commit : commits) {
       commitRepository.findPatchByDatasetAndId(datasetName, commit.id())
-          .ifPresent(patch -> RDFPatchOps.applyChange(datasetGraph, patch));
+          .ifPresent(patch -> applyPatchWithoutTransactionManagement(datasetGraph, patch));
     }
   }
 
@@ -719,5 +729,42 @@ public class DatasetService {
   public void clearAllCaches() {
     datasetCache.invalidateAll();
     logger.info("Cleared all historical commit caches");
+  }
+
+  /**
+   * Apply an RDF patch directly to a dataset graph without transaction management.
+   *
+   * <p>This method creates a custom RDFChangesApply that skips transaction operations
+   * to prevent nested transaction errors. This is necessary when applying patches during
+   * graph materialization where transactions are not needed for in-memory graphs.
+   *
+   * <p>Pattern: Same approach as {@link InMemoryMaterializedBranchRepository#applyPatchDirect}
+   * which uses locks instead of transactions for concurrency control.
+   *
+   * @param datasetGraph the target dataset graph
+   * @param patch the patch to apply
+   * @see InMemoryMaterializedBranchRepository#applyPatchDirect
+   */
+  private void applyPatchWithoutTransactionManagement(DatasetGraph datasetGraph, RDFPatch patch) {
+    // Create a changes applier that skips transaction management
+    RDFChangesApply changes = new RDFChangesApply(datasetGraph) {
+      @Override
+      public void txnBegin() {
+        // Skip transaction begin - caller manages transactions
+      }
+
+      @Override
+      public void txnCommit() {
+        // Skip transaction commit - caller manages transactions
+      }
+
+      @Override
+      public void txnAbort() {
+        // Skip transaction abort - caller manages transactions
+      }
+    };
+
+    // Apply the patch
+    patch.apply(changes);
   }
 }

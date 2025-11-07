@@ -11,6 +11,8 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 **Now:** All feature tasks completed! Only optional technical debt remains.
 
 **Recent Completions:**
+- Dataset Routing Standardization (2025-11-07) ✅
+- Nested Transaction Fix (2025-11-07) ✅
 - Batch Operations API (2025-11-03) ✅
 - Blame API (2025-11-02) ✅
 - History & Diff API (2025-11-01) ✅
@@ -456,6 +458,97 @@ All tasks implement endpoints from:
 - 20+ test files for event schema updates
 
 **Note:** Events now contain full commit data. Command handlers no longer write to repositories.
+
+---
+
+### ✅ Nested Transaction Fix (Completed 2025-11-07)
+
+#### Fix "Transactions cannot be nested!" Error in DatasetService
+**Status:** ✅ COMPLETED (2025-11-07)
+**Category:** Bug Fix / Architecture
+**Actual Time:** 3 hours
+
+**Problem:**
+- `DatasetService.applyPatchHistorySince()` used `RDFPatchOps.applyChange()` which internally tries to begin a transaction
+- When DatasetGraph already has active transaction (test isolation issue), caused "Transactions cannot be nested!" error
+- BatchOperationsProjectorIT failed when run with other integration tests
+- Pre-existing issue exposed by routing migration test runs
+
+**Solution:**
+- Created `applyPatchWithoutTransactionManagement()` method using custom RDFChangesApply
+- Skips transaction operations (txnBegin/txnCommit/txnAbort) when not needed for in-memory graphs
+- Same pattern as `InMemoryMaterializedBranchRepository.applyPatchDirect()`
+- Added defensive transaction abort checks in graph retrieval paths
+- Improved logging (changed ERROR to WARN for non-error conditions)
+
+**Files Modified:**
+- `src/main/java/org/chucc/vcserver/service/DatasetService.java` - Added transaction-skipping patch application
+- `src/main/java/org/chucc/vcserver/service/BatchOperationService.java` - Added logger and defensive checks
+- `src/main/java/org/chucc/vcserver/repository/InMemoryMaterializedBranchRepository.java` - Enhanced cleanup
+
+**Agent Validation:**
+- CQRS compliance: ✅ FULLY COMPLIANT - All changes maintain proper boundaries
+- Code review: ✅ PRODUCTION-READY with minor logging improvements applied
+
+**Test Results:**
+- ✅ All 91 integration tests passing (no test isolation failures)
+- ✅ BatchOperationsProjectorIT works correctly with other tests
+- ✅ Zero nested transaction errors
+
+**Note:** This fix improves robustness of read model materialization and resolves test isolation edge cases.
+
+---
+
+### ✅ Dataset Routing Standardization (Completed 2025-11-07)
+
+#### Migrate Controllers to Dataset-in-Path Routing (Apache Jena Fuseki Pattern)
+**Status:** ✅ COMPLETED (2025-11-07)
+**Category:** Refactoring / API Standardization
+**Actual Time:** 4 hours
+
+**Goal:**
+Standardize all version control endpoints to use dataset as path parameter (`/{dataset}/version/{endpoint}`) instead of query parameter (`/version/{endpoint}?dataset=X`), following Apache Jena Fuseki's RESTful pattern.
+
+**Controllers Migrated:**
+1. ✅ BranchController and CommitController (Session 1)
+2. ✅ MergeController and HistoryController (Session 1)
+3. ✅ AdvancedOpsController (reset, revert, cherry-pick, rebase, squash) (Session 2)
+4. ✅ RefsController (Session 2)
+5. ✅ BatchController and BatchGraphsController (Session 2)
+6. ✅ TagController (already migrated)
+7. ✅ GraphStoreController (already correct)
+
+**Pattern:**
+```java
+// Before:
+@RequestMapping("/version")
+public ResponseEntity<?> operation(@RequestParam(defaultValue="default") String dataset)
+
+// After:
+@RequestMapping("/{dataset}/version")
+public ResponseEntity<?> operation(@PathVariable String dataset)
+```
+
+**Integration Tests Updated:**
+- 76 tests in 9 controller test files (History, Diff, Blame, Reset, Revert, CherryPick, Rebase, Squash, Refs)
+- 15 batch-related tests
+- CrossProtocolInteroperabilityIT (comprehensive workflow tests)
+
+**Files Modified:**
+- 8 controller files
+- 12 integration test files
+- GraphStoreController Location headers fixed
+
+**Benefits:**
+- RESTful resource hierarchy (follows industry standards)
+- Consistent with Apache Jena Fuseki pattern
+- Better URL structure for API discoverability
+- Improved developer experience
+
+**Test Results:**
+- ✅ All 91+ integration tests passing
+- ✅ Zero routing errors
+- ✅ All quality checks passing (Checkstyle, SpotBugs, PMD)
 
 ---
 

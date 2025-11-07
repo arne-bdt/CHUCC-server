@@ -150,8 +150,8 @@ class AsOfSelectorIT {
 
     // When: POST with asOf + branch
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=" + BRANCH_NAME
-            + "&asOf=2025-01-02T12:00:00Z&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=" + BRANCH_NAME
+            + "&asOf=2025-01-02T12:00:00Z",
         HttpMethod.POST,
         request,
         String.class
@@ -188,7 +188,7 @@ class AsOfSelectorIT {
 
     // When: POST with exact timestamp,
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=" + BRANCH_NAME
+        "/" + DATASET_NAME + "/version/commits?branch=" + BRANCH_NAME
             + "&asOf=2025-01-02T00:00:00Z&dataset=" + DATASET_NAME,
         HttpMethod.POST,
         request,
@@ -215,7 +215,7 @@ class AsOfSelectorIT {
 
     // When: POST with future timestamp,
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=" + BRANCH_NAME
+        "/" + DATASET_NAME + "/version/commits?branch=" + BRANCH_NAME
             + "&asOf=2025-01-10T00:00:00Z&dataset=" + DATASET_NAME,
         HttpMethod.POST,
         request,
@@ -241,7 +241,7 @@ class AsOfSelectorIT {
 
     // When: POST with timestamp before all commits
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=" + BRANCH_NAME
+        "/" + DATASET_NAME + "/version/commits?branch=" + BRANCH_NAME
             + "&asOf=2024-12-31T00:00:00Z&dataset=" + DATASET_NAME,
         HttpMethod.POST,
         request,
@@ -267,7 +267,7 @@ class AsOfSelectorIT {
 
     // When: POST with invalid timestamp,
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=" + BRANCH_NAME
+        "/" + DATASET_NAME + "/version/commits?branch=" + BRANCH_NAME
             + "&asOf=not-a-timestamp&dataset=" + DATASET_NAME,
         HttpMethod.POST,
         request,
@@ -293,7 +293,7 @@ class AsOfSelectorIT {
 
     // When: POST with asOf only
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?asOf=2025-01-02T00:00:00Z&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?asOf=2025-01-02T00:00:00Z",
         HttpMethod.POST,
         request,
         String.class
@@ -318,8 +318,7 @@ class AsOfSelectorIT {
 
     // When: POST with non-existent branch
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=nonexistent&asOf=2025-01-02T00:00:00Z&dataset="
-            + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=nonexistent&asOf=2025-01-02T00:00:00Z",
         HttpMethod.POST,
         request,
         String.class
@@ -344,7 +343,7 @@ class AsOfSelectorIT {
 
     // When: POST with timestamp between commits
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=" + BRANCH_NAME
+        "/" + DATASET_NAME + "/version/commits?branch=" + BRANCH_NAME
             + "&asOf=2025-01-01T12:00:00Z&dataset=" + DATASET_NAME,
         HttpMethod.POST,
         request,

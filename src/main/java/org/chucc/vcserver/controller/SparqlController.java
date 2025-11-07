@@ -17,16 +17,13 @@ import org.apache.jena.query.QueryParseException;
 import org.chucc.vcserver.command.SparqlUpdateCommand;
 import org.chucc.vcserver.command.SparqlUpdateCommandHandler;
 import org.chucc.vcserver.config.VersionControlProperties;
+import org.chucc.vcserver.controller.util.SparqlControllerUtil;
+import org.chucc.vcserver.controller.util.SparqlExecutionHelper;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.domain.ResultFormat;
 import org.chucc.vcserver.dto.ProblemDetail;
-import org.chucc.vcserver.event.CommitCreatedEvent;
-import org.chucc.vcserver.event.VersionControlEvent;
 import org.chucc.vcserver.exception.BranchNotFoundException;
 import org.chucc.vcserver.exception.CommitNotFoundException;
-import org.chucc.vcserver.exception.MalformedUpdateException;
-import org.chucc.vcserver.exception.PreconditionFailedException;
-import org.chucc.vcserver.exception.UpdateExecutionException;
 import org.chucc.vcserver.service.DatasetService;
 import org.chucc.vcserver.service.SelectorResolutionService;
 import org.chucc.vcserver.service.SparqlQueryService;
@@ -221,7 +218,7 @@ public class SparqlController {
       Dataset materializedDataset = datasetService.materializeAtCommit(dataset, targetCommit);
 
       // 3. Determine result format from Accept header
-      ResultFormat format = determineResultFormat(request.getHeader("Accept"));
+      ResultFormat format = SparqlControllerUtil.determineResultFormat(request.getHeader("Accept"));
 
       // 4. Execute query
       String results = sparqlQueryService.executeQuery(materializedDataset, query, format);
@@ -229,7 +226,7 @@ public class SparqlController {
       // 5. Return results with ETag header containing commit ID
       return ResponseEntity.ok()
           .eTag("\"" + targetCommit.value() + "\"")
-          .contentType(getMediaType(format))
+          .contentType(SparqlControllerUtil.getMediaType(format))
           .body(results);
 
     } catch (QueryParseException e) {
@@ -397,36 +394,22 @@ public class SparqlController {
           "MISSING_HEADER");
       return ResponseEntity.status(HttpStatus.BAD_REQUEST)
           .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(serializeProblemDetail(problem));
+          .body(SparqlControllerUtil.serializeProblemDetail(problem));
     }
 
-    if (author == null || author.isBlank()) {
-      ProblemDetail problem = new ProblemDetail(
-          "SPARQL-VC-Author header is required for UPDATE operations",
-          HttpStatus.BAD_REQUEST.value(),
-          "MISSING_HEADER");
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(serializeProblemDetail(problem));
+    Optional<ResponseEntity<String>> authorValidation =
+        SparqlExecutionHelper.validateUpdateHeaders(author);
+    if (authorValidation.isPresent()) {
+      return authorValidation.get();
     }
 
     // Parse If-Match header (optional)
-    Optional<CommitId> expectedHead = Optional.empty();
-    if (ifMatch != null && !ifMatch.isBlank()) {
-      // Remove surrounding quotes if present
-      String cleanEtag = ifMatch.replaceAll("^\"|\"$", "");
-      try {
-        expectedHead = Optional.of(CommitId.of(cleanEtag));
-      } catch (IllegalArgumentException e) {
-        ProblemDetail problem = new ProblemDetail(
-            "Invalid If-Match header: " + e.getMessage(),
-            HttpStatus.BAD_REQUEST.value(),
-            "INVALID_ETAG");
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-            .body(serializeProblemDetail(problem));
-      }
+    SparqlExecutionHelper.Either<ResponseEntity<String>, Optional<CommitId>> ifMatchResult =
+        SparqlExecutionHelper.parseIfMatchHeader(ifMatch);
+    if (ifMatchResult.isLeft()) {
+      return ifMatchResult.getLeft();
     }
+    Optional<CommitId> expectedHead = ifMatchResult.getRight();
 
     // Create and execute command
     SparqlUpdateCommand command = new SparqlUpdateCommand(
@@ -438,161 +421,25 @@ public class SparqlController {
         expectedHead
     );
 
-    try {
-      VersionControlEvent event = sparqlUpdateCommandHandler.handle(command);
+    // Execute update via helper (handles all exception cases)
+    ResponseEntity<String> response = SparqlExecutionHelper.executeUpdate(
+        command, sparqlUpdateCommandHandler);
 
-      // Handle no-op (per SPARQL 1.2 Protocol §7)
-      if (event == null) {
-        // No-op: Return 204 No Content without body
-        return ResponseEntity.noContent().build();
+    // Add custom headers for non-error responses
+    if (response.getStatusCode() == HttpStatus.ACCEPTED) {
+      String etag = response.getHeaders().getETag();
+      if (etag != null) {
+        String commitId = etag.replace("\"", "");
+        return ResponseEntity.status(response.getStatusCode())
+            .headers(response.getHeaders())
+            .location(java.net.URI.create("/version/datasets/" + dataset
+                + "/commits/" + commitId))
+            .header("SPARQL-VC-Status", "pending")
+            .body(response.getBody());
       }
-
-      // Success: Return 202 Accepted with ETag and Location headers
-      CommitCreatedEvent commitEvent = (CommitCreatedEvent) event;
-      String commitId = commitEvent.commitId();
-
-      return ResponseEntity.accepted()
-          .eTag("\"" + commitId + "\"")
-          .location(java.net.URI.create("/version/datasets/" + dataset
-              + "/commits/" + commitId))
-          .header("SPARQL-VC-Status", "pending")
-          .contentType(MediaType.APPLICATION_JSON)
-          .body("{\"message\":\"Update accepted\",\"commitId\":\""
-              + commitId + "\"}");
-
-    } catch (MalformedUpdateException e) {
-      ProblemDetail problem = new ProblemDetail(
-          e.getMessage(),
-          HttpStatus.BAD_REQUEST.value(),
-          "MALFORMED_UPDATE");
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(serializeProblemDetail(problem));
-    } catch (PreconditionFailedException e) {
-      ProblemDetail problem = new ProblemDetail(
-          e.getMessage(),
-          HttpStatus.PRECONDITION_FAILED.value(),
-          "PRECONDITION_FAILED");
-      return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(serializeProblemDetail(problem));
-    } catch (UpdateExecutionException e) {
-      ProblemDetail problem = new ProblemDetail(
-          e.getMessage(),
-          HttpStatus.INTERNAL_SERVER_ERROR.value(),
-          "UPDATE_EXECUTION_ERROR");
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(serializeProblemDetail(problem));
-    } catch (IllegalArgumentException e) {
-      ProblemDetail problem = new ProblemDetail(
-          e.getMessage(),
-          HttpStatus.BAD_REQUEST.value(),
-          "INVALID_REQUEST");
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-          .body(serializeProblemDetail(problem));
-    }
-  }
-
-  /**
-   * Serializes a ProblemDetail to JSON string.
-   * Simple implementation for manual JSON construction.
-   *
-   * @param problem the problem detail to serialize
-   * @return JSON string representation
-   */
-  private String serializeProblemDetail(ProblemDetail problem) {
-    StringBuilder json = new StringBuilder();
-    json.append("{");
-    json.append("\"type\":\"").append(escapeJson(problem.getType())).append("\",");
-    json.append("\"title\":\"").append(escapeJson(problem.getTitle())).append("\",");
-    json.append("\"status\":").append(problem.getStatus());
-    if (problem.getCode() != null) {
-      json.append(",\"code\":\"").append(escapeJson(problem.getCode())).append("\"");
-    }
-    if (problem.getDetail() != null) {
-      json.append(",\"detail\":\"").append(escapeJson(problem.getDetail())).append("\"");
-    }
-    json.append("}");
-    return json.toString();
-  }
-
-  /**
-   * Escapes special characters in JSON strings.
-   *
-   * @param str the string to escape
-   * @return the escaped string
-   */
-  private String escapeJson(String str) {
-    if (str == null) {
-      return "";
-    }
-    return str.replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t");
-  }
-
-  /**
-   * Determines the result format from the Accept header.
-   *
-   * @param acceptHeader the Accept header value
-   * @return the determined result format (defaults to JSON per SPARQL 1.1 Protocol §2.1)
-   */
-  private ResultFormat determineResultFormat(String acceptHeader) {
-    if (acceptHeader == null || acceptHeader.isEmpty()) {
-      // Default to JSON per SPARQL 1.1 Protocol recommendation (section 2.1)
-      // JSON is widely supported and human-readable for debugging
-      return ResultFormat.JSON;
     }
 
-    String lowerAccept = acceptHeader.toLowerCase(java.util.Locale.ROOT);
-
-    if (lowerAccept.contains("application/sparql-results+json")) {
-      return ResultFormat.JSON;
-    } else if (lowerAccept.contains("application/sparql-results+xml")) {
-      return ResultFormat.XML;
-    } else if (lowerAccept.contains("text/csv")) {
-      return ResultFormat.CSV;
-    } else if (lowerAccept.contains("text/tab-separated-values")
-        || lowerAccept.contains("text/tsv")) {
-      return ResultFormat.TSV;
-    } else if (lowerAccept.contains("text/turtle")) {
-      return ResultFormat.TURTLE;
-    } else if (lowerAccept.contains("application/rdf+xml")) {
-      return ResultFormat.RDF_XML;
-    }
-
-    // Default to JSON when Accept header doesn't match any supported format
-    // This follows the SPARQL 1.1 Protocol recommendation for content negotiation
-    return ResultFormat.JSON;
-  }
-
-  /**
-   * Maps result format to HTTP media type.
-   *
-   * @param format the result format
-   * @return the corresponding media type
-   */
-  private MediaType getMediaType(ResultFormat format) {
-    switch (format) {
-      case JSON:
-        return MediaType.parseMediaType("application/sparql-results+json");
-      case XML:
-        return MediaType.parseMediaType("application/sparql-results+xml");
-      case CSV:
-        return MediaType.parseMediaType("text/csv");
-      case TSV:
-        return MediaType.parseMediaType("text/tab-separated-values");
-      case TURTLE:
-        return MediaType.parseMediaType("text/turtle");
-      case RDF_XML:
-        return MediaType.parseMediaType("application/rdf+xml");
-      default:
-        return MediaType.parseMediaType("application/sparql-results+json");
-    }
+    return response;
   }
 
   /**

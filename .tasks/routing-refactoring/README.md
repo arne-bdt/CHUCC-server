@@ -64,8 +64,10 @@ GET /mydata/version/tags/v1.0/sparql?query=...
 
 ### Session 2: Dataset Parameter Standardization
 **File:** [session-2-dataset-parameter-standardization.md](./session-2-dataset-parameter-standardization.md)
-**Status:** ⏳ Not Started
+**Status:** ✅ Complete
 **Estimated Time:** 4-5 hours
+**Actual Time:** ~4 hours
+**Completion Date:** 2025-11-07
 
 **Deliverables:**
 - Move dataset from query param to path variable across all controllers
@@ -79,8 +81,10 @@ GET /mydata/version/tags/v1.0/sparql?query=...
 
 ### Session 3: Versioned SPARQL Endpoints
 **File:** [session-3-versioned-sparql-endpoints.md](./session-3-versioned-sparql-endpoints.md)
-**Status:** ⏳ Not Started
+**Status:** ✅ Complete
 **Estimated Time:** 5-6 hours
+**Actual Time:** ~5 hours
+**Completion Date:** 2025-11-07
 
 **Deliverables:**
 - `GET/POST /{dataset}/version/branches/{name}/sparql`
@@ -314,8 +318,8 @@ mvn -q clean install
 | Session | Status | Estimated | Actual | Completion Date |
 |---------|--------|-----------|--------|-----------------|
 | 1. URL Utilities | ✅ Complete | 3-4h | ~2.5h | 2025-11-06 |
-| 2. Dataset Param | ⏳ Not Started | 4-5h | - | - |
-| 3. Versioned SPARQL | ⏳ Not Started | 5-6h | - | - |
+| 2. Dataset Param | ✅ Complete | 4-5h | ~4h | 2025-11-07 |
+| 3. Versioned SPARQL | ✅ Complete | 5-6h | ~5h | 2025-11-07 |
 | 4. Versioned GSP | ⏳ Not Started | 5-6h | - | - |
 | 5. VC Management | ⏳ Not Started | 4-5h | - | - |
 | 6. Advanced Ops | ⏳ Not Started | 5-6h | - | - |

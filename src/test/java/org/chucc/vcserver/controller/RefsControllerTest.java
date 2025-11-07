@@ -40,8 +40,7 @@ class RefsControllerTest {
     when(refService.getAllRefs(DATASET_NAME)).thenReturn(Collections.emptyList());
 
     // When & Then
-    mockMvc.perform(get("/version/refs")
-            .param("dataset", DATASET_NAME))
+    mockMvc.perform(get("/" + DATASET_NAME + "/version/refs"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.refs").isArray())
@@ -59,8 +58,7 @@ class RefsControllerTest {
     when(refService.getAllRefs(DATASET_NAME)).thenReturn(List.of(branch1, branch2));
 
     // When & Then
-    mockMvc.perform(get("/version/refs")
-            .param("dataset", DATASET_NAME))
+    mockMvc.perform(get("/" + DATASET_NAME + "/version/refs"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.refs").isArray())
@@ -81,8 +79,7 @@ class RefsControllerTest {
     when(refService.getAllRefs(DATASET_NAME)).thenReturn(List.of(tag));
 
     // When & Then
-    mockMvc.perform(get("/version/refs")
-            .param("dataset", DATASET_NAME))
+    mockMvc.perform(get("/" + DATASET_NAME + "/version/refs"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.refs").isArray())
@@ -103,8 +100,7 @@ class RefsControllerTest {
     when(refService.getAllRefs(DATASET_NAME)).thenReturn(List.of(branch, tag));
 
     // When & Then
-    mockMvc.perform(get("/version/refs")
-            .param("dataset", DATASET_NAME))
+    mockMvc.perform(get("/" + DATASET_NAME + "/version/refs"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.refs").isArray())
@@ -123,8 +119,7 @@ class RefsControllerTest {
     when(refService.getAllRefs(DATASET_NAME)).thenReturn(List.of(branch));
 
     // When & Then
-    mockMvc.perform(get("/version/refs")
-            .param("dataset", DATASET_NAME))
+    mockMvc.perform(get("/" + DATASET_NAME + "/version/refs"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.refs[0].message").doesNotExist());
@@ -136,7 +131,7 @@ class RefsControllerTest {
     when(refService.getAllRefs("default")).thenReturn(Collections.emptyList());
 
     // When & Then
-    mockMvc.perform(get("/version/refs"))
+    mockMvc.perform(get("/default/version/refs"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.refs").isArray());

@@ -85,8 +85,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/reset")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/reset")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isAccepted())
@@ -120,8 +119,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/reset")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/reset")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isAccepted())
@@ -154,8 +152,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/reset")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/reset")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isAccepted())
@@ -176,8 +173,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/reset")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/reset")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isBadRequest())
@@ -198,8 +194,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/reset")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/reset")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isBadRequest())
@@ -220,8 +215,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/reset")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/reset")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isBadRequest())
@@ -243,8 +237,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/reset")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/reset")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isBadRequest())
@@ -266,8 +259,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/reset")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/reset")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isBadRequest())
@@ -293,8 +285,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/reset")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/reset")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isNotFound())
@@ -317,8 +308,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/reset")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/reset")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isNotFound())
@@ -348,7 +338,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/reset")
+    mockMvc.perform(post("/default/version/reset")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isAccepted())
@@ -386,15 +376,14 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/revert")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/revert")
             .header("SPARQL-VC-Author", "Alice")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isAccepted())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(header().string("Location",
-            "http://localhost/version/commits/" + revertCommitId))
+            "http://localhost/" + DATASET_NAME + "/version/commits/" + revertCommitId))
         .andExpect(header().string("ETag", "\"" + revertCommitId + "\""))
         .andExpect(jsonPath("$.newCommit").value(revertCommitId))
         .andExpect(jsonPath("$.branch").value(BRANCH_NAME))
@@ -429,8 +418,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/revert")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/revert")
             .header("SPARQL-VC-Author", "Alice")
             .header("SPARQL-VC-Message", "Revert problematic change")
             .contentType(MediaType.APPLICATION_JSON)
@@ -438,7 +426,7 @@ class AdvancedOpsControllerTest {
         .andExpect(status().isAccepted())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(header().string("Location",
-            "http://localhost/version/commits/" + revertCommitId))
+            "http://localhost/" + DATASET_NAME + "/version/commits/" + revertCommitId))
         .andExpect(header().string("ETag", "\"" + revertCommitId + "\""))
         .andExpect(jsonPath("$.newCommit").value(revertCommitId))
         .andExpect(jsonPath("$.branch").value(BRANCH_NAME))
@@ -455,8 +443,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/revert")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/revert")
             .header("SPARQL-VC-Author", "Alice")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
@@ -477,8 +464,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/revert")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/revert")
             .header("SPARQL-VC-Author", "Alice")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
@@ -500,8 +486,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/revert")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/revert")
             .header("SPARQL-VC-Author", "Alice")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
@@ -523,8 +508,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/revert")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/revert")
             .header("SPARQL-VC-Author", "Alice")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
@@ -546,8 +530,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/revert")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/revert")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isBadRequest())
@@ -569,8 +552,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/revert")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/revert")
             .header("SPARQL-VC-Author", "")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
@@ -597,8 +579,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/revert")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/revert")
             .header("SPARQL-VC-Author", "Alice")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
@@ -621,8 +602,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/revert")
-            .param("dataset", DATASET_NAME)
+    mockMvc.perform(post("/" + DATASET_NAME + "/version/revert")
             .header("SPARQL-VC-Author", "Alice")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
@@ -658,7 +638,7 @@ class AdvancedOpsControllerTest {
         """;
 
     // When & Then
-    mockMvc.perform(post("/version/revert")
+    mockMvc.perform(post("/default/version/revert")
             .header("SPARQL-VC-Author", "Alice")
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))

@@ -17,12 +17,11 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
 │  ┌──────────────────────────────────────────────────────────────────┐│
 │  │                      Web Layer (Controllers)                     ││
 │  │                                                                  ││
-│  │  GraphStoreController  BranchController  TagController           ││
-│  │  SparqlController      CommitController  AdvancedOpsController   ││
-│  │  BatchController       MergeController   HistoryController       ││
-│  │  RefsController        BatchGraphsController                     ││
-│  │  DatasetController     KafkaHealthController                     ││
-│  │  MaterializedViewsController                                     ││
+│  │  GraphStoreController      BranchController      TagController       ││
+│  │  SparqlController          CommitController      AdvancedOpsController││
+│  │  VersionedSparqlController BatchController       MergeController    ││
+│  │  HistoryController         RefsController        BatchGraphsController││
+│  │  DatasetController         KafkaHealthController MaterializedViewsCtrl││
 │  │                                                                  ││
 │  └────────────────────────┬─────────────────────────────────────────┘│
 │                           │ HTTP Requests                            │
@@ -159,6 +158,17 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
    - Executes SPARQL queries (SELECT, CONSTRUCT, ASK, DESCRIBE)
    - Supports selectors (branch, commit, asOf)
    - Returns results in JSON, XML, CSV, TSV
+
+2a. **VersionedSparqlController**
+   - Implements versioned SPARQL endpoints with semantic routing
+   - Query endpoints: GET/POST /{dataset}/version/branches/{name}/sparql
+   - Query endpoints: GET/POST /{dataset}/version/commits/{id}/sparql (immutable)
+   - Query endpoints: GET/POST /{dataset}/version/tags/{name}/sparql
+   - Update endpoint: POST /{dataset}/version/branches/{name}/update
+   - Supports querying at specific version references (immutable URLs for citations)
+   - Enforces immutability (commits/tags are read-only)
+   - Returns Content-Location and Link headers for discoverability
+   - Returns Cache-Control with `immutable` directive for commits
 
 3. **BranchController**
    - Endpoints: GET/POST/PUT /version/branches
@@ -1245,7 +1255,7 @@ Each component has ONE reason to change:
 - Controllers → Repositories → HTTP Response (fast, in-memory)
 
 **Key Components**:
-- 14 Controllers (HTTP endpoints, including administrative/monitoring endpoints)
+- 19 Controllers (HTTP endpoints, including administrative/monitoring endpoints)
 - 19 Command Handlers (write operations)
 - 19 Services (business logic, including recovery services)
 - 5 Repositories (read model: commits, branches, tags, historical graphs, materialized branch HEADs)

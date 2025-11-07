@@ -87,24 +87,24 @@ class CommitMetadataIT {
 
 
   @Test
-  void getCommit_withoutDataset_shouldReturn400() {
-    // Act
+  void getCommit_withDatasetInPath_shouldReturn200() {
+    // Act - Dataset is now required in path (not as query param)
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits/01933e4a-9d4e-7000-8000-000000000003",
+        "/default/version/commits/01933e4a-9d4e-7000-8000-000000000003",
         HttpMethod.GET,
         null,
         String.class
     );
 
     // Assert
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);  // 404 because commit doesn't exist
   }
 
   @Test
   void getCommit_withNonExistentCommit_shouldReturn404() throws Exception {
     // Act
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits/00000000-0000-0000-0000-000000000000?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits/00000000-0000-0000-0000-000000000000",
         HttpMethod.GET,
         null,
         String.class
@@ -143,7 +143,7 @@ class CommitMetadataIT {
 
     // Act
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits/" + testId.toString() + "?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits/" + testId.toString(),
         HttpMethod.GET,
         null,
         String.class
@@ -190,7 +190,7 @@ class CommitMetadataIT {
 
     // Act
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits/" + commit2Id.toString() + "?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits/" + commit2Id.toString(),
         HttpMethod.GET,
         null,
         String.class

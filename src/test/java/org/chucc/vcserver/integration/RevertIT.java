@@ -154,7 +154,7 @@ class RevertIT {
     // Verify Location header
     String locationHeader = response.getHeaders().getFirst("Location");
     assertThat(locationHeader).isNotNull();
-    assertThat(locationHeader).contains("/version/commits/");
+    assertThat(locationHeader).contains("/default/version/commits/");
 
     // Verify ETag header
     String etagHeader = response.getHeaders().getFirst("ETag");

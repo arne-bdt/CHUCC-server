@@ -85,7 +85,7 @@ class GraphStorePatchIT extends ITFixture {
     // Then - API response verification (synchronous)
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     assertThat(response.getHeaders().getFirst("Location")).isNotNull();
-    assertThat(response.getHeaders().getFirst("Location")).matches("/version/commits/.*");
+    assertThat(response.getHeaders().getFirst("Location")).matches("/default/version/commits/.*");
     assertThat(response.getHeaders().getFirst("ETag")).isNotNull();
     assertThat(response.getHeaders().getFirst("ETag")).matches("\"[0-9a-f-]+\"");
     assertThat(response.getHeaders().getFirst("SPARQL-Version-Control")).isEqualTo("true");

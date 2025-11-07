@@ -191,7 +191,7 @@ class CherryPickIT {
     // Verify Location header
     String location = response.getHeaders().getFirst("Location");
     assertThat(location).isNotNull();
-    assertThat(location).contains("/version/commits/");
+    assertThat(location).contains("/default/version/commits/");
 
     // Verify ETag header
     String etag = response.getHeaders().getFirst("ETag");

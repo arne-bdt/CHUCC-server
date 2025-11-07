@@ -108,7 +108,7 @@ class NoOpPatchIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class
@@ -148,7 +148,7 @@ class NoOpPatchIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class
@@ -181,7 +181,7 @@ class NoOpPatchIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class
@@ -211,7 +211,7 @@ class NoOpPatchIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class
@@ -243,7 +243,7 @@ class NoOpPatchIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class
@@ -255,7 +255,7 @@ class NoOpPatchIT {
     // Verify Location header exists
     String location = response.getHeaders().getFirst("Location");
     assertThat(location).isNotNull();
-    assertThat(location).startsWith("/version/commits/");
+    assertThat(location).startsWith("/" + DATASET_NAME + "/version/commits/");
 
     // Verify ETag header exists
     String etag = response.getHeaders().getFirst("ETag");
@@ -280,7 +280,7 @@ class NoOpPatchIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class

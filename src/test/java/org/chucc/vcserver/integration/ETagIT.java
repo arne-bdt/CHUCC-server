@@ -101,7 +101,7 @@ class ETagIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class
@@ -138,7 +138,7 @@ class ETagIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class
@@ -161,7 +161,7 @@ class ETagIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class
@@ -194,7 +194,7 @@ class ETagIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class

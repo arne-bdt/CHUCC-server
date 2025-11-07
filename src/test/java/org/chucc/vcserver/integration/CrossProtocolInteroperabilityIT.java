@@ -244,7 +244,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
     );
 
     String location = putResponse.getHeaders().getFirst("Location");
-    String commitId = location.substring("/version/commits/".length());
+    String commitId = location.substring("/default/version/commits/".length());
 
     // And - Create tag pointing to this commit
     Tag releaseTag = new Tag("v1.0.0", CommitId.of(commitId));
@@ -505,11 +505,11 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
 
     String commitId = putResponse.getHeaders()
         .getFirst("Location")
-        .substring("/version/commits/".length());
+        .substring("/default/version/commits/".length());
 
     // When - Retrieve via /version/commits/{id}
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/commits/" + commitId + "?dataset=default",
+        "/default/version/commits/" + commitId + "?dataset=default",
         String.class
     );
 

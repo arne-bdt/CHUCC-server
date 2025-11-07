@@ -153,7 +153,7 @@ class BranchDeletionIT {
     headers.set("X-Author", "test-author");
 
     ResponseEntity<Void> response = restTemplate.exchange(
-        "/version/branches/" + branchName,
+        "/" + DEFAULT_DATASET + "/version/branches/" + branchName,
         HttpMethod.DELETE,
         new HttpEntity<>(headers),
         Void.class
@@ -199,7 +199,7 @@ class BranchDeletionIT {
     headers.set("X-Author", "test-author");
 
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/branches/main",
+        "/" + DEFAULT_DATASET + "/version/branches/main",
         HttpMethod.DELETE,
         new HttpEntity<>(headers),
         String.class
@@ -222,7 +222,7 @@ class BranchDeletionIT {
     headers.set("X-Author", "test-author");
 
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/branches/non-existent-branch",
+        "/" + DEFAULT_DATASET + "/version/branches/non-existent-branch",
         HttpMethod.DELETE,
         new HttpEntity<>(headers),
         String.class
@@ -267,7 +267,7 @@ class BranchDeletionIT {
     headers.set("X-Author", "test-author");
 
     ResponseEntity<Void> response = restTemplate.exchange(
-        "/version/branches/" + branchName,
+        "/" + DEFAULT_DATASET + "/version/branches/" + branchName,
         HttpMethod.DELETE,
         new HttpEntity<>(headers),
         Void.class

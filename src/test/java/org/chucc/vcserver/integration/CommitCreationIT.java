@@ -100,7 +100,7 @@ class CommitCreationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class
@@ -114,7 +114,7 @@ class CommitCreationIT {
     // Verify Location header
     String location = response.getHeaders().getFirst("Location");
     assertThat(location).isNotNull();
-    assertThat(location).startsWith("/version/commits/");
+    assertThat(location).startsWith("/" + DATASET_NAME + "/version/commits/");
 
     // Verify ETag header
     String etag = response.getHeaders().getFirst("ETag");
@@ -147,7 +147,7 @@ class CommitCreationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&commit=some-id&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main&commit=some-id",
         HttpMethod.POST,
         request,
         String.class
@@ -169,7 +169,7 @@ class CommitCreationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits",
         HttpMethod.POST,
         request,
         String.class
@@ -191,7 +191,7 @@ class CommitCreationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main&dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class
@@ -217,8 +217,8 @@ class CommitCreationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?commit=" + commitId + "&asOf=2025-01-01T00:00:00Z&dataset="
-            + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/commits?commit=" + commitId
+            + "&asOf=2025-01-01T00:00:00Z",
         HttpMethod.POST,
         request,
         String.class
@@ -261,7 +261,7 @@ class CommitCreationIT {
 
     // When
     ResponseEntity<String> response = restTemplate.exchange(
-        "/version/commits?branch=main",
+        "/default/version/commits?branch=main",
         HttpMethod.POST,
         request,
         String.class

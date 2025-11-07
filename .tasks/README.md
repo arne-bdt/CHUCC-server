@@ -30,40 +30,32 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Remaining Tasks
 
-### ✅ SPARQL 1.1 Service Description (Completed 2025-11-10)
-**File:** `.tasks/service-description/` (DELETED - tasks completed)
+### 🟡 Medium Priority (REST Best Practices)
 
-**Endpoints:**
-- ✅ `GET /.well-known/void` - Service description (well-known URI)
-- ✅ `GET /service-description` - Service description (explicit endpoint)
+#### 1. Add Pagination to Collection Endpoints
+**File:** `.tasks/pagination/`
 
-**Status:** ✅ Completed (2025-11-10)
-**Category:** Standards Compliance / Discoverability
-**W3C Spec:** SPARQL 1.1 Service Description
-**Total Time:** 14 hours (6 phases)
+**Overview:**
+Add `offset` and `limit` pagination parameters to collection endpoints that currently return all results (branches, tags, refs).
 
-**Implementation:**
-- Created ServiceDescriptionService (RDF model generation)
-- Created ServiceDescriptionController (content negotiation)
-- Implemented dynamic dataset discovery
-- Defined custom vc: vocabulary for version control
-- Exposed branches, tags, commits metadata
-- Content negotiation (Turtle, JSON-LD, RDF/XML, N-Triples)
-- Added 24 integration tests (all passing)
-- Comprehensive documentation and examples
+**Endpoints to Update:**
+1. `GET /{dataset}/version/branches` - BranchController
+2. `GET /{dataset}/version/tags` - TagController
+3. `GET /{dataset}/version/refs` - RefsController
 
-**Files Created:**
-- `src/main/java/org/chucc/vcserver/service/ServiceDescriptionService.java`
-- `src/main/java/org/chucc/vcserver/controller/ServiceDescriptionController.java`
-- `src/test/java/org/chucc/vcserver/integration/ServiceDescriptionIT.java`
-- `docs/api/version-control-vocabulary.md`
-- `docs/examples/service-description-examples.md`
+**Total Estimated Time:** 6-8 hours (2-3 hours per endpoint)
 
-**Files Modified:**
-- `src/main/java/org/chucc/vcserver/repository/BranchRepository.java`
-- `docs/api/openapi-guide.md`
-- `docs/architecture/c4-level3-component.md`
-- `README.md`
+**Benefits:**
+- Performance with large datasets (prevent memory exhaustion)
+- Consistent API behavior (history/blame already have pagination)
+- Better client UX (incremental data loading)
+- Scalability support (1000s of branches/tags)
+
+**Status:** ⏳ Ready to implement
+**Priority:** Medium (REST best practice, not protocol-mandated)
+**Session:** claude/audit-offset-limit-params-011CUtpRzJtQsm1pZ6Cda2j6
+
+See [Pagination README](./.tasks/pagination/README.md) for details.
 
 ---
 
@@ -75,7 +67,7 @@ No remaining tasks in this category.
 
 ### 🔵 Low Priority (Technical Debt)
 
-#### 2. Fix CreateBranchCommandHandler Write-Through Pattern
+#### 3. Fix CreateBranchCommandHandler Write-Through Pattern
 **File:** TBD
 
 **Problem:**
@@ -158,8 +150,9 @@ No remaining tasks in this category.
 - Technical Debt: 2-3 hours (optional - CreateBranchCommandHandler write-through pattern)
 
 **Priority Breakdown:**
-- 🟡 Medium Priority: ✅ COMPLETED
-- 🔵 Low Priority: 1 task (CreateBranchCommandHandler write-through - optional)
+- 🟡 Medium Priority: 1 task (Pagination - 6-8 hours)
+- 🟢 Optional Enhancement: 1 task (Service Description - 12-16 hours)
+- 🔵 Low Priority: 1 task (CreateBranchCommandHandler write-through - 2-3 hours)
 
 **Current Status:** All feature tasks and major architecture refactoring completed (100%)
 - ✅ CommitCreatedEvent patchSize (completed 2025-01-24)
@@ -389,6 +382,43 @@ All tasks implement endpoints from:
 ---
 
 ## Completed Tasks (2025)
+
+### ✅ SPARQL 1.1 Service Description (Completed 2025-11-10)
+**File:** `.tasks/service-description/` (DELETED - tasks completed)
+
+**Endpoints:**
+- ✅ `GET /.well-known/void` - Service description (well-known URI)
+- ✅ `GET /service-description` - Service description (explicit endpoint)
+
+**Status:** ✅ Completed (2025-11-10)
+**Category:** Standards Compliance / Discoverability
+**W3C Spec:** SPARQL 1.1 Service Description
+**Total Time:** 14 hours (6 phases)
+
+**Implementation:**
+- Created ServiceDescriptionService (RDF model generation)
+- Created ServiceDescriptionController (content negotiation)
+- Implemented dynamic dataset discovery
+- Defined custom vc: vocabulary for version control
+- Exposed branches, tags, commits metadata
+- Content negotiation (Turtle, JSON-LD, RDF/XML, N-Triples)
+- Added 24 integration tests (all passing)
+- Comprehensive documentation and examples
+
+**Files Created:**
+- `src/main/java/org/chucc/vcserver/service/ServiceDescriptionService.java`
+- `src/main/java/org/chucc/vcserver/controller/ServiceDescriptionController.java`
+- `src/test/java/org/chucc/vcserver/integration/ServiceDescriptionIT.java`
+- `docs/api/version-control-vocabulary.md`
+- `docs/examples/service-description-examples.md`
+
+**Files Modified:**
+- `src/main/java/org/chucc/vcserver/repository/BranchRepository.java`
+- `docs/api/openapi-guide.md`
+- `docs/architecture/c4-level3-component.md`
+- `README.md`
+
+---
 
 ### ✅ Test Output Quality - Eliminate Kafka Topic Warnings (Completed 2025-11-08)
 

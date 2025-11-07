@@ -23,6 +23,8 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("it")
 class DiffEndpointIT extends ITFixture {
 
+  private static final String DATASET_NAME = "test-diff";
+
   @Autowired
   private TestRestTemplate restTemplate;
 
@@ -34,7 +36,7 @@ class DiffEndpointIT extends ITFixture {
   @Test
   void diffCommits_withAdditions_shouldReturnRdfPatch() {
     // Given: Create two commits - second adds a triple
-    String dataset = "test-diff";
+    String dataset = DATASET_NAME;
     CommitId commit1 = createCommit(
         dataset,
         List.of(),
@@ -79,7 +81,7 @@ class DiffEndpointIT extends ITFixture {
   @Test
   void diffCommits_withDeletions_shouldIncludeDeleteOperations() {
     // Given: Create two commits - second deletes a triple
-    String dataset = "test-diff-delete";
+    String dataset = DATASET_NAME;
 
     // Commit1: Add two triples
     String patch1 = String.format(
@@ -127,7 +129,7 @@ class DiffEndpointIT extends ITFixture {
   @Test
   void diffCommits_sameCommit_shouldReturnEmptyPatch() {
     // Given: Single commit
-    String dataset = "test-diff-same";
+    String dataset = DATASET_NAME;
     CommitId commit1 = createCommit(
         dataset,
         List.of(),
@@ -160,7 +162,7 @@ class DiffEndpointIT extends ITFixture {
   @Test
   void diffCommits_withDatasetInPath_shouldWork() {
     // Given: Dataset in path (now required)
-    String dataset = "test-diff-path";
+    String dataset = DATASET_NAME;
     CommitId commit1 = createCommit(
         dataset,
         List.of(),
@@ -190,8 +192,8 @@ class DiffEndpointIT extends ITFixture {
     // When: Call without from parameter
     CommitId dummyId = CommitId.generate();
     String url = String.format(
-        "/test/version/diff?to=%s",
-        dummyId.value()
+        "/%s/version/diff?to=%s",
+        DATASET_NAME, dummyId.value()
     );
     ResponseEntity<String> response = restTemplate.exchange(
         url,
@@ -209,8 +211,8 @@ class DiffEndpointIT extends ITFixture {
     // When: Call without to parameter
     CommitId dummyId = CommitId.generate();
     String url = String.format(
-        "/test/version/diff?from=%s",
-        dummyId.value()
+        "/%s/version/diff?from=%s",
+        DATASET_NAME, dummyId.value()
     );
     ResponseEntity<String> response = restTemplate.exchange(
         url,
@@ -226,7 +228,7 @@ class DiffEndpointIT extends ITFixture {
   @Test
   void diffCommits_nonExistentFromCommit_shouldReturn404() {
     // Given: One valid commit
-    String dataset = "test-diff-404";
+    String dataset = DATASET_NAME;
     CommitId validCommit = createCommit(
         dataset,
         List.of(),
@@ -255,7 +257,7 @@ class DiffEndpointIT extends ITFixture {
   @Test
   void diffCommits_nonExistentToCommit_shouldReturn404() {
     // Given: One valid commit
-    String dataset = "test-diff-404-to";
+    String dataset = DATASET_NAME;
     CommitId validCommit = createCommit(
         dataset,
         List.of(),
@@ -284,7 +286,7 @@ class DiffEndpointIT extends ITFixture {
   @Test
   void diffCommits_invalidFromCommitId_shouldReturn400() {
     // When: Request diff with invalid commit ID format
-    String url = "/test/version/diff?from=invalid-id&to=another-invalid-id";
+    String url = "/" + DATASET_NAME + "/version/diff?from=invalid-id&to=another-invalid-id";
     ResponseEntity<String> response = restTemplate.exchange(
         url,
         HttpMethod.GET,
@@ -299,7 +301,7 @@ class DiffEndpointIT extends ITFixture {
   @Test
   void diffCommits_reverseDirection_shouldInvertPatch() {
     // Given: Two commits where second adds a triple on top of first
-    String dataset = "test-diff-symmetry";
+    String dataset = DATASET_NAME;
 
     // Commit 1: Contains triple s1/p1/v1
     CommitId commit1 = createCommit(
@@ -374,8 +376,8 @@ class DiffEndpointIT extends ITFixture {
 
       // When: Request diff endpoint
       String url = String.format(
-          "/test/version/diff?from=%s&to=%s",
-          commit1.value(), commit2.value()
+          "/%s/version/diff?from=%s&to=%s",
+          "test-diff", commit1.value(), commit2.value()
       );
       ResponseEntity<String> response = restTemplate.exchange(
           url, HttpMethod.GET, null, String.class);

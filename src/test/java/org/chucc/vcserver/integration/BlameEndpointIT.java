@@ -24,6 +24,8 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("it")
 class BlameEndpointIT extends ITFixture {
 
+  private static final String DATASET_NAME = "test-blame";
+
   @Autowired
   private TestRestTemplate restTemplate;
 
@@ -35,7 +37,7 @@ class BlameEndpointIT extends ITFixture {
   @Test
   void blameGraph_basicScenario_shouldReturnQuadAttribution() {
     // Given: Create 2 commits with different authors in same graph
-    String dataset = "test-blame";
+    String dataset = DATASET_NAME;
     String graph = "http://example.org/data";
 
     // Commit 1: Alice adds 2 quads
@@ -108,7 +110,7 @@ class BlameEndpointIT extends ITFixture {
   @Test
   void blameGraph_deleteAndReAdd_shouldBlameReAddCommit() {
     // Given: Test delete/re-add scenario (critical for quad removal logic)
-    String dataset = "test-reblame";
+    String dataset = DATASET_NAME;
     String graph = "http://example.org/data";
 
     // Commit 1: Alice adds quad
@@ -176,7 +178,7 @@ class BlameEndpointIT extends ITFixture {
   @Test
   void blameGraph_graphIsolation_shouldOnlyShowTargetGraph() {
     // Given: Same triple in different graphs
-    String dataset = "test-isolation";
+    String dataset = DATASET_NAME;
     String graph1 = "http://example.org/graph1";
     String graph2 = "http://example.org/graph2";
 
@@ -248,7 +250,7 @@ class BlameEndpointIT extends ITFixture {
   @Test
   void blameGraph_withPagination_shouldReturnCorrectSubset() {
     // Given: Graph with 150 quads
-    String dataset = "test-pagination";
+    String dataset = DATASET_NAME;
     String graph = "http://example.org/data";
 
     // Build patch with 150 quads
@@ -313,7 +315,7 @@ class BlameEndpointIT extends ITFixture {
   @Test
   void blameGraph_withMoreResults_shouldIncludeLinkHeader() {
     // Given: Graph with 150 quads
-    String dataset = "test-link-header";
+    String dataset = DATASET_NAME;
     String graph = "http://example.org/data";
 
     StringBuilder patchBuilder = new StringBuilder("TX .\n");
@@ -361,7 +363,7 @@ class BlameEndpointIT extends ITFixture {
   @Test
   void blameGraph_defaultGraph_shouldHandleDefaultKeyword() {
     // Given: Quads in default graph
-    String dataset = "test-default-graph";
+    String dataset = DATASET_NAME;
 
     // Add quads to default graph (no graph URI in patch = default graph)
     String patch1 = "TX .\n"
@@ -403,7 +405,7 @@ class BlameEndpointIT extends ITFixture {
   @Test
   void blameGraph_missingGraphParameter_shouldReturn400() {
     // Given: Valid dataset and commit
-    String dataset = "test-missing-graph";
+    String dataset = DATASET_NAME;
     String graph = "http://example.org/data";
 
     String patch1 = String.format(
@@ -437,7 +439,7 @@ class BlameEndpointIT extends ITFixture {
   @Test
   void blameGraph_graphNotInCommit_shouldReturn404() {
     // Given: Graph with data
-    String dataset = "test-missing-graph-404";
+    String dataset = DATASET_NAME;
     String graph1 = "http://example.org/graph1";
     String graph2 = "http://example.org/graph2";
 
@@ -472,7 +474,7 @@ class BlameEndpointIT extends ITFixture {
   @Test
   void blameGraph_limitExceedsMaximum_shouldReturn400() {
     // Given: Valid dataset
-    String dataset = "test-limit-validation";
+    String dataset = DATASET_NAME;
     String graph = "http://example.org/data";
 
     String patch1 = String.format(
@@ -506,7 +508,7 @@ class BlameEndpointIT extends ITFixture {
   @Test
   void blameGraph_commitNotFound_shouldReturn404() {
     // When: Request with non-existent commit
-    String url = "/test/version/blame?commit=01933e4a-0000-7000-8000-000000000000"
+    String url = "/" + DATASET_NAME + "/version/blame?commit=01933e4a-0000-7000-8000-000000000000"
         + "&graph=http://example.org/data";
     ResponseEntity<String> response = restTemplate.exchange(
         url,

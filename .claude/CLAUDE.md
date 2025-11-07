@@ -367,6 +367,124 @@ void setUp() {
 - **GraphStoreControllerIT**: Tests using existing "default" dataset
 - **VersionControlProjectorIT**: Tests with projector enabled (awaits projection)
 
+### Dataset Naming Conventions
+
+**Goal:** Standardize how integration tests reference dataset names to enable reliable bulk refactoring.
+
+#### Pattern 1: Constant-Based (90% of tests)
+
+Use this pattern when your test doesn't need unique dataset names per run:
+
+```java
+@SpringBootTest(webEnvironment = RANDOM_PORT)
+@ActiveProfiles("it")
+class MyIntegrationTest extends ITFixture {
+  private static final String DATASET_NAME = "test-my-feature";
+
+  @Test
+  void myTest() {
+    // Use DATASET_NAME throughout
+    String url = "/" + DATASET_NAME + "/version/endpoint";
+    ResponseEntity<String> response = restTemplate.exchange(url, ...);
+  }
+}
+```
+
+**When to use:**
+- ✅ Standard integration test (API layer)
+- ✅ Simple commit graph (1-2 commits)
+- ✅ Uses `ITFixture` default setup
+- ✅ No cross-test contamination risk
+
+**Examples:** CommitCreationIT, CherryPickIT, ETagIT, BlameEndpointIT, DiffEndpointIT
+
+#### Pattern 2: Field Variable with Unique Names (10% of tests)
+
+Use this pattern when your test needs unique dataset names per run:
+
+```java
+@SpringBootTest(webEnvironment = RANDOM_PORT)
+@ActiveProfiles("it")
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")
+class ComplexOperationIT extends ITFixture {
+  private String dataset;
+
+  @Override
+  protected String getDatasetName() {
+    return "complex-test-" + System.nanoTime();
+  }
+
+  @Override
+  protected boolean shouldCreateInitialSetup() {
+    return false; // Custom setup needed
+  }
+
+  @BeforeEach
+  void setUp() {
+    dataset = getDatasetName();
+    // Custom multi-commit setup...
+  }
+
+  @Test
+  void myTest() {
+    String url = "/" + dataset + "/version/endpoint";
+    // ...
+  }
+}
+```
+
+**When to use:**
+- ✅ Complex custom setup (overrides `shouldCreateInitialSetup()`)
+- ✅ Multi-commit graph that cannot be created via standard API
+- ✅ Tests destructive operations (e.g., dataset deletion)
+- ✅ Needs guaranteed unique name per test run
+
+**Examples:** RebaseIT, SquashIT, DatasetDeletionIT
+
+#### ❌ Anti-Patterns to Avoid
+
+**Don't use inline literals:**
+```java
+// ❌ BAD: Inline literal
+@Test
+void myTest() {
+  String url = "/test-dataset/version/endpoint";  // Hard to find with grep/sed
+}
+```
+
+**Don't use local variables per test method:**
+```java
+// ❌ BAD: Local variable in each test
+@Test
+void test1() {
+  String dataset = "my-dataset";  // Repeated in every test
+}
+
+@Test
+void test2() {
+  String dataset = "my-dataset";  // Inconsistent and error-prone
+}
+```
+
+#### Migration Guide
+
+When standardizing existing tests:
+
+1. **Identify pattern:** Does the test need unique names per run?
+2. **Add constant/field:** Add `DATASET_NAME` constant or `dataset` field
+3. **Replace literals:** Replace all inline dataset strings with the constant/field
+4. **Run tests:** Verify tests still pass
+5. **Check cleanup:** Ensure `ITFixture` cleanup handles the dataset
+
+**Bulk replacement example:**
+```bash
+# Find all inline dataset references
+grep -r '"test-dataset"' src/test/java/org/chucc/vcserver/integration/
+
+# After adding constant, replace with constant reference
+sed -i 's/"test-dataset"/DATASET_NAME/g' MyIT.java
+```
+
 ---
 
 ## Code Quality Standards

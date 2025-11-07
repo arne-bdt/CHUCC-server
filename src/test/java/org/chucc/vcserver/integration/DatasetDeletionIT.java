@@ -36,6 +36,8 @@ class DatasetDeletionIT {
   @Autowired
   private BranchRepository branchRepository;
 
+  private String dataset;
+
   @DynamicPropertySource
   static void configureKafka(DynamicPropertyRegistry registry) {
     registry.add("kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
@@ -43,10 +45,19 @@ class DatasetDeletionIT {
     registry.add("vc.allow-kafka-topic-deletion", () -> "true");
   }
 
+  /**
+   * Generates a unique dataset name per test run to prevent cross-test contamination.
+   *
+   * @return unique dataset name
+   */
+  private String getUniqueDatasetName() {
+    return "test-dataset-deletion-" + System.nanoTime();
+  }
+
   @Test
   void shouldRecordFalseWhenKafkaTopicDeletionFails() {
     // Given: Dataset with non-existent Kafka topic
-    String dataset = "test-dataset-" + System.currentTimeMillis();
+    dataset = getUniqueDatasetName();
 
     // Add branches to repository so dataset "exists"
     Branch branch = new Branch("main", CommitId.generate());

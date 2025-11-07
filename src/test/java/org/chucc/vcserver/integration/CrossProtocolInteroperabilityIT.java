@@ -86,7 +86,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
   void versionRefs_shouldReturnBranchesInExpectedFormat() throws Exception {
     // When - Query Protocol's /version/refs
     ResponseEntity<String> refsResponse = restTemplate.getForEntity(
-        "/version/refs?dataset=default",
+        "/default/version/refs",
         String.class
     );
 
@@ -183,7 +183,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
 
     // When - Query /version/refs
     ResponseEntity<String> refsResponse = restTemplate.getForEntity(
-        "/version/refs?dataset=default",
+        "/default/version/refs",
         String.class
     );
 
@@ -253,7 +253,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
 
     // When - Query Protocol /version/refs
     ResponseEntity<String> refsResponse = restTemplate.getForEntity(
-        "/version/refs?dataset=default",
+        "/default/version/refs",
         String.class
     );
 
@@ -457,7 +457,7 @@ class CrossProtocolInteroperabilityIT extends ITFixture {
   void versionRefs_shouldBeAccessibleAndReturnValidStructure() throws Exception {
     // When - Query /version/refs
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/refs?dataset=default",
+        "/default/version/refs",
         String.class
     );
 

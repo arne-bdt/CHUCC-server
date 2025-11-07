@@ -11,15 +11,15 @@ import org.chucc.vcserver.service.RefService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Controller for refs (branches and tags) management endpoints.
  */
 @RestController
-@RequestMapping("/version")
+@RequestMapping("/{dataset}/version")
 @Tag(name = "Version Control", description = "Refs management operations")
 public class RefsController {
 
@@ -37,7 +37,7 @@ public class RefsController {
   /**
    * List all refs (branches and tags).
    *
-   * @param datasetName the dataset name (defaults to "default")
+   * @param dataset the dataset name
    * @return list of all refs
    */
   @GetMapping(value = "/refs", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -54,10 +54,10 @@ public class RefsController {
       )
   )
   public ResponseEntity<RefsListResponse> listRefs(
-      @Parameter(description = "Dataset name", required = false)
-      @RequestParam(value = "dataset", defaultValue = "default") String datasetName
+      @Parameter(description = "Dataset name", required = true)
+      @PathVariable String dataset
   ) {
-    var refs = refService.getAllRefs(datasetName);
+    var refs = refService.getAllRefs(dataset);
     return ResponseEntity.ok(new RefsListResponse(refs));
   }
 }

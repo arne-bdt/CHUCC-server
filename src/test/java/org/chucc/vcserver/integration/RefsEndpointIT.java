@@ -71,7 +71,7 @@ class RefsEndpointIT {
   void listRefs_shouldReturnEmptyArray_whenNoRefs() throws Exception {
     // When
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/refs?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/refs",
         String.class
     );
 
@@ -99,7 +99,7 @@ class RefsEndpointIT {
 
     // When
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/refs?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/refs",
         String.class
     );
 
@@ -135,7 +135,7 @@ class RefsEndpointIT {
 
     // When
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/refs?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/refs",
         String.class
     );
 
@@ -174,7 +174,7 @@ class RefsEndpointIT {
 
     // When
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/refs?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/refs",
         String.class
     );
 
@@ -208,7 +208,7 @@ class RefsEndpointIT {
 
     // When
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/refs?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/refs",
         String.class
     );
 
@@ -234,13 +234,13 @@ class RefsEndpointIT {
 
     // When - Query dataset1
     ResponseEntity<String> response1 = restTemplate.getForEntity(
-        "/version/refs?dataset=dataset1",
+        "/dataset1/version/refs",
         String.class
     );
 
     // When - Query dataset2
     ResponseEntity<String> response2 = restTemplate.getForEntity(
-        "/version/refs?dataset=dataset2",
+        "/dataset2/version/refs",
         String.class
     );
 
@@ -261,15 +261,15 @@ class RefsEndpointIT {
   }
 
   @Test
-  void listRefs_shouldUseDefaultDataset_whenParamNotProvided() throws Exception {
+  void listRefs_withDatasetInPath_shouldWork() throws Exception {
     // Given - Create a branch in the default dataset
     CommitId commitId = CommitId.generate();
     Branch main = new Branch("main", commitId);
     branchRepository.save("default", main);
 
-    // When - Call without dataset parameter
+    // When - Call with dataset in path (now required)
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/refs",
+        "/default/version/refs",
         String.class
     );
 

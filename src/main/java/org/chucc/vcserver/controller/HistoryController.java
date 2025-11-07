@@ -26,6 +26,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
  * History and diff endpoints for version control.
  */
 @RestController
-@RequestMapping("/version")
+@RequestMapping("/{dataset}/version")
 @Tag(name = "Version Control", description = "History and diff operations")
 public class HistoryController {
 
@@ -107,7 +108,7 @@ public class HistoryController {
   )
   public ResponseEntity<HistoryResponse> listHistory(
       @Parameter(description = "Dataset name", required = true)
-      @RequestParam String dataset,
+      @PathVariable String dataset,
       @Parameter(description = "Target branch")
       @RequestParam(required = false) String branch,
       @Parameter(description = "Limit number of results (max 1000)")
@@ -121,10 +122,6 @@ public class HistoryController {
       @Parameter(description = "Filter by author")
       @RequestParam(required = false) String author
   ) {
-    // Validate dataset parameter
-    if (dataset == null || dataset.isBlank()) {
-      throw new IllegalArgumentException("Dataset parameter is required");
-    }
 
     // Validate pagination parameters
     if (limit < 1 || limit > MAX_LIMIT) {
@@ -247,7 +244,7 @@ public class HistoryController {
   )
   public ResponseEntity<String> diffCommits(
       @Parameter(description = "Dataset name", required = true)
-      @RequestParam String dataset,
+      @PathVariable String dataset,
       @Parameter(description = "From commit id (UUIDv7)", required = true)
       @RequestParam String from,
       @Parameter(description = "To commit id (UUIDv7)", required = true)
@@ -343,7 +340,7 @@ public class HistoryController {
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<BlameResponse> blameGraph(
-      @RequestParam String dataset,
+      @PathVariable String dataset,
       @RequestParam String commit,
       @RequestParam String graph,
       @RequestParam(defaultValue = "0") int offset,
@@ -355,9 +352,6 @@ public class HistoryController {
     }
 
     // Validate required parameters
-    if (dataset == null || dataset.isBlank()) {
-      throw new IllegalArgumentException("Dataset parameter is required");
-    }
     if (commit == null || commit.isBlank()) {
       throw new IllegalArgumentException("Commit parameter is required");
     }

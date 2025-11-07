@@ -56,7 +56,7 @@ class MergeOperationsIT {
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   private static final String DATASET_NAME = "test-dataset";
-  private static final String BASE_URL = "/version/merge";
+  private static final String BASE_URL = "/" + DATASET_NAME + "/version/merge";
 
   @BeforeAll
   static void startKafka() {
@@ -138,7 +138,7 @@ class MergeOperationsIT {
     headers.set("SPARQL-VC-Author", "Alice");
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -173,7 +173,7 @@ class MergeOperationsIT {
     headers.setContentType(MediaType.APPLICATION_JSON);
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -240,7 +240,7 @@ class MergeOperationsIT {
     headers.set("SPARQL-VC-Author", "Alice");
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -315,7 +315,7 @@ class MergeOperationsIT {
     headers.setContentType(MediaType.APPLICATION_JSON);
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -371,7 +371,7 @@ class MergeOperationsIT {
     headers.setContentType(MediaType.APPLICATION_JSON);
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -438,7 +438,7 @@ class MergeOperationsIT {
     headers.setContentType(MediaType.APPLICATION_JSON);
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -491,7 +491,7 @@ class MergeOperationsIT {
     headers.setContentType(MediaType.APPLICATION_JSON);
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -522,7 +522,7 @@ class MergeOperationsIT {
     headers.setContentType(MediaType.APPLICATION_JSON);
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -554,7 +554,7 @@ class MergeOperationsIT {
     headers.setContentType(MediaType.APPLICATION_JSON);
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -647,7 +647,7 @@ class MergeOperationsIT {
     headers.set("SPARQL-VC-Author", "Alice");
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -738,7 +738,7 @@ class MergeOperationsIT {
     headers.set("SPARQL-VC-Author", "Alice");
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -826,7 +826,7 @@ class MergeOperationsIT {
     headers.set("SPARQL-VC-Author", "Alice");
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -911,7 +911,7 @@ class MergeOperationsIT {
     headers.set("SPARQL-VC-Author", "Alice");
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -945,7 +945,7 @@ class MergeOperationsIT {
     headers.setContentType(MediaType.APPLICATION_JSON);
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class
@@ -980,7 +980,7 @@ class MergeOperationsIT {
     headers.setContentType(MediaType.APPLICATION_JSON);
 
     ResponseEntity<String> response = restTemplate.exchange(
-        BASE_URL + "?dataset=" + DATASET_NAME,
+        BASE_URL,
         HttpMethod.POST,
         new HttpEntity<>(requestBody, headers),
         String.class

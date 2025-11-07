@@ -94,7 +94,7 @@ class HistoryListingIT {
 
     // When
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/history?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/history",
         String.class
     );
 
@@ -164,7 +164,7 @@ class HistoryListingIT {
 
     // When: Query main branch history
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/history?dataset=" + DATASET_NAME + "&branch=main",
+        "/" + DATASET_NAME + "/version/history?branch=main",
         String.class
     );
 
@@ -217,7 +217,7 @@ class HistoryListingIT {
 
     // When: Query with since filter (last 2 days)
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/history?dataset=" + DATASET_NAME + "&since=" + twoDaysAgo.toString(),
+        "/" + DATASET_NAME + "/version/history?since=" + twoDaysAgo.toString(),
         String.class
     );
 
@@ -255,7 +255,7 @@ class HistoryListingIT {
 
     // When: Query with author filter
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/history?dataset=" + DATASET_NAME + "&author=Alice <alice@example.org>",
+        "/" + DATASET_NAME + "/version/history?author=Alice <alice@example.org>",
         String.class
     );
 
@@ -287,7 +287,7 @@ class HistoryListingIT {
 
     // When: Request first page (limit=100)
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/history?dataset=" + DATASET_NAME + "&limit=100&offset=0",
+        "/" + DATASET_NAME + "/version/history?limit=100&offset=0",
         String.class
     );
 
@@ -322,7 +322,7 @@ class HistoryListingIT {
 
     // When: Request second page (offset=100, limit=100)
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/history?dataset=" + DATASET_NAME + "&limit=100&offset=100",
+        "/" + DATASET_NAME + "/version/history?limit=100&offset=100",
         String.class
     );
 
@@ -355,7 +355,7 @@ class HistoryListingIT {
   void listHistory_nonExistentBranch_shouldReturn404() {
     // When: Query with non-existent branch
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/history?dataset=" + DATASET_NAME + "&branch=non-existent",
+        "/" + DATASET_NAME + "/version/history?branch=non-existent",
         String.class
     );
 
@@ -367,7 +367,7 @@ class HistoryListingIT {
   void listHistory_emptyDataset_shouldReturnEmptyArray() throws Exception {
     // When: Query dataset with no commits
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/history?dataset=" + DATASET_NAME,
+        "/" + DATASET_NAME + "/version/history",
         String.class
     );
 
@@ -383,7 +383,7 @@ class HistoryListingIT {
   void listHistory_invalidDateFormat_shouldReturn400() {
     // When: Query with invalid date format
     ResponseEntity<String> response = restTemplate.getForEntity(
-        "/version/history?dataset=" + DATASET_NAME + "&since=invalid-date",
+        "/" + DATASET_NAME + "/version/history?since=invalid-date",
         String.class
     );
 

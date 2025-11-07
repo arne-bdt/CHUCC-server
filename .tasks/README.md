@@ -27,9 +27,38 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Remaining Tasks
 
+### 🟡 Medium Priority (REST Best Practices)
+
+#### 1. Add Pagination to Collection Endpoints
+**File:** `.tasks/pagination/`
+
+**Overview:**
+Add `offset` and `limit` pagination parameters to collection endpoints that currently return all results (branches, tags, refs).
+
+**Endpoints to Update:**
+1. `GET /{dataset}/version/branches` - BranchController
+2. `GET /{dataset}/version/tags` - TagController
+3. `GET /{dataset}/version/refs` - RefsController
+
+**Total Estimated Time:** 6-8 hours (2-3 hours per endpoint)
+
+**Benefits:**
+- Performance with large datasets (prevent memory exhaustion)
+- Consistent API behavior (history/blame already have pagination)
+- Better client UX (incremental data loading)
+- Scalability support (1000s of branches/tags)
+
+**Status:** ⏳ Ready to implement
+**Priority:** Medium (REST best practice, not protocol-mandated)
+**Session:** claude/audit-offset-limit-params-011CUtpRzJtQsm1pZ6Cda2j6
+
+See [Pagination README](./.tasks/pagination/README.md) for details.
+
+---
+
 ### 🟢 Optional Enhancement (Standards Compliance)
 
-#### 1. SPARQL 1.1 Service Description
+#### 2. SPARQL 1.1 Service Description
 **File:** `.tasks/service-description/`
 
 **Overview:**
@@ -61,7 +90,7 @@ See [Service Description README](./.tasks/service-description/README.md) for det
 
 ### 🔵 Low Priority (Technical Debt)
 
-#### 2. Fix CreateBranchCommandHandler Write-Through Pattern
+#### 3. Fix CreateBranchCommandHandler Write-Through Pattern
 **File:** TBD
 
 **Problem:**
@@ -144,8 +173,9 @@ See [Service Description README](./.tasks/service-description/README.md) for det
 - Technical Debt: 2-3 hours (optional - CreateBranchCommandHandler write-through pattern)
 
 **Priority Breakdown:**
-- 🟡 Medium Priority: ✅ COMPLETED
-- 🔵 Low Priority: 1 task (CreateBranchCommandHandler write-through - optional)
+- 🟡 Medium Priority: 1 task (Pagination - 6-8 hours)
+- 🟢 Optional Enhancement: 1 task (Service Description - 12-16 hours)
+- 🔵 Low Priority: 1 task (CreateBranchCommandHandler write-through - 2-3 hours)
 
 **Current Status:** All feature tasks and major architecture refactoring completed (100%)
 - ✅ CommitCreatedEvent patchSize (completed 2025-01-24)

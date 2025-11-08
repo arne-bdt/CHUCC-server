@@ -227,6 +227,41 @@ class MyTest extends IntegrationTestFixture {
 - **Projector disabled:** Command handler saves to repositories immediately
 - **Projector enabled:** Uses `await()` to wait for async projection
 
+**Topic Creation Optimization:**
+
+ITFixture uses a static tracking mechanism to avoid "Topic already exists" warnings:
+
+```java
+// Static set tracks which datasets have had Kafka topics created
+private static final Set<String> datasetsWithTopics = ConcurrentHashMap.newKeySet();
+
+@BeforeEach
+void setUpIntegrationTestFixture() {
+  boolean topicAlreadyCreated = datasetsWithTopics.contains(dataset);
+
+  if (!topicAlreadyCreated) {
+    // First test method: Create via command handler (creates Kafka topic)
+    createInitialCommitAndBranchViaEvents(dataset);
+    datasetsWithTopics.add(dataset);
+  } else {
+    // Subsequent test methods: Create directly (skip topic creation)
+    createInitialStateDirectly(dataset);
+  }
+}
+```
+
+**Why this optimization?**
+- Kafka topics persist for the entire test class lifecycle
+- Creating topics multiple times generates "Topic already exists" warnings
+- First test method creates topics via `CreateDatasetCommandHandler`
+- Subsequent methods bypass topic creation via direct repository writes
+
+**Key methods:**
+- `createInitialCommitAndBranchViaEvents()`: Full event-driven setup (first test method)
+- `createInitialStateDirectly()`: Direct repository writes (subsequent test methods)
+
+Both methods create identical state (commit, branch, dataset cache, materialized graph).
+
 **❌ WRONG: Direct Repository Writes**
 
 ```java

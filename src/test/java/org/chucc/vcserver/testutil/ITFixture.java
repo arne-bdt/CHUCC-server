@@ -2,7 +2,11 @@ package org.chucc.vcserver.testutil;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
+import org.apache.jena.sparql.core.mem.DatasetGraphInMemory;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
@@ -42,6 +46,9 @@ public abstract class ITFixture {
   // Static lock for synchronizing test cleanup to prevent race conditions
   private static final Object CLEANUP_LOCK = new Object();
 
+  // Track which datasets have had their Kafka topics created to avoid "Topic already exists" warnings
+  private static final Set<String> datasetsWithTopics = ConcurrentHashMap.newKeySet();
+
   @Autowired(required = false)
   protected BranchRepository branchRepository;
 
@@ -65,6 +72,9 @@ public abstract class ITFixture {
 
   @Autowired(required = false)
   protected org.chucc.vcserver.command.CreateBranchCommandHandler createBranchCommandHandler;
+
+  @Autowired(required = false)
+  protected org.chucc.vcserver.service.DatasetService datasetService;
 
   @org.springframework.beans.factory.annotation.Value("${projector.kafka-listener.enabled:false}")
   protected boolean projectorEnabled;
@@ -164,15 +174,80 @@ public abstract class ITFixture {
 
       // Create initial setup if requested
       if (shouldCreateInitialSetup() && commitRepository != null && branchRepository != null) {
-        createInitialCommitAndBranchViaEvents(dataset);
+        boolean topicAlreadyCreated = datasetsWithTopics.contains(dataset);
 
-        // Create empty materialized graph for initial branch (only when projector disabled)
-        // When projector is enabled, it will create the materialized graph via event processing
-        if (materializedBranchRepo != null && !projectorEnabled) {
-          materializedBranchRepo.createBranch(dataset, getInitialBranchName(),
-              java.util.Optional.empty());
+        if (!topicAlreadyCreated) {
+          // First test method: Create via command handler (creates Kafka topic)
+          createInitialCommitAndBranchViaEvents(dataset);
+          datasetsWithTopics.add(dataset);
+
+          // Create empty materialized graph for initial branch (only when projector disabled)
+          // When projector is enabled, it will create the materialized graph via event processing
+          if (materializedBranchRepo != null && !projectorEnabled) {
+            materializedBranchRepo.createBranch(dataset, getInitialBranchName(),
+                java.util.Optional.empty());
+          }
+        } else {
+          // Subsequent test methods: Create directly (skip topic creation to avoid warnings)
+          createInitialStateDirectly(dataset);
         }
       }
+    }
+  }
+
+  /**
+   * Creates initial commit and branch directly in repositories without going through command handler.
+   * This avoids "Topic already exists" warnings for subsequent test methods in the same test class.
+   *
+   * <p>This method replicates the exact state created by CreateDatasetCommandHandler, including:
+   * <ul>
+   *   <li>Creating initial commit with empty patch</li>
+   *   <li>Creating main branch (protected = true)</li>
+   *   <li>Caching empty dataset graph</li>
+   * </ul>
+   *
+   * @param dataset the dataset name
+   */
+  private void createInitialStateDirectly(String dataset) {
+    // Create initial commit (same as CreateDatasetCommandHandler)
+    Commit initialCommit = Commit.create(
+        List.of(),  // No parents
+        DEFAULT_AUTHOR,
+        "Initial commit",
+        0  // Empty patch size
+    );
+
+    // Create empty patch
+    RDFPatch emptyPatch = RDFPatchOps.emptyPatch();
+
+    // Save commit and patch
+    commitRepository.save(dataset, initialCommit, emptyPatch);
+
+    // Create main branch (protected = true, same as CreateDatasetCommandHandler)
+    Branch mainBranch = new Branch(
+        getInitialBranchName(),
+        initialCommit.id(),
+        true,  // Protected (same as production behavior)
+        Instant.now(),
+        Instant.now(),
+        1  // Initial commit count
+    );
+    branchRepository.save(dataset, mainBranch);
+
+    // Cache empty dataset graph (critical for query operations)
+    if (datasetService != null) {
+      DatasetGraphInMemory datasetGraph = new DatasetGraphInMemory();
+      datasetService.cacheDatasetGraph(dataset, initialCommit.id(), datasetGraph);
+    }
+
+    // Store for tests that need it
+    initialCommitId = initialCommit.id();
+
+    // Create empty materialized graph for initial branch (only when projector disabled)
+    // When projector is enabled, it will create the materialized graph via event processing
+    if (materializedBranchRepo != null && !projectorEnabled) {
+      materializedBranchRepo.createBranch(dataset, getInitialBranchName(),
+          java.util.Optional.empty());
     }
   }
 

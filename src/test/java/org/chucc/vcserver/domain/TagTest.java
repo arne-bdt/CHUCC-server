@@ -229,6 +229,35 @@ class TagTest {
   }
 
   @Test
+  void testConstructorWithWindowsReservedName_PRN_shouldThrow() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Tag("PRN", COMMIT_ID_1));
+    assertEquals("Tag name cannot be a Windows reserved device name: PRN",
+        exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithWindowsReservedName_AUX_shouldThrow() {
+    assertThrows(IllegalArgumentException.class,
+        () -> new Tag("AUX", COMMIT_ID_1));
+  }
+
+  @Test
+  void testConstructorWithWindowsReservedName_COM5_shouldThrow() {
+    assertThrows(IllegalArgumentException.class,
+        () -> new Tag("COM5", COMMIT_ID_1));
+  }
+
+  @Test
+  void testConstructorWithWindowsReservedName_caseInsensitive_shouldThrow() {
+    // Windows reserved names are case-insensitive
+    assertThrows(IllegalArgumentException.class,
+        () -> new Tag("nul", COMMIT_ID_1));
+    assertThrows(IllegalArgumentException.class,
+        () -> new Tag("Lpt1", COMMIT_ID_1));
+  }
+
+  @Test
   void testSemanticVersioningTags() {
     // Common semantic versioning patterns
     assertDoesNotThrow(() -> new Tag("1.0.0", COMMIT_ID_1));

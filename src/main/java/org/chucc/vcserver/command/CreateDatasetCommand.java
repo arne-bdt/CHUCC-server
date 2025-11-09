@@ -86,27 +86,8 @@ public record CreateDatasetCommand(
    * @throws IllegalArgumentException if the name is invalid
    */
   private static void validateDatasetName(String name) {
-    if (name.equals(".") || name.equals("..")) {
-      throw new IllegalArgumentException("Dataset name cannot be '.' or '..'");
-    }
-
-    if (name.length() > MAX_DATASET_NAME_LENGTH) {
-      throw new IllegalArgumentException(
-          "Dataset name too long (max " + MAX_DATASET_NAME_LENGTH + " characters)");
-    }
-
-    // Reject names starting with underscore (reserved for internal use)
-    if (name.startsWith("_")) {
-      throw new IllegalArgumentException(
-          "Dataset name cannot start with '_' (reserved for internal use)");
-    }
-
-    // Check for invalid characters
-    if (!name.matches("^[a-zA-Z0-9._-]+$")) {
-      throw new IllegalArgumentException(
-          "Dataset name contains invalid characters. "
-              + "Allowed: a-z, A-Z, 0-9, . (dot), _ (underscore), - (hyphen)");
-    }
+    // Use shared validator (Dataset names: max 249 characters)
+    org.chucc.vcserver.util.IdentifierValidator.validate(name, MAX_DATASET_NAME_LENGTH, "Dataset");
   }
 
   /**

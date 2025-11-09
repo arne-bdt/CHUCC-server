@@ -1,9 +1,8 @@
 package org.chucc.vcserver.domain;
 
-import java.text.Normalizer;
 import java.time.Instant;
 import java.util.Objects;
-import java.util.regex.Pattern;
+import org.chucc.vcserver.util.IdentifierValidator;
 
 /**
  * Domain entity representing an immutable tag reference.
@@ -17,8 +16,6 @@ public record Tag(
     String author,
     Instant createdAt) {
 
-  private static final Pattern VALID_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9._\\-]+$");
-
   /**
    * Creates a new immutable Tag with all fields.
    *
@@ -30,45 +27,11 @@ public record Tag(
    * @throws IllegalArgumentException if validation fails
    */
   public Tag {
-    Objects.requireNonNull(name, "Tag name cannot be null");
     Objects.requireNonNull(commitId, "Tag commitId cannot be null");
     Objects.requireNonNull(createdAt, "Tag createdAt cannot be null");
 
-    if (name.isBlank()) {
-      throw new IllegalArgumentException("Tag name cannot be blank");
-    }
-
-    // Normalize to NFC form
-    String normalized = Normalizer.normalize(name, Normalizer.Form.NFC);
-    if (!normalized.equals(name)) {
-      throw new IllegalArgumentException(
-          "Tag name must be in Unicode NFC normalization form: " + name);
-    }
-
-    // Validate against pattern
-    if (!VALID_NAME_PATTERN.matcher(name).matches()) {
-      throw new IllegalArgumentException(
-          "Tag name must match pattern ^[A-Za-z0-9._\\-]+$: " + name);
-    }
-
-    // Validate against reserved names
-    if (name.equals(".") || name.equals("..")) {
-      throw new IllegalArgumentException("Tag name cannot be '.' or '..'");
-    }
-
-    // Reject names starting with underscore (reserved for internal use)
-    if (name.startsWith("_")) {
-      throw new IllegalArgumentException(
-          "Tag name cannot start with '_' (reserved for internal use): " + name);
-    }
-
-    // Reject names starting or ending with dot
-    if (name.startsWith(".")) {
-      throw new IllegalArgumentException("Tag name cannot start with '.': " + name);
-    }
-    if (name.endsWith(".")) {
-      throw new IllegalArgumentException("Tag name cannot end with '.': " + name);
-    }
+    // Validate name using shared validator
+    IdentifierValidator.validate(name, IdentifierValidator.MAX_BRANCH_TAG_NAME_LENGTH, "Tag");
   }
 
   /**

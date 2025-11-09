@@ -220,6 +220,41 @@ class BranchTest {
   }
 
   @Test
+  void testConstructorWithWindowsReservedName_CON_shouldThrow() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Branch("CON", COMMIT_ID_1));
+    assertEquals("Branch name cannot be a Windows reserved device name: CON",
+        exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithWindowsReservedName_PRN_shouldThrow() {
+    assertThrows(IllegalArgumentException.class,
+        () -> new Branch("PRN", COMMIT_ID_1));
+  }
+
+  @Test
+  void testConstructorWithWindowsReservedName_COM1_shouldThrow() {
+    assertThrows(IllegalArgumentException.class,
+        () -> new Branch("COM1", COMMIT_ID_1));
+  }
+
+  @Test
+  void testConstructorWithWindowsReservedName_LPT9_shouldThrow() {
+    assertThrows(IllegalArgumentException.class,
+        () -> new Branch("LPT9", COMMIT_ID_1));
+  }
+
+  @Test
+  void testConstructorWithWindowsReservedName_caseInsensitive_shouldThrow() {
+    // Windows reserved names are case-insensitive
+    assertThrows(IllegalArgumentException.class,
+        () -> new Branch("con", COMMIT_ID_1));
+    assertThrows(IllegalArgumentException.class,
+        () -> new Branch("Com1", COMMIT_ID_1));
+  }
+
+  @Test
   void testBranchMutability() {
     Branch branch = new Branch("main", COMMIT_ID_1);
 

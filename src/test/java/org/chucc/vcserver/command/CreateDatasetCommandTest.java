@@ -252,7 +252,7 @@ class CreateDatasetCommandTest {
     IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
         new CreateDatasetCommand("_internal", Optional.empty(), "alice", Optional.empty(), null)
     );
-    assertEquals("Dataset name cannot start with '_' (reserved for internal use)",
+    assertEquals("Dataset name cannot start with '_' (reserved for internal use): _internal",
         exception.getMessage());
   }
 
@@ -267,7 +267,7 @@ class CreateDatasetCommandTest {
             Optional.empty(),
             null)
     );
-    assertEquals("Dataset name cannot start with '_' (reserved for internal use)",
+    assertEquals("Dataset name cannot start with '_' (reserved for internal use): __consumer_offsets",
         exception.getMessage());
   }
 
@@ -301,5 +301,40 @@ class CreateDatasetCommandTest {
     // Then
     assertNotNull(command);
     assertEquals("test.dataset.name", command.dataset());
+  }
+
+  @Test
+  void shouldRejectDatasetNameWithWindowsReservedName_CON() {
+    // When/Then
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+        new CreateDatasetCommand("CON", Optional.empty(), "alice", Optional.empty(), null)
+    );
+    assertEquals("Dataset name cannot be a Windows reserved device name: CON",
+        exception.getMessage());
+  }
+
+  @Test
+  void shouldRejectDatasetNameWithWindowsReservedName_NUL() {
+    assertThrows(IllegalArgumentException.class, () ->
+        new CreateDatasetCommand("NUL", Optional.empty(), "alice", Optional.empty(), null)
+    );
+  }
+
+  @Test
+  void shouldRejectDatasetNameWithWindowsReservedName_COM9() {
+    assertThrows(IllegalArgumentException.class, () ->
+        new CreateDatasetCommand("COM9", Optional.empty(), "alice", Optional.empty(), null)
+    );
+  }
+
+  @Test
+  void shouldRejectDatasetNameWithWindowsReservedName_caseInsensitive() {
+    // Windows reserved names are case-insensitive
+    assertThrows(IllegalArgumentException.class, () ->
+        new CreateDatasetCommand("aux", Optional.empty(), "alice", Optional.empty(), null)
+    );
+    assertThrows(IllegalArgumentException.class, () ->
+        new CreateDatasetCommand("Prn", Optional.empty(), "alice", Optional.empty(), null)
+    );
   }
 }

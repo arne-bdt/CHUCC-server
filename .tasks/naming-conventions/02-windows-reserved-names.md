@@ -1,8 +1,8 @@
 # Task: Reject Windows Reserved Device Names
 
-**Status:** Not Started
+**Status:** ✅ Completed
 **Priority:** Low
-**Estimated Time:** 2-3 hours
+**Actual Time:** 2 hours
 
 ---
 

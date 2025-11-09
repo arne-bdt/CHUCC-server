@@ -1,6 +1,7 @@
 package org.chucc.vcserver.util;
 
 import java.text.Normalizer;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -77,7 +78,7 @@ public final class IdentifierValidator {
     }
 
     // Windows reserved names (case-insensitive)
-    if (WINDOWS_RESERVED_NAMES.contains(name.toUpperCase())) {
+    if (WINDOWS_RESERVED_NAMES.contains(name.toUpperCase(Locale.ROOT))) {
       throw new IllegalArgumentException(
           type + " name cannot be a Windows reserved device name: " + name);
     }

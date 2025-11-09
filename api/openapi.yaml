@@ -637,12 +637,61 @@ components:
             $ref: '#/components/schemas/Problem'
           examples:
             selector_conflict:
+              summary: Conflicting query parameters
               value:
                 type: "about:blank"
                 title: "Bad Request"
                 status: 400
                 code: "selector_conflict"
                 detail: "Cannot combine 'commit' parameter with 'branch' or 'asOf'"
+            invalid_branch_chars:
+              summary: Invalid characters in branch name
+              value:
+                type: "about:blank"
+                title: "Bad Request"
+                status: 400
+                code: "invalid_identifier"
+                detail: "Branch name contains invalid characters. Allowed: A-Z, a-z, 0-9, . (period), _ (underscore), - (hyphen)"
+            branch_name_too_long:
+              summary: Branch name exceeds maximum length
+              value:
+                type: "about:blank"
+                title: "Bad Request"
+                status: 400
+                code: "invalid_identifier"
+                detail: "Branch name too long (max 255 characters)"
+            reserved_branch_name:
+              summary: Reserved branch name
+              value:
+                type: "about:blank"
+                title: "Bad Request"
+                status: 400
+                code: "invalid_identifier"
+                detail: "Branch name cannot be '.'"
+            windows_reserved_name:
+              summary: Windows reserved device name
+              value:
+                type: "about:blank"
+                title: "Bad Request"
+                status: 400
+                code: "invalid_identifier"
+                detail: "Branch name cannot be a Windows reserved device name: CON"
+            not_normalized:
+              summary: Not in Unicode NFC form
+              value:
+                type: "about:blank"
+                title: "Bad Request"
+                status: 400
+                code: "invalid_identifier"
+                detail: "Tag name must be in Unicode NFC normalization form"
+            dataset_name_too_long:
+              summary: Dataset name exceeds Kafka topic limit
+              value:
+                type: "about:blank"
+                title: "Bad Request"
+                status: 400
+                code: "invalid_identifier"
+                detail: "Dataset name too long (max 249 characters - Kafka topic limit)"
 
     PreconditionFailed:
       description: Precondition Failed - ETag mismatch (optimistic concurrency failure)
@@ -847,7 +896,17 @@ components:
       items: { $ref: '#/components/schemas/Branch' }
 
     CreateBranchRequest:
-      $ref: 'schemas/create-branch.json'
+      type: object
+      required: [name]
+      properties:
+        name:
+          $ref: '#/components/schemas/BranchName'
+        from:
+          type: string
+          description: |
+            Source reference for the new branch (commit ID, branch name, or tag name).
+            If not specified, defaults to HEAD of the main branch.
+          example: 'main'
 
     BranchResetRequest:
       type: object

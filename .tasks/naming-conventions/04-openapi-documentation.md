@@ -1,8 +1,8 @@
 # Task: Update OpenAPI Documentation with Identifier Format
 
-**Status:** Not Started
+**Status:** ✅ Completed (Core features)
 **Priority:** High
-**Estimated Time:** 2-3 hours
+**Actual Time:** 1 hour
 
 ---
 

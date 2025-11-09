@@ -11,6 +11,68 @@ info:
     - Backward-compatible design (non-versioned operations work on default branch)
 
     See: https://www.w3.org/TR/sparql12-protocol/
+
+    ## Naming Conventions
+
+    All identifiers (datasets, branches, tags) must follow these rules:
+
+    ### Pattern
+    - **Allowed characters:** `A-Z`, `a-z`, `0-9`, `.` (period), `_` (underscore), `-` (hyphen)
+    - **Regular expression:** `^[A-Za-z0-9._-]+$`
+    - **Case-sensitive:** `Main` ≠ `main`
+
+    ### Length Limits
+    - **Datasets:** 1-249 characters (Kafka topic limit)
+    - **Branches:** 1-255 characters
+    - **Tags:** 1-255 characters
+    - **Commits:** Exactly 36 characters (UUIDv7 format: 8-4-4-4-12)
+
+    ### Reserved Names
+    - Cannot be `.` or `..`
+    - Cannot start with `_` (reserved for internal use)
+    - Cannot be Windows device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`)
+
+    ### Unicode
+    - Must be in **Unicode NFC normalization form**
+    - Prevents homograph attacks (e.g., Latin 'a' vs. Cyrillic 'а')
+
+    ### Hierarchical Names
+    Use `.` or `-` for hierarchy (NOT `/`):
+    - **Dot notation:** `feature.authentication.oauth` (like Java packages)
+    - **Hyphen notation:** `feature-authentication-oauth`
+    - **Underscore notation:** `feature_authentication_oauth`
+
+    ### Examples
+
+    **Valid:**
+    ```
+    mydata
+    biodiversity-2025
+    species.v2.1
+    release_1.0
+    ```
+
+    **Invalid:**
+    ```
+    my/data           # Contains / (URL ambiguity)
+    my data           # Contains space
+    .hidden           # Starts with .
+    __internal        # Starts with _
+    CON               # Windows reserved name
+    ```
+
+    ### URL Encoding
+
+    Identifiers consist only of RFC 3986 "unreserved characters" - **no percent-encoding needed**:
+
+    ```http
+    GET /mydata/version/branches/feature-login/sparql
+    GET /mydata/version/tags/v1.0.0/data?default
+    ```
+
+    **Do NOT percent-encode identifiers** - this creates invalid resource references.
+
+    For more details, see: `protocol/NAMING_CONVENTIONS.md`
   contact:
     name: SPARQL VC Protocol
     url: https://github.com/yourusername/CHUCC-server
@@ -696,13 +758,83 @@ components:
     # =========================================================================
     # Version Control Schemas - Core Types
     # =========================================================================
+
+    DatasetName:
+      type: string
+      pattern: '^[A-Za-z0-9._-]+$'
+      minLength: 1
+      maxLength: 249
+      example: 'biodiversity-2025'
+      description: |
+        Dataset name must:
+        - Match pattern: [A-Za-z0-9._-] (alphanumeric, dot, underscore, hyphen)
+        - Be 1-249 characters long (Kafka topic name limit)
+        - Be in Unicode NFC normalization form
+        - Not be '.' or '..'
+        - Not start with '_' (reserved for internal topics)
+        - Not be Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+
+        Valid examples: mydata, species-db, project.v2, dataset_2025
+        Invalid examples: my/data, my data, .hidden, __internal, CON
+
     BranchName:
       type: string
       pattern: '^[A-Za-z0-9._\-]+$'
+      minLength: 1
+      maxLength: 255
+      example: 'feature-login'
+      description: |
+        Branch name must:
+        - Match pattern: [A-Za-z0-9._-] (alphanumeric, dot, underscore, hyphen)
+        - Be 1-255 characters long
+        - Be in Unicode NFC normalization form
+        - Not be '.' or '..'
+        - Not start or end with '.'
+        - Not start with '_' (reserved for internal use)
+        - Not be Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+
+        Use '.' or '-' for hierarchy (not '/'):
+        - Dot notation: feature.authentication.oauth
+        - Hyphen notation: feature-authentication-oauth
+
+        Valid examples: main, develop, feature-auth, release.v2
+        Invalid examples: feature/auth, .hidden, branch., _internal, COM1
+
+    TagName:
+      type: string
+      pattern: '^[A-Za-z0-9._\-]+$'
+      minLength: 1
+      maxLength: 255
+      example: 'v1.0.0'
+      description: |
+        Tag name must:
+        - Match pattern: [A-Za-z0-9._-] (alphanumeric, dot, underscore, hyphen)
+        - Be 1-255 characters long
+        - Be in Unicode NFC normalization form
+        - Not be '.' or '..'
+        - Not start or end with '.'
+        - Not start with '_' (reserved for internal use)
+        - Not be Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+        - Tags are immutable once created
+
+        Valid examples: v1.0.0, stable, release-2025-01, beta.1
+        Invalid examples: v1/0/0, .temp, tag., _alpha, PRN
+
     CommitId:
       type: string
-      description: UUIDv7 textual form (8-4-4-4-12)
       pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      example: '01936d8f-1234-7890-abcd-ef1234567890'
+      description: |
+        UUIDv7 commit identifier (RFC 9562):
+        - Format: 8hex-4hex-4hex-4hex-12hex (36 characters with hyphens)
+        - Version nibble must be '7' (4th group starts with 7)
+        - Variant bits: 10xx (4th group starts with 8, 9, a, or b)
+        - Lowercase hexadecimal only
+        - Timestamp-based and globally unique
+        - Sortable by creation time
+
+        Example: 01936d8f-4a2b-7c3d-9e4f-56789abcdef0
+        Pattern: xxxxxxxx-xxxx-7xxx-[89ab]xxx-xxxxxxxxxxxx
     Branch:
       type: object
       required: [name, head]
@@ -776,7 +908,7 @@ components:
       type: object
       required: [name, commit]
       properties:
-        name: { type: string, pattern: '^[A-Za-z0-9._\-]+$' }
+        name: { $ref: '#/components/schemas/TagName' }
         commit: { $ref: '#/components/schemas/CommitId' }
         message: { type: string, nullable: true }
         author: { type: string, nullable: true }
@@ -788,7 +920,7 @@ components:
       type: object
       required: [name, commit]
       properties:
-        name: { type: string, pattern: '^[A-Za-z0-9._\-]+$' }
+        name: { $ref: '#/components/schemas/TagName' }
         commit: { $ref: '#/components/schemas/CommitId' }
         message: { type: string, nullable: true }
         author: { type: string, nullable: true }

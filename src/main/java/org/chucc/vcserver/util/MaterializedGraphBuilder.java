@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.apache.jena.rdfpatch.RDFPatch;
-import org.apache.jena.rdfpatch.RDFPatchOps;
+import org.apache.jena.rdfpatch.changes.RDFChangesApply;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.chucc.vcserver.domain.Branch;
@@ -105,9 +105,12 @@ public final class MaterializedGraphBuilder {
 
       RDFPatch patch = patchOpt.get();
 
-      // RDFPatchOps.applyChange manages its own transactions
+      // Apply patch without transaction management to avoid nested transaction errors
+      // RDFPatches contain transaction directives (TX BEGIN, TX COMMIT) which conflict
+      // with Jena's transaction management. We skip these directives since we use
+      // locks for concurrency control in InMemoryMaterializedBranchRepository.
       try {
-        RDFPatchOps.applyChange(graph, patch);
+        applyPatchWithoutTransactions(graph, patch);
       } catch (Exception e) {
         throw new RuntimeException("Failed to apply patch for commit " + commit.id(), e);
       }
@@ -152,5 +155,63 @@ public final class MaterializedGraphBuilder {
     }
 
     return chain;
+  }
+
+  /**
+   * Apply an RDF patch to a dataset graph without transaction management.
+   *
+   * <p>This method creates a custom RDFChangesApply that skips transaction operations
+   * (txnBegin, txnCommit, txnAbort) to avoid nested transaction errors. RDFPatches
+   * contain transaction directives that conflict with Jena's transaction management.
+   *
+   * <p>This is safe because:
+   * <ul>
+   *   <li>During rebuild, we create a fresh graph that isn't shared yet</li>
+   *   <li>InMemoryMaterializedBranchRepository uses locks for concurrency control</li>
+   *   <li>Transaction isolation isn't needed during rebuild</li>
+   * </ul>
+   *
+   * @param graph the target graph
+   * @param patch the patch to apply
+   */
+  private static void applyPatchWithoutTransactions(DatasetGraph graph, RDFPatch patch) {
+    // Create a changes applier that skips transaction management
+    RDFChangesApply changes = new TransactionlessRdfChangesApply(graph);
+
+    // Apply the patch
+    patch.apply(changes);
+  }
+
+  /**
+   * RDFChangesApply that skips transaction management.
+   *
+   * <p>This class is used during graph rebuild to avoid nested transaction errors
+   * when applying RDFPatches that contain transaction directives.
+   */
+  private static final class TransactionlessRdfChangesApply extends RDFChangesApply {
+
+    /**
+     * Creates a new transactionless changes applier.
+     *
+     * @param graph the target graph
+     */
+    TransactionlessRdfChangesApply(DatasetGraph graph) {
+      super(graph);
+    }
+
+    @Override
+    public void txnBegin() {
+      // Skip transaction begin - we don't need transactions during rebuild
+    }
+
+    @Override
+    public void txnCommit() {
+      // Skip transaction commit - changes are applied directly
+    }
+
+    @Override
+    public void txnAbort() {
+      // Skip transaction abort - we don't manage transactions
+    }
   }
 }

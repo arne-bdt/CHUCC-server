@@ -266,22 +266,7 @@ public class InMemoryMaterializedBranchRepository implements MaterializedBranchR
    */
   private void applyPatchDirect(DatasetGraph graph, RDFPatch patch) {
     // Create a changes applier that skips transaction management
-    RDFChangesApply changes = new RDFChangesApply(graph) {
-      @Override
-      public void txnBegin() {
-        // Skip transaction begin - we use locks for concurrency control
-      }
-
-      @Override
-      public void txnCommit() {
-        // Skip transaction commit - changes are applied directly
-      }
-
-      @Override
-      public void txnAbort() {
-        // Skip transaction abort - we don't manage transactions
-      }
-    };
+    RDFChangesApply changes = new TransactionlessRdfChangesApply(graph);
 
     // Apply the patch
     patch.apply(changes);
@@ -448,5 +433,39 @@ public class InMemoryMaterializedBranchRepository implements MaterializedBranchR
    */
   public CacheStats getCacheStats() {
     return branchGraphsCache.stats();
+  }
+
+  /**
+   * RDFChangesApply that skips transaction management.
+   *
+   * <p>This class is used when applying patches to cached graphs to avoid
+   * nested transaction errors. Since we use locks for concurrency control
+   * instead of transactions, skipping transaction operations is safe.
+   */
+  private static final class TransactionlessRdfChangesApply extends RDFChangesApply {
+
+    /**
+     * Creates a new transactionless changes applier.
+     *
+     * @param graph the target graph
+     */
+    TransactionlessRdfChangesApply(DatasetGraph graph) {
+      super(graph);
+    }
+
+    @Override
+    public void txnBegin() {
+      // Skip transaction begin - we use locks for concurrency control
+    }
+
+    @Override
+    public void txnCommit() {
+      // Skip transaction commit - changes are applied directly
+    }
+
+    @Override
+    public void txnAbort() {
+      // Skip transaction abort - we don't manage transactions
+    }
   }
 }

@@ -1,10 +1,10 @@
 # SPARQL 1.1 Service Description Implementation
 
-**Status:** 🚧 In Progress (Phase 1 ✅, Phase 2 ✅, Phase 3 pending)
+**Status:** 🚧 In Progress (Phase 1 ✅, Phase 2 ✅, Phase 3 ✅, Phase 4 pending)
 **Category:** Standards Compliance / Discoverability
 **W3C Spec:** [SPARQL 1.1 Service Description](https://www.w3.org/TR/sparql11-service-description/)
 **Total Estimated Time:** 12-16 hours
-**Time Spent:** ~5 hours (Phase 1-2)
+**Time Spent:** ~8 hours (Phase 1-3)
 
 ---
 
@@ -92,16 +92,20 @@ Implement basic service description with static capabilities.
 
 ---
 
-### Phase 3: Dataset Integration (3-4 hours)
+### Phase 3: Dataset Integration ✅ COMPLETED
 **File:** `03-dataset-integration.md`
+**Status:** ✅ Complete (2025-11-09)
 
 Expose available datasets and their graphs via service description.
 
 **Deliverables:**
-- List all datasets via `DatasetRepository`
-- Describe each dataset's named graphs
-- Link to per-dataset endpoints
-- Handle dataset creation/deletion (dynamic discovery)
+- ✅ List all datasets via `BranchRepository`
+- ✅ Describe each dataset's named graphs from `MaterializedBranchRepository`
+- ✅ Link to per-dataset SPARQL endpoints
+- ✅ Include graph sizes (void:triples) for all graphs
+- ✅ Dynamic discovery (reflects current repository state)
+- ✅ 5 new integration tests (all passing)
+- ✅ Code refactoring to eliminate duplication
 
 **Example Addition (Turtle):**
 ```turtle

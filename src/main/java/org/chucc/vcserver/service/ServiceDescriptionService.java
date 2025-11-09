@@ -1,10 +1,21 @@
 package org.chucc.vcserver.service;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import org.apache.jena.graph.Graph;
+import org.apache.jena.graph.Node;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.sparql.core.DatasetGraph;
+import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.vocabulary.RDF;
+import org.chucc.vcserver.domain.Branch;
+import org.chucc.vcserver.repository.BranchRepository;
+import org.chucc.vcserver.repository.MaterializedBranchRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -20,17 +31,29 @@ public class ServiceDescriptionService {
 
   private static final String SD_NS = "http://www.w3.org/ns/sparql-service-description#";
   private static final String VC_NS = "http://chucc.org/ns/version-control#";
+  private static final String VOID_NS = "http://rdfs.org/ns/void#";
 
   private final String baseUrl;
+  private final BranchRepository branchRepository;
+  private final MaterializedBranchRepository materializedBranchRepository;
 
   /**
    * Constructs service description service.
    *
    * @param baseUrl Base URL of the service (configurable via application.yml)
+   * @param branchRepository Repository for branch lookups
+   * @param materializedBranchRepository Repository for materialized graphs
    */
+  @SuppressFBWarnings(
+      value = "EI_EXPOSE_REP2",
+      justification = "All dependencies are Spring-managed beans and are intentionally shared")
   public ServiceDescriptionService(
-      @Value("${server.base-url:http://localhost:8080}") String baseUrl) {
+      @Value("${server.base-url:http://localhost:8080}") String baseUrl,
+      BranchRepository branchRepository,
+      MaterializedBranchRepository materializedBranchRepository) {
     this.baseUrl = baseUrl;
+    this.branchRepository = branchRepository;
+    this.materializedBranchRepository = materializedBranchRepository;
   }
 
   /**
@@ -46,6 +69,7 @@ public class ServiceDescriptionService {
     // Set namespace prefixes
     model.setNsPrefix("sd", SD_NS);
     model.setNsPrefix("vc", VC_NS);
+    model.setNsPrefix("void", VOID_NS);
 
     // Create service resource
     Resource service = model.createResource(baseUrl + "/sparql");
@@ -66,6 +90,9 @@ public class ServiceDescriptionService {
 
     // Extension features
     addExtensionFeatures(model, service);
+
+    // Datasets
+    addDatasets(model, service);
 
     return model;
   }
@@ -168,5 +195,124 @@ public class ServiceDescriptionService {
     service.addProperty(
         patchFormat,
         model.createResource("http://www.w3.org/ns/formats/RDF_Patch"));
+  }
+
+  /**
+   * Adds available datasets to the service description.
+   * Discovers datasets dynamically from the repository and describes
+   * their graphs and endpoints.
+   *
+   * @param model RDF model
+   * @param service Service resource
+   */
+  private void addDatasets(Model model, Resource service) {
+    // Get all datasets
+    List<String> datasetNames = branchRepository.findAllDatasetNames();
+
+    for (String datasetName : datasetNames) {
+      Resource dataset = addDataset(model, service, datasetName);
+      addGraphsForDataset(model, dataset, datasetName);
+    }
+  }
+
+  /**
+   * Adds a single dataset to the service description.
+   *
+   * @param model RDF model
+   * @param service Service resource
+   * @param datasetName Dataset name
+   * @return Dataset resource
+   */
+  private Resource addDataset(Model model, Resource service, String datasetName) {
+    String datasetUri = baseUrl + "/" + datasetName;
+    Resource dataset = model.createResource(datasetUri);
+
+    // Link from service
+    Property availableGraphs = model.createProperty(SD_NS + "availableGraphs");
+    service.addProperty(availableGraphs, dataset);
+
+    // Dataset metadata
+    dataset.addProperty(RDF.type, model.createResource(SD_NS + "Dataset"));
+
+    Property sparqlEndpoint = model.createProperty(VOID_NS + "sparqlEndpoint");
+    dataset.addProperty(
+        sparqlEndpoint,
+        model.createResource(datasetUri + "/sparql"));
+
+    return dataset;
+  }
+
+  /**
+   * Adds graph descriptions for a dataset.
+   * Enumerates named graphs and default graph from the main branch HEAD.
+   *
+   * @param model RDF model
+   * @param dataset Dataset resource
+   * @param datasetName Dataset name
+   */
+  private void addGraphsForDataset(Model model, Resource dataset, String datasetName) {
+    // Get main branch
+    Optional<Branch> mainBranch = branchRepository.findByDatasetAndName(datasetName, "main");
+    if (mainBranch.isEmpty()) {
+      return;
+    }
+
+    // Get materialized graph at main branch HEAD
+    DatasetGraph dsg = materializedBranchRepository.getBranchGraph(datasetName, "main");
+
+    // Add named graphs
+    Iterator<Node> graphNames = dsg.listGraphNodes();
+    while (graphNames.hasNext()) {
+      Node graphNode = graphNames.next();
+      if (!graphNode.equals(Quad.defaultGraphIRI)) {
+        Graph graph = dsg.getGraph(graphNode);
+        long tripleCount = graph.size();
+
+        Resource namedGraphDesc = model.createResource();
+        Property sdName = model.createProperty(SD_NS + "name");
+        namedGraphDesc.addProperty(
+            sdName,
+            model.createResource(graphNode.getURI()));
+
+        Resource graphResource = createGraphResourceWithSize(model, tripleCount);
+
+        Property sdGraph = model.createProperty(SD_NS + "graph");
+        namedGraphDesc.addProperty(sdGraph, graphResource);
+
+        Property sdNamedGraph = model.createProperty(SD_NS + "namedGraph");
+        dataset.addProperty(sdNamedGraph, namedGraphDesc);
+      }
+    }
+
+    // Add default graph (always present)
+    Graph defaultGraph = dsg.getDefaultGraph();
+    long defaultTripleCount = defaultGraph.size();
+
+    Resource defaultGraphDesc = model.createResource();
+    Resource defaultGraphResource = createGraphResourceWithSize(model, defaultTripleCount);
+
+    Property sdGraph = model.createProperty(SD_NS + "graph");
+    defaultGraphDesc.addProperty(sdGraph, defaultGraphResource);
+
+    Property sdDefaultGraph = model.createProperty(SD_NS + "defaultGraph");
+    dataset.addProperty(sdDefaultGraph, defaultGraphDesc);
+  }
+
+  /**
+   * Creates a graph resource with type and triple count.
+   * Helper method to avoid code duplication in graph descriptions.
+   *
+   * @param model RDF model
+   * @param tripleCount Number of triples in the graph
+   * @return Graph resource with type and void:triples property
+   */
+  private Resource createGraphResourceWithSize(Model model, long tripleCount) {
+    Resource graphResource = model.createResource();
+    graphResource.addProperty(RDF.type, model.createResource(SD_NS + "Graph"));
+
+    Property voidTriples = model.createProperty(VOID_NS + "triples");
+    graphResource.addProperty(voidTriples, model.createTypedLiteral(tripleCount));
+
+    return graphResource;
   }
 }

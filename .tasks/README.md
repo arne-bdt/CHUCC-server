@@ -40,21 +40,24 @@ Implement SPARQL 1.1 Service Description to provide machine-readable metadata ab
 **Phases:**
 1. ✅ Research & Design (2-3 hours) - COMPLETED 2025-11-09
 2. ✅ Core SD Endpoint (3-4 hours) - COMPLETED 2025-11-09
-3. Dataset Integration (3-4 hours) - PENDING
+3. ✅ Dataset Integration (3-4 hours) - COMPLETED 2025-11-09
 4. Version Control Extension (3-4 hours) - PENDING
 5. Dynamic Capabilities (1-2 hours) - PENDING
 6. Documentation (1 hour) - PENDING
 
 **Total Estimated Time:** 12-16 hours
-**Time Spent:** ~5 hours (Phases 1-2)
-**Status:** 🚧 In Progress (Phase 1-2 complete, Phase 3-6 pending)
+**Time Spent:** ~8 hours (Phases 1-3)
+**Status:** 🚧 In Progress (Phase 1-3 complete, Phase 4-6 pending)
 
 **Completed:**
 - ✅ Version control vocabulary (`vc:`) designed and documented
 - ✅ Endpoint structure: `GET /.well-known/void` and `/service-description`
 - ✅ Content negotiation (Turtle, JSON-LD, RDF/XML, N-Triples)
 - ✅ Service capabilities description (SPARQL 1.1 Query/Update, VC features)
-- ✅ 10 integration tests (all passing)
+- ✅ Dataset discovery (list all datasets, named graphs, graph sizes)
+- ✅ Per-dataset SPARQL endpoints
+- ✅ Dynamic graph enumeration from MaterializedBranchRepository
+- ✅ 15 integration tests (all passing)
 - ✅ Zero quality violations
 - ✅ Files: ServiceDescriptionService, ServiceDescriptionController, ServiceDescriptionIT
 - ✅ Documentation: `docs/api/service-description.md`, `vc-vocabulary.ttl`

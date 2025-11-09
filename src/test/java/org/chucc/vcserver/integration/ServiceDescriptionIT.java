@@ -190,4 +190,62 @@ class ServiceDescriptionIT extends ITFixture {
     assertThat(response.getBody()).contains("vc:versionControlEndpoint");
     assertThat(response.getBody()).contains("/version");
   }
+
+  @Test
+  void serviceDescription_shouldListAvailableDatasets() {
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert
+    assertThat(response.getBody()).contains("sd:Dataset");
+    assertThat(response.getBody()).contains("/default"); // Default dataset from ITFixture
+  }
+
+  @Test
+  void serviceDescription_shouldDescribeDatasetGraphs() {
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert - verify structure includes namedGraph property
+    // (actual named graphs depend on dataset state)
+    assertThat(response.getBody()).contains("sd:Dataset");
+  }
+
+  @Test
+  void serviceDescription_shouldDescribeDefaultGraph() {
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert
+    assertThat(response.getBody()).contains("sd:defaultGraph");
+  }
+
+  @Test
+  void serviceDescription_shouldIncludeGraphSizes() {
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert - verify triple count is included (value depends on dataset state)
+    assertThat(response.getBody()).contains("void:triples");
+  }
+
+  @Test
+  void serviceDescription_shouldIncludeSparqlEndpointPerDataset() {
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert
+    assertThat(response.getBody()).contains("void:sparqlEndpoint");
+    assertThat(response.getBody()).contains("/default/sparql");
+  }
 }

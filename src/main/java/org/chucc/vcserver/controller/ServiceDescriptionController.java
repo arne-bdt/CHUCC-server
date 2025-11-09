@@ -55,8 +55,9 @@ public class ServiceDescriptionController {
   @Operation(
       summary = "Get service description (well-known URI)",
       description = "Returns SPARQL 1.1 Service Description in RDF format with content "
-          + "negotiation. Describes service capabilities, supported features, and available "
-          + "datasets. Follows RFC 5785 well-known URI convention.")
+          + "negotiation. Describes service capabilities, supported features, available "
+          + "datasets, and named graphs. Datasets are dynamically discovered from the current "
+          + "repository state. Follows RFC 5785 well-known URI convention.")
   @ApiResponses({
       @ApiResponse(responseCode = "200", description = "Service description returned"),
       @ApiResponse(responseCode = "406", description = "Unsupported media type requested")
@@ -86,7 +87,9 @@ public class ServiceDescriptionController {
   @Operation(
       summary = "Get service description",
       description = "Returns SPARQL 1.1 Service Description in RDF format with content "
-          + "negotiation. Alternative to /.well-known/void endpoint.")
+          + "negotiation. Describes service capabilities, supported features, available "
+          + "datasets, and named graphs. Datasets are dynamically discovered from the current "
+          + "repository state. Alternative to /.well-known/void endpoint.")
   @ApiResponses({
       @ApiResponse(responseCode = "200", description = "Service description returned"),
       @ApiResponse(responseCode = "406", description = "Unsupported media type requested")

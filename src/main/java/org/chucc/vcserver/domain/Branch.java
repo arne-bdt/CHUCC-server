@@ -59,6 +59,25 @@ public final class Branch {
           "Branch name must match pattern ^[A-Za-z0-9._\\-]+$: " + name);
     }
 
+    // Validate against reserved names
+    if (name.equals(".") || name.equals("..")) {
+      throw new IllegalArgumentException("Branch name cannot be '.' or '..'");
+    }
+
+    // Reject names starting with underscore (reserved for internal use)
+    if (name.startsWith("_")) {
+      throw new IllegalArgumentException(
+          "Branch name cannot start with '_' (reserved for internal use): " + name);
+    }
+
+    // Reject names starting or ending with dot
+    if (name.startsWith(".")) {
+      throw new IllegalArgumentException("Branch name cannot start with '.': " + name);
+    }
+    if (name.endsWith(".")) {
+      throw new IllegalArgumentException("Branch name cannot end with '.': " + name);
+    }
+
     this.name = name;
     this.commitId = commitId;
     this.isProtected = isProtected;

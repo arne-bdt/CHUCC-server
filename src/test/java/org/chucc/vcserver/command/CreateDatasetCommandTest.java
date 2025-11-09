@@ -227,4 +227,79 @@ class CreateDatasetCommandTest {
     assertNotNull(command);
     assertEquals(12, command.kafkaConfig().partitions());
   }
+
+  @Test
+  void shouldRejectDatasetNameWithSingleDot() {
+    // When/Then
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+        new CreateDatasetCommand(".", Optional.empty(), "alice", Optional.empty(), null)
+    );
+    assertEquals("Dataset name cannot be '.' or '..'", exception.getMessage());
+  }
+
+  @Test
+  void shouldRejectDatasetNameWithDoubleDot() {
+    // When/Then
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+        new CreateDatasetCommand("..", Optional.empty(), "alice", Optional.empty(), null)
+    );
+    assertEquals("Dataset name cannot be '.' or '..'", exception.getMessage());
+  }
+
+  @Test
+  void shouldRejectDatasetNameStartingWithUnderscore() {
+    // When/Then
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+        new CreateDatasetCommand("_internal", Optional.empty(), "alice", Optional.empty(), null)
+    );
+    assertEquals("Dataset name cannot start with '_' (reserved for internal use)",
+        exception.getMessage());
+  }
+
+  @Test
+  void shouldRejectDatasetNameStartingWithDoubleUnderscore() {
+    // When/Then
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+        new CreateDatasetCommand(
+            "__consumer_offsets",
+            Optional.empty(),
+            "alice",
+            Optional.empty(),
+            null)
+    );
+    assertEquals("Dataset name cannot start with '_' (reserved for internal use)",
+        exception.getMessage());
+  }
+
+  @Test
+  void shouldAcceptDatasetNameWithUnderscoreInMiddle() {
+    // When
+    CreateDatasetCommand command = new CreateDatasetCommand(
+        "test_dataset",
+        Optional.empty(),
+        "alice",
+        Optional.empty(),
+        null
+    );
+
+    // Then
+    assertNotNull(command);
+    assertEquals("test_dataset", command.dataset());
+  }
+
+  @Test
+  void shouldAcceptDatasetNameWithDotsInMiddle() {
+    // When
+    CreateDatasetCommand command = new CreateDatasetCommand(
+        "test.dataset.name",
+        Optional.empty(),
+        "alice",
+        Optional.empty(),
+        null
+    );
+
+    // Then
+    assertNotNull(command);
+    assertEquals("test.dataset.name", command.dataset());
+  }
 }

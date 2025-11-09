@@ -1,8 +1,8 @@
 # Task: Add Tests for Reserved Names
 
-**Status:** Not Started
+**Status:** ✅ Completed
 **Priority:** Medium
-**Estimated Time:** 1-2 hours
+**Actual Time:** 1 hour
 
 ---
 

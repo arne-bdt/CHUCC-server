@@ -162,14 +162,61 @@ class BranchTest {
   }
 
   @Test
-  void testBranchNameWithDotsAndHyphens() {
-    // Edge cases with dots and hyphens
-    assertDoesNotThrow(() -> new Branch(".", COMMIT_ID_1));
+  void testBranchNameWithHyphens() {
+    // Valid edge cases with hyphens (but not dots or underscores at start/end)
     assertDoesNotThrow(() -> new Branch("-", COMMIT_ID_1));
-    assertDoesNotThrow(() -> new Branch("_", COMMIT_ID_1));
-    assertDoesNotThrow(() -> new Branch("...", COMMIT_ID_1));
     assertDoesNotThrow(() -> new Branch("---", COMMIT_ID_1));
-    assertDoesNotThrow(() -> new Branch("___", COMMIT_ID_1));
+    assertDoesNotThrow(() -> new Branch("a-b-c", COMMIT_ID_1));
+  }
+
+  @Test
+  void testConstructorWithSingleDotThrowsException() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Branch(".", COMMIT_ID_1));
+    assertEquals("Branch name cannot be '.' or '..'", exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithDoubleDotThrowsException() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Branch("..", COMMIT_ID_1));
+    assertEquals("Branch name cannot be '.' or '..'", exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithNameStartingWithUnderscoreThrowsException() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Branch("_internal", COMMIT_ID_1));
+    assertEquals("Branch name cannot start with '_' (reserved for internal use): _internal",
+        exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithNameStartingWithDotThrowsException() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Branch(".hidden", COMMIT_ID_1));
+    assertEquals("Branch name cannot start with '.': .hidden", exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithNameEndingWithDotThrowsException() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Branch("branch.", COMMIT_ID_1));
+    assertEquals("Branch name cannot end with '.': branch.", exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithMultipleDotsInMiddleAllowed() {
+    // Dots in the middle are allowed
+    assertDoesNotThrow(() -> new Branch("a.b.c", COMMIT_ID_1));
+    assertDoesNotThrow(() -> new Branch("feature.1.0", COMMIT_ID_1));
+  }
+
+  @Test
+  void testConstructorWithUnderscoreInMiddleAllowed() {
+    // Underscores in the middle are allowed
+    assertDoesNotThrow(() -> new Branch("feature_branch", COMMIT_ID_1));
+    assertDoesNotThrow(() -> new Branch("bug_fix_123", COMMIT_ID_1));
   }
 
   @Test

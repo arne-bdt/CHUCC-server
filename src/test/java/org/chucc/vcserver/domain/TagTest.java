@@ -174,9 +174,58 @@ class TagTest {
     // Edge cases with single characters
     assertDoesNotThrow(() -> new Tag("v", COMMIT_ID_1));
     assertDoesNotThrow(() -> new Tag("1", COMMIT_ID_1));
-    assertDoesNotThrow(() -> new Tag(".", COMMIT_ID_1));
     assertDoesNotThrow(() -> new Tag("-", COMMIT_ID_1));
-    assertDoesNotThrow(() -> new Tag("_", COMMIT_ID_1));
+    // Note: "." and "_" are rejected by reserved name validation
+  }
+
+  @Test
+  void testConstructorWithSingleDotThrowsException() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Tag(".", COMMIT_ID_1));
+    assertEquals("Tag name cannot be '.' or '..'", exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithDoubleDotThrowsException() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Tag("..", COMMIT_ID_1));
+    assertEquals("Tag name cannot be '.' or '..'", exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithNameStartingWithUnderscoreThrowsException() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Tag("_temp", COMMIT_ID_1));
+    assertEquals("Tag name cannot start with '_' (reserved for internal use): _temp",
+        exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithNameStartingWithDotThrowsException() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Tag(".temp", COMMIT_ID_1));
+    assertEquals("Tag name cannot start with '.': .temp", exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithNameEndingWithDotThrowsException() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Tag("tag.", COMMIT_ID_1));
+    assertEquals("Tag name cannot end with '.': tag.", exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithMultipleDotsInMiddleAllowed() {
+    // Dots in the middle are allowed (common in version tags)
+    assertDoesNotThrow(() -> new Tag("v1.0.0", COMMIT_ID_1));
+    assertDoesNotThrow(() -> new Tag("release.2024.01", COMMIT_ID_1));
+  }
+
+  @Test
+  void testConstructorWithUnderscoreInMiddleAllowed() {
+    // Underscores in the middle are allowed
+    assertDoesNotThrow(() -> new Tag("release_candidate", COMMIT_ID_1));
+    assertDoesNotThrow(() -> new Tag("v1_0_0", COMMIT_ID_1));
   }
 
   @Test

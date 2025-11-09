@@ -782,6 +782,12 @@ class DatasetGraphRepository {
 **Components**:
 - `EventValidation` - Event validation utilities
 - `EventHeaders` - Event header constants
+- `IdentifierValidator` - Validates dataset/branch/tag names against naming conventions
+  - Windows reserved device name detection (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+  - Max length enforcement (255 chars for branches/tags, 249 for datasets)
+  - Pattern validation (alphanumeric plus . - _)
+  - Unicode NFC normalization validation
+  - Used by: Branch, Tag, CreateDatasetCommandHandler
 
 ##### Controller Utilities
 

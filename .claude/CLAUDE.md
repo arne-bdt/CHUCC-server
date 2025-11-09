@@ -564,7 +564,7 @@ sed -i 's/"test-dataset"/DATASET_NAME/g' MyIT.java
 ### Quality Requirements
 
 **CRITICAL:** Only completely successful builds are acceptable.
-- ✅ All tests pass (currently ~1304 tests)
+- ✅ All tests pass (currently ~1376 tests)
 - ✅ Zero Checkstyle violations
 - ✅ Zero SpotBugs warnings
 - ✅ Zero PMD violations

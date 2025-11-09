@@ -11,6 +11,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 **Now:** All feature tasks completed! Only optional technical debt remains.
 
 **Recent Completions:**
+- Naming Conventions - All 4 tasks (2025-11-09) ✅
 - Test Output Quality - Eliminate Kafka Topic Warnings (2025-11-08) ✅
 - Dataset Routing Standardization (2025-11-07) ✅
 - Nested Transaction Fix (2025-11-07) ✅

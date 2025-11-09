@@ -255,6 +255,31 @@ class BranchTest {
   }
 
   @Test
+  void testConstructorWithNameTooLong_shouldThrow() {
+    // 256 characters (exceeds max of 255)
+    String longName = "a".repeat(256);
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Branch(longName, COMMIT_ID_1));
+    assertEquals("Branch name too long (max 255 characters)", exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithNameExactlyMaxLength_shouldSucceed() {
+    // Exactly 255 characters (boundary test)
+    String maxName = "a".repeat(255);
+    Branch branch = assertDoesNotThrow(() -> new Branch(maxName, COMMIT_ID_1));
+    assertEquals(255, branch.getName().length());
+  }
+
+  @Test
+  void testConstructorWithNameJustBelowMaxLength_shouldSucceed() {
+    // 254 characters (just below max)
+    String name = "a".repeat(254);
+    Branch branch = assertDoesNotThrow(() -> new Branch(name, COMMIT_ID_1));
+    assertEquals(254, branch.getName().length());
+  }
+
+  @Test
   void testBranchMutability() {
     Branch branch = new Branch("main", COMMIT_ID_1);
 

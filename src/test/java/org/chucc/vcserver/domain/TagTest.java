@@ -258,6 +258,31 @@ class TagTest {
   }
 
   @Test
+  void testConstructorWithNameTooLong_shouldThrow() {
+    // 256 characters (exceeds max of 255)
+    String longName = "a".repeat(256);
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> new Tag(longName, COMMIT_ID_1));
+    assertEquals("Tag name too long (max 255 characters)", exception.getMessage());
+  }
+
+  @Test
+  void testConstructorWithNameExactlyMaxLength_shouldSucceed() {
+    // Exactly 255 characters (boundary test)
+    String maxName = "a".repeat(255);
+    Tag tag = assertDoesNotThrow(() -> new Tag(maxName, COMMIT_ID_1));
+    assertEquals(255, tag.name().length());
+  }
+
+  @Test
+  void testConstructorWithNameJustBelowMaxLength_shouldSucceed() {
+    // 254 characters (just below max)
+    String name = "a".repeat(254);
+    Tag tag = assertDoesNotThrow(() -> new Tag(name, COMMIT_ID_1));
+    assertEquals(254, tag.name().length());
+  }
+
+  @Test
   void testSemanticVersioningTags() {
     // Common semantic versioning patterns
     assertDoesNotThrow(() -> new Tag("1.0.0", COMMIT_ID_1));

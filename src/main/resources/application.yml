@@ -12,6 +12,8 @@ spring:
 server:
   port: 8080
   shutdown: graceful
+  # Base URL for service description (override in production)
+  base-url: ${SERVER_BASE_URL:http://localhost:8080}
   # Security: Limit request body size to prevent DoS attacks
   tomcat:
     max-http-form-post-size: 10MB

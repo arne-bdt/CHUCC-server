@@ -1,0 +1,286 @@
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix sd:      <http://www.w3.org/ns/sparql-service-description#> .
+@prefix void:    <http://rdfs.org/ns/void#> .
+@prefix vc:      <http://chucc.org/ns/version-control#> .
+
+# ============================================================================
+# CHUCC Version Control Vocabulary
+# ============================================================================
+# Extends SPARQL 1.1 Service Description to describe version control features.
+# Namespace: http://chucc.org/ns/version-control#
+# Prefix: vc:
+# ============================================================================
+
+<http://chucc.org/ns/version-control#> a owl:Ontology ;
+  dcterms:title "CHUCC Version Control Vocabulary" ;
+  dcterms:description "RDF vocabulary for describing version control features in SPARQL services" ;
+  dcterms:created "2025-11-09"^^xsd:date ;
+  dcterms:modified "2025-11-09"^^xsd:date ;
+  rdfs:comment "This vocabulary extends SPARQL 1.1 Service Description (sd:) and VOID (void:) to describe Git-like version control capabilities for RDF datasets." .
+
+# ============================================================================
+# Classes
+# ============================================================================
+
+vc:VersionedDataset a rdfs:Class ;
+  rdfs:subClassOf sd:Dataset ;
+  rdfs:label "Versioned Dataset" ;
+  rdfs:comment "An RDF dataset with version control capabilities including branches, tags, and commits." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:Branch a rdfs:Class ;
+  rdfs:label "Branch" ;
+  rdfs:comment "A mutable named reference to a commit. Branches can be updated to point to different commits." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:Tag a rdfs:Class ;
+  rdfs:label "Tag" ;
+  rdfs:comment "An immutable named reference to a commit. Tags permanently mark a specific point in history." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:Commit a rdfs:Class ;
+  rdfs:label "Commit" ;
+  rdfs:comment "An immutable snapshot of the dataset at a point in time, including metadata about the change." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+# ============================================================================
+# Dataset Properties
+# ============================================================================
+
+vc:defaultBranch a rdf:Property ;
+  rdfs:domain vc:VersionedDataset ;
+  rdfs:range xsd:string ;
+  rdfs:label "default branch" ;
+  rdfs:comment "The name of the default branch for this versioned dataset (typically 'main' or 'master')." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:branch a rdf:Property ;
+  rdfs:domain vc:VersionedDataset ;
+  rdfs:range vc:Branch ;
+  rdfs:label "branch" ;
+  rdfs:comment "A branch in this versioned dataset." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:tag a rdf:Property ;
+  rdfs:domain vc:VersionedDataset ;
+  rdfs:range vc:Tag ;
+  rdfs:label "tag" ;
+  rdfs:comment "A tag in this versioned dataset." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+# ============================================================================
+# Branch Properties
+# ============================================================================
+
+vc:name a rdf:Property ;
+  rdfs:domain [ a owl:Class ; owl:unionOf (vc:Branch vc:Tag) ] ;
+  rdfs:range xsd:string ;
+  rdfs:label "name" ;
+  rdfs:comment "The name of the branch or tag. Must match pattern ^[A-Za-z0-9._\\-]+$ and be in Unicode NFC normalization." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:head a rdf:Property ;
+  rdfs:domain vc:Branch ;
+  rdfs:range vc:Commit ;
+  rdfs:label "head commit" ;
+  rdfs:comment "The commit that this branch currently points to." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:protected a rdf:Property ;
+  rdfs:domain vc:Branch ;
+  rdfs:range xsd:boolean ;
+  rdfs:label "protected" ;
+  rdfs:comment "Whether this branch is protected from deletion or force-push operations." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:createdAt a rdf:Property ;
+  rdfs:domain [ a owl:Class ; owl:unionOf (vc:Branch vc:Tag) ] ;
+  rdfs:range xsd:dateTime ;
+  rdfs:label "created at" ;
+  rdfs:comment "The timestamp when this branch or tag was created." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:lastUpdated a rdf:Property ;
+  rdfs:domain vc:Branch ;
+  rdfs:range xsd:dateTime ;
+  rdfs:label "last updated" ;
+  rdfs:comment "The timestamp when this branch was last updated (commit pointer moved)." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:commitCount a rdf:Property ;
+  rdfs:domain vc:Branch ;
+  rdfs:range xsd:nonNegativeInteger ;
+  rdfs:label "commit count" ;
+  rdfs:comment "The total number of commits on this branch." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+# ============================================================================
+# Tag Properties
+# ============================================================================
+
+vc:target a rdf:Property ;
+  rdfs:domain vc:Tag ;
+  rdfs:range vc:Commit ;
+  rdfs:label "target commit" ;
+  rdfs:comment "The commit that this tag points to (immutable)." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:message a rdf:Property ;
+  rdfs:domain vc:Tag ;
+  rdfs:range xsd:string ;
+  rdfs:label "annotation message" ;
+  rdfs:comment "Optional annotation message for this tag." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:author a rdf:Property ;
+  rdfs:domain [ a owl:Class ; owl:unionOf (vc:Tag vc:Commit) ] ;
+  rdfs:range xsd:string ;
+  rdfs:label "author" ;
+  rdfs:comment "The author of this tag or commit (display name or email)." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+# ============================================================================
+# Commit Properties
+# ============================================================================
+
+vc:commitId a rdf:Property ;
+  rdfs:domain vc:Commit ;
+  rdfs:range xsd:string ;
+  rdfs:label "commit identifier" ;
+  rdfs:comment "The unique identifier for this commit (UUIDv7)." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:parent a rdf:Property ;
+  rdfs:domain vc:Commit ;
+  rdfs:range vc:Commit ;
+  rdfs:label "parent commit" ;
+  rdfs:comment "A parent commit of this commit. Commits can have 0 (initial), 1 (normal), or 2+ (merge) parents." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:commitMessage a rdf:Property ;
+  rdfs:domain vc:Commit ;
+  rdfs:range xsd:string ;
+  rdfs:label "commit message" ;
+  rdfs:comment "The commit message describing the changes in this commit." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:timestamp a rdf:Property ;
+  rdfs:domain vc:Commit ;
+  rdfs:range xsd:dateTime ;
+  rdfs:label "timestamp" ;
+  rdfs:comment "The timestamp when this commit was created." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:patchSize a rdf:Property ;
+  rdfs:domain vc:Commit ;
+  rdfs:range xsd:nonNegativeInteger ;
+  rdfs:label "patch size" ;
+  rdfs:comment "The number of RDF Patch operations (additions and deletions) in this commit." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+# ============================================================================
+# Extension Features (Service Capabilities)
+# ============================================================================
+
+vc:Merge a sd:Feature ;
+  rdfs:label "Three-way Merge" ;
+  rdfs:comment "Support for merging two branches using three-way merge algorithm with conflict detection." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:Rebase a sd:Feature ;
+  rdfs:label "Rebase" ;
+  rdfs:comment "Support for rebasing commits from one branch onto another." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:CherryPick a sd:Feature ;
+  rdfs:label "Cherry-pick" ;
+  rdfs:comment "Support for applying a specific commit to a different branch." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:TimeTravel a sd:Feature ;
+  rdfs:label "Time-travel Queries" ;
+  rdfs:comment "Support for querying historical dataset state using asOf selector (RFC 3339 timestamp)." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:Blame a sd:Feature ;
+  rdfs:label "Blame/Attribution" ;
+  rdfs:comment "Support for identifying the last commit that modified each triple (last-writer attribution)." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:Diff a sd:Feature ;
+  rdfs:label "Diff" ;
+  rdfs:comment "Support for computing differences between two commits or refs as RDF Patch." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:Squash a sd:Feature ;
+  rdfs:label "Squash" ;
+  rdfs:comment "Support for combining multiple commits into a single commit." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:Reset a sd:Feature ;
+  rdfs:label "Reset" ;
+  rdfs:comment "Support for moving branch pointers to different commits (hard/soft/mixed modes)." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:Revert a sd:Feature ;
+  rdfs:label "Revert" ;
+  rdfs:comment "Support for creating inverse commits that undo changes from previous commits." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+# ============================================================================
+# Version Control Protocol Support
+# ============================================================================
+
+vc:versionControlEndpoint a rdf:Property ;
+  rdfs:domain sd:Service ;
+  rdfs:range rdfs:Resource ;
+  rdfs:label "version control endpoint" ;
+  rdfs:comment "The base endpoint for version control operations (e.g., /version)." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+vc:patchFormat a rdf:Property ;
+  rdfs:domain sd:Service ;
+  rdfs:range rdfs:Resource ;
+  rdfs:label "patch format" ;
+  rdfs:comment "The RDF Patch format supported by this service." ;
+  rdfs:isDefinedBy <http://chucc.org/ns/version-control#> .
+
+# ============================================================================
+# Example Service Description
+# ============================================================================
+# The following example shows how to describe a versioned dataset:
+#
+# <http://example.org/datasets/mydata> a vc:VersionedDataset ;
+#   dcterms:title "My Versioned Dataset" ;
+#   void:sparqlEndpoint <http://example.org/mydata/sparql> ;
+#   vc:defaultBranch "main" ;
+#   vc:branch [
+#     vc:name "main" ;
+#     vc:head <urn:uuid:01936d8f-1234-7890-abcd-ef1234567890> ;
+#     vc:protected true ;
+#     vc:createdAt "2025-11-09T10:00:00Z"^^xsd:dateTime ;
+#     vc:lastUpdated "2025-11-09T15:30:00Z"^^xsd:dateTime ;
+#     vc:commitCount 42
+#   ] ;
+#   vc:tag [
+#     vc:name "v1.0" ;
+#     vc:target <urn:uuid:01936d8f-1234-7890-abcd-ef1234567890> ;
+#     vc:message "First stable release" ;
+#     vc:author "Alice <alice@example.org>" ;
+#     vc:createdAt "2025-11-09T14:00:00Z"^^xsd:dateTime
+#   ] .
+#
+# <http://example.org/sparql> a sd:Service ;
+#   sd:endpoint <http://example.org/sparql> ;
+#   sd:supportedLanguage sd:SPARQL11Query ;
+#   sd:supportedLanguage sd:SPARQL11Update ;
+#   sd:feature vc:Merge ;
+#   sd:feature vc:TimeTravel ;
+#   sd:feature vc:Blame ;
+#   vc:versionControlEndpoint <http://example.org/version> ;
+#   vc:patchFormat <http://www.w3.org/ns/formats/RDF_Patch> .
+# ============================================================================

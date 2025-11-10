@@ -33,7 +33,6 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 ### ✅ Completed Tasks - REST Best Practices
 
 #### 1. ✅ Add Pagination to Collection Endpoints (COMPLETED 2025-11-10)
-**File:** `.tasks/pagination/`
 
 **Overview:**
 Added `offset` and `limit` pagination parameters to all collection endpoints that previously returned all results (branches, tags, refs).
@@ -81,8 +80,6 @@ Added `offset` and `limit` pagination parameters to all collection endpoints tha
 - Updated existing RefsControllerTest for new signature (5 tests)
 - All quality gates passed (Checkstyle, SpotBugs, PMD)
 - Total test count: ~1419 tests
-
-See [Pagination README](./.tasks/pagination/README.md) for details.
 
 ---
 

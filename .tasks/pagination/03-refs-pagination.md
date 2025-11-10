@@ -47,12 +47,17 @@ private static final int MAX_LIMIT = 1000;
 @GetMapping(value = "/refs", produces = MediaType.APPLICATION_JSON_VALUE)
 @Operation(
     summary = "List all refs",
-    description = "List all branches and tags with their target commits (paginated)"
+    description = "Returns a paginated list of all branches and tags with their target commits"
 )
 @ApiResponse(
     responseCode = "200",
-    description = "Refs list",
+    description = "Refs list returned successfully",
     headers = {
+        @Header(
+            name = "Content-Location",
+            description = "Canonical URL for this resource",
+            schema = @Schema(type = "string")
+        ),
         @Header(
             name = "Link",
             description = "RFC 5988 pagination links (next page when available)",
@@ -72,9 +77,9 @@ private static final int MAX_LIMIT = 1000;
 public ResponseEntity<RefsListResponse> listRefs(
     @Parameter(description = "Dataset name", required = true)
     @PathVariable String dataset,
-    @Parameter(description = "Limit number of results (max 1000)")
+    @Parameter(description = "Maximum number of results (max 1000)", example = "100")
     @RequestParam(required = false, defaultValue = "100") Integer limit,
-    @Parameter(description = "Offset for pagination")
+    @Parameter(description = "Offset for pagination", example = "0")
     @RequestParam(required = false, defaultValue = "0") Integer offset
 ) {
     // Validate pagination parameters
@@ -88,8 +93,11 @@ public ResponseEntity<RefsListResponse> listRefs(
     // Call service with pagination
     RefsListResponse response = refService.getAllRefs(dataset, limit, offset);
 
-    // Build Link header for next page (RFC 5988)
+    // Build headers
     HttpHeaders headers = new HttpHeaders();
+    ResponseHeaderBuilder.addContentLocation(headers, VersionControlUrls.refs(dataset));
+
+    // Add Link header for next page (RFC 5988)
     if (response.pagination().hasMore()) {
         String nextUrl = buildNextPageUrl(dataset, limit, offset);
         headers.add("Link", String.format("<%s>; rel=\"next\"", nextUrl));
@@ -137,7 +145,7 @@ public RefsListResponse getAllRefs(String dataset, int limit, int offset) {
     branches.forEach(branch -> allRefs.add(new RefInfo(
         "branch",
         branch.getName(),
-        branch.getHeadCommitId().value()
+        branch.getCommitId().value()  // CORRECTED: Use getCommitId(), not getHeadCommitId()
     )));
 
     // Add tags
@@ -148,9 +156,8 @@ public RefsListResponse getAllRefs(String dataset, int limit, int offset) {
         tag.getTargetCommitId().value()
     )));
 
-    // Calculate pagination
-    int totalCount = allRefs.size();
-    boolean hasMore = (offset + limit) < totalCount;
+    // Calculate hasMore BEFORE applying pagination (matches HistoryService pattern)
+    boolean hasMore = allRefs.size() > offset + limit;
 
     // Apply offset and limit
     List<RefInfo> refs = allRefs.stream()
@@ -158,13 +165,8 @@ public RefsListResponse getAllRefs(String dataset, int limit, int offset) {
         .limit(limit)
         .toList();
 
-    // Build pagination metadata
-    PaginationMetadata pagination = new PaginationMetadata(
-        totalCount,
-        offset,
-        limit,
-        hasMore
-    );
+    // Build pagination metadata (uses existing PaginationInfo)
+    PaginationInfo pagination = new PaginationInfo(limit, offset, hasMore);
 
     return new RefsListResponse(refs, pagination);
 }
@@ -184,7 +186,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 /**
- * Response for refs list endpoint with pagination.
+ * Response DTO for listing refs with pagination.
+ * Contains a list of refs (branches and tags) and pagination metadata.
  */
 @Schema(description = "Paginated list of refs (branches and tags)")
 public record RefsListResponse(
@@ -192,8 +195,17 @@ public record RefsListResponse(
     List<RefInfo> refs,
 
     @Schema(description = "Pagination metadata")
-    PaginationMetadata pagination
+    PaginationInfo pagination
 ) {
+    /**
+     * Compact constructor with defensive copying.
+     *
+     * @param refs list of ref information
+     * @param pagination pagination metadata
+     */
+    public RefsListResponse {
+        refs = refs != null ? List.copyOf(refs) : List.of();
+    }
 }
 ```
 
@@ -201,164 +213,236 @@ public record RefsListResponse(
 
 ### 4. Integration Tests
 
-**File:** `src/test/java/org/chucc/vcserver/controller/RefsControllerIT.java` (create if needed)
+**File:** `src/test/java/org/chucc/vcserver/controller/RefsPaginationIT.java` (create new file)
 
 **Add pagination tests:**
 ```java
-@SpringBootTest(webEnvironment = RANDOM_PORT)
+package org.chucc.vcserver.controller;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+import java.time.Duration;
+import java.util.List;
+import org.chucc.vcserver.dto.CreateBranchRequest;
+import org.chucc.vcserver.dto.CreateBranchResponse;
+import org.chucc.vcserver.dto.CreateTagRequest;
+import org.chucc.vcserver.dto.RefsListResponse;
+import org.chucc.vcserver.dto.TagInfo;
+import org.chucc.vcserver.testutil.ITFixture;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
+
+/**
+ * Integration tests for refs pagination.
+ * Tests with projector enabled to verify read-side behavior.
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
-class RefsControllerIT extends IntegrationTestFixture {
+@TestPropertySource(properties = "projector.kafka-listener.enabled=true")
+class RefsPaginationIT extends ITFixture {
 
-    @Autowired
-    private TestRestTemplate restTemplate;
+  private static final String DATASET_NAME = "test-refs-pagination";
 
-    @Test
-    void listRefs_withDefaultPagination_shouldReturnFirst100() {
-        // Arrange: Create 60 branches + 90 tags = 150 refs
-        for (int i = 0; i < 60; i++) {
-            createBranch("branch-" + i);
-        }
-        for (int i = 0; i < 90; i++) {
-            createTag("v" + i);
-        }
+  @Autowired
+  private TestRestTemplate restTemplate;
 
-        // Act
-        ResponseEntity<RefsListResponse> response = restTemplate.exchange(
-            "/" + dataset + "/version/refs",
-            HttpMethod.GET,
-            null,
-            RefsListResponse.class
-        );
+  @Override
+  protected String getDatasetName() {
+    return DATASET_NAME;
+  }
 
-        // Assert
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        RefsListResponse body = response.getBody();
-        assertThat(body.refs()).hasSize(100);
-        assertThat(body.pagination().totalCount()).isEqualTo(151); // +1 for main branch
-        assertThat(body.pagination().offset()).isEqualTo(0);
-        assertThat(body.pagination().limit()).isEqualTo(100);
-        assertThat(body.pagination().hasMore()).isTrue();
-
-        // Assert Link header
-        List<String> linkHeaders = response.getHeaders().get("Link");
-        assertThat(linkHeaders).hasSize(1);
-        assertThat(linkHeaders.get(0))
-            .contains("offset=100")
-            .contains("limit=100")
-            .contains("rel=\"next\"");
+  @Test
+  void listRefs_withDefaultPagination_shouldReturnPaginatedResults() {
+    // Arrange: Create 6 branches + 6 tags = 12 refs (+ 1 main branch = 13 total)
+    for (int i = 0; i < 6; i++) {
+      createBranch("branch-" + i);
+    }
+    for (int i = 0; i < 6; i++) {
+      createTag("v" + i);
     }
 
-    @Test
-    void listRefs_withCustomPagination_shouldReturnCorrectPage() {
-        // Arrange: Create 50 refs total
-        for (int i = 0; i < 25; i++) {
-            createBranch("branch-" + i);
-        }
-        for (int i = 0; i < 25; i++) {
-            createTag("v" + i);
-        }
+    // Act: Request with limit=10
+    ResponseEntity<RefsListResponse> response = restTemplate.exchange(
+        "/" + DATASET_NAME + "/version/refs?limit=10",
+        HttpMethod.GET,
+        null,
+        RefsListResponse.class
+    );
 
-        // Act: Get page 2 (offset=10, limit=20)
-        ResponseEntity<RefsListResponse> response = restTemplate.exchange(
-            "/" + dataset + "/version/refs?offset=10&limit=20",
-            HttpMethod.GET,
-            null,
-            RefsListResponse.class
-        );
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    RefsListResponse body = response.getBody();
+    assertThat(body.refs()).hasSize(10);
+    assertThat(body.pagination().offset()).isEqualTo(0);
+    assertThat(body.pagination().limit()).isEqualTo(10);
+    assertThat(body.pagination().hasMore()).isTrue();
 
-        // Assert
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        RefsListResponse body = response.getBody();
-        assertThat(body.refs()).hasSize(20);
-        assertThat(body.pagination().offset()).isEqualTo(10);
-        assertThat(body.pagination().limit()).isEqualTo(20);
-        assertThat(body.pagination().hasMore()).isTrue();
+    // Assert Link header
+    List<String> linkHeaders = response.getHeaders().get("Link");
+    assertThat(linkHeaders).hasSize(1);
+    assertThat(linkHeaders.get(0))
+        .contains("offset=10")
+        .contains("limit=10")
+        .contains("rel=\"next\"");
+  }
+
+  @Test
+  void listRefs_withCustomPagination_shouldReturnCorrectPage() {
+    // Arrange: Create 5 branches + 5 tags = 10 refs (+ 1 main = 11 total)
+    for (int i = 0; i < 5; i++) {
+      createBranch("branch-" + i);
+    }
+    for (int i = 0; i < 5; i++) {
+      createTag("v" + i);
     }
 
-    @Test
-    void listRefs_offsetBeyondTotal_shouldReturnEmptyList() {
-        // Act: Offset beyond total (only main branch exists)
-        ResponseEntity<RefsListResponse> response = restTemplate.exchange(
-            "/" + dataset + "/version/refs?offset=1000&limit=100",
-            HttpMethod.GET,
-            null,
-            RefsListResponse.class
-        );
+    // Act: Get page 2 (offset=5, limit=5)
+    ResponseEntity<RefsListResponse> response = restTemplate.exchange(
+        "/" + DATASET_NAME + "/version/refs?offset=5&limit=5",
+        HttpMethod.GET,
+        null,
+        RefsListResponse.class
+    );
 
-        // Assert
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        RefsListResponse body = response.getBody();
-        assertThat(body.refs()).isEmpty();
-        assertThat(body.pagination().hasMore()).isFalse();
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    RefsListResponse body = response.getBody();
+    assertThat(body.refs()).hasSize(5);
+    assertThat(body.pagination().offset()).isEqualTo(5);
+    assertThat(body.pagination().limit()).isEqualTo(5);
+    assertThat(body.pagination().hasMore()).isTrue();
+  }
+
+  @Test
+  void listRefs_offsetBeyondTotal_shouldReturnEmptyList() {
+    // Act: Offset beyond total (only main branch exists)
+    ResponseEntity<RefsListResponse> response = restTemplate.exchange(
+        "/" + DATASET_NAME + "/version/refs?offset=1000&limit=100",
+        HttpMethod.GET,
+        null,
+        RefsListResponse.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    RefsListResponse body = response.getBody();
+    assertThat(body.refs()).isEmpty();
+    assertThat(body.pagination().hasMore()).isFalse();
+  }
+
+  @Test
+  void listRefs_limitExceedsMax_shouldReturn400() {
+    // Act
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/" + DATASET_NAME + "/version/refs?limit=2000",
+        HttpMethod.GET,
+        null,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
+  void listRefs_negativeOffset_shouldReturn400() {
+    // Act
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/" + DATASET_NAME + "/version/refs?offset=-1",
+        HttpMethod.GET,
+        null,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
+  void listRefs_shouldIncludeBothBranchesAndTags() {
+    // Arrange: Create 5 branches + 5 tags
+    for (int i = 0; i < 5; i++) {
+      createBranch("feature-" + i);
+      createTag("v1." + i);
     }
 
-    @Test
-    void listRefs_limitExceedsMax_shouldReturn400() {
-        // Act
-        ResponseEntity<String> response = restTemplate.exchange(
-            "/" + dataset + "/version/refs?limit=2000",
-            HttpMethod.GET,
-            null,
-            String.class
-        );
+    // Act
+    ResponseEntity<RefsListResponse> response = restTemplate.exchange(
+        "/" + DATASET_NAME + "/version/refs?limit=20",
+        HttpMethod.GET,
+        null,
+        RefsListResponse.class
+    );
 
-        // Assert
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    }
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    RefsListResponse body = response.getBody();
 
-    @Test
-    void listRefs_negativeOffset_shouldReturn400() {
-        // Act
-        ResponseEntity<String> response = restTemplate.exchange(
-            "/" + dataset + "/version/refs?offset=-1",
-            HttpMethod.GET,
-            null,
-            String.class
-        );
+    // Count branches and tags
+    long branchCount = body.refs().stream()
+        .filter(ref -> "branch".equals(ref.type()))
+        .count();
+    long tagCount = body.refs().stream()
+        .filter(ref -> "tag".equals(ref.type()))
+        .count();
 
-        // Assert
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    }
+    assertThat(branchCount).isEqualTo(6); // 5 created + 1 main
+    assertThat(tagCount).isEqualTo(5);
+  }
 
-    @Test
-    void listRefs_shouldIncludeBothBranchesAndTags() {
-        // Arrange: Create 5 branches + 5 tags
-        for (int i = 0; i < 5; i++) {
-            createBranch("feature-" + i);
-            createTag("v1." + i);
-        }
+  private void createBranch(String name) {
+    CreateBranchRequest request = new CreateBranchRequest(name, "main", false);
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+    HttpEntity<CreateBranchRequest> httpEntity = new HttpEntity<>(request, headers);
+    restTemplate.postForEntity(
+        "/" + DATASET_NAME + "/version/branches",
+        httpEntity,
+        CreateBranchResponse.class
+    );
 
-        // Act
-        ResponseEntity<RefsListResponse> response = restTemplate.exchange(
-            "/" + dataset + "/version/refs?limit=20",
-            HttpMethod.GET,
-            null,
-            RefsListResponse.class
-        );
+    // Wait for async projection to complete
+    await().atMost(Duration.ofSeconds(10))
+        .untilAsserted(() -> {
+          var branch = branchRepository.findByDatasetAndName(DATASET_NAME, name);
+          assertThat(branch).isPresent();
+        });
+  }
 
-        // Assert
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        RefsListResponse body = response.getBody();
+  private void createTag(String name) {
+    CreateTagRequest request = new CreateTagRequest(
+        name,
+        mainCommitId.value(),
+        "Tag " + name,
+        "test-author"
+    );
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    HttpEntity<CreateTagRequest> httpEntity = new HttpEntity<>(request, headers);
+    restTemplate.postForEntity(
+        "/" + DATASET_NAME + "/version/tags",
+        httpEntity,
+        TagInfo.class
+    );
 
-        // Count branches and tags
-        long branchCount = body.refs().stream()
-            .filter(ref -> "branch".equals(ref.type()))
-            .count();
-        long tagCount = body.refs().stream()
-            .filter(ref -> "tag".equals(ref.type()))
-            .count();
-
-        assertThat(branchCount).isEqualTo(6); // 5 created + 1 main
-        assertThat(tagCount).isEqualTo(5);
-    }
-
-    private void createBranch(String name) {
-        // Implementation similar to BranchControllerIT
-    }
-
-    private void createTag(String name) {
-        // Implementation similar to TagControllerIT
-    }
+    // Wait for async projection to complete
+    await().atMost(Duration.ofSeconds(10))
+        .untilAsserted(() -> {
+          var tag = tagRepository.findByDatasetAndName(DATASET_NAME, name);
+          assertThat(tag).isPresent();
+        });
+  }
 }
 ```
 
@@ -370,8 +454,44 @@ class RefsControllerIT extends IntegrationTestFixture {
 
 **Add pagination tests:**
 ```java
-@Test
-void getAllRefs_withPagination_shouldReturnCorrectPage() {
+package org.chucc.vcserver.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.stream.IntStream;
+import org.chucc.vcserver.domain.Branch;
+import org.chucc.vcserver.domain.CommitId;
+import org.chucc.vcserver.domain.Tag;
+import org.chucc.vcserver.dto.RefsListResponse;
+import org.chucc.vcserver.repository.BranchRepository;
+import org.chucc.vcserver.repository.TagRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class RefServiceTest {
+
+  @Mock
+  private BranchRepository branchRepository;
+
+  @Mock
+  private TagRepository tagRepository;
+
+  private RefService refService;
+
+  @BeforeEach
+  void setUp() {
+    refService = new RefService(branchRepository, tagRepository);
+  }
+
+  @Test
+  void getAllRefs_withPagination_shouldReturnCorrectPage() {
     // Arrange: Mock 30 branches + 20 tags = 50 refs
     List<Branch> branches = IntStream.range(0, 30)
         .mapToObj(i -> createBranch("branch-" + i))
@@ -388,14 +508,13 @@ void getAllRefs_withPagination_shouldReturnCorrectPage() {
 
     // Assert
     assertThat(response.refs()).hasSize(20);
-    assertThat(response.pagination().totalCount()).isEqualTo(50);
-    assertThat(response.pagination().offset()).isEqualTo(10);
     assertThat(response.pagination().limit()).isEqualTo(20);
+    assertThat(response.pagination().offset()).isEqualTo(10);
     assertThat(response.pagination().hasMore()).isTrue();
-}
+  }
 
-@Test
-void getAllRefs_lastPage_hasMoreShouldBeFalse() {
+  @Test
+  void getAllRefs_lastPage_hasMoreShouldBeFalse() {
     // Arrange: Mock 15 branches + 10 tags = 25 refs
     List<Branch> branches = IntStream.range(0, 15)
         .mapToObj(i -> createBranch("branch-" + i))
@@ -413,14 +532,29 @@ void getAllRefs_lastPage_hasMoreShouldBeFalse() {
     // Assert
     assertThat(response.refs()).hasSize(5); // Only 5 remaining
     assertThat(response.pagination().hasMore()).isFalse();
-}
+  }
 
-private Branch createBranch(String name) {
-    return new Branch(name, CommitId.generate(), false);
-}
+  @Test
+  void getAllRefs_emptyRepository_shouldReturnEmptyList() {
+    // Arrange
+    when(branchRepository.findAllByDataset("test")).thenReturn(List.of());
+    when(tagRepository.findAllByDataset("test")).thenReturn(List.of());
 
-private Tag createTag(String name) {
-    return new Tag(name, CommitId.generate(), "Message", "author");
+    // Act
+    RefsListResponse response = refService.getAllRefs("test", 100, 0);
+
+    // Assert
+    assertThat(response.refs()).isEmpty();
+    assertThat(response.pagination().hasMore()).isFalse();
+  }
+
+  private Branch createBranch(String name) {
+    return new Branch(name, CommitId.generate(), false, Instant.now(), Instant.now(), 1);
+  }
+
+  private Tag createTag(String name) {
+    return new Tag(name, CommitId.generate(), "Message", "author", Instant.now());
+  }
 }
 ```
 
@@ -434,13 +568,12 @@ private Tag createTag(String name) {
 - [ ] Update RefService.getAllRefs() signature
 - [ ] Implement pagination logic in service
 - [ ] Update RefsListResponse DTO
-- [ ] Reuse PaginationMetadata DTO (created in Task 1)
+- [ ] Reuse PaginationInfo DTO (created in Task 1)
 - [ ] Add OpenAPI annotations
-- [ ] Write integration tests (7 scenarios)
-- [ ] Write service unit tests (2 scenarios)
+- [ ] Create RefsPaginationIT with 6 integration test scenarios
+- [ ] Create RefServiceTest with 3 unit tests
 - [ ] Run static analysis: `mvn -q clean compile checkstyle:check spotbugs:check`
-- [ ] Run tests: `mvn -q test -Dtest=RefsControllerIT,RefServiceTest`
-- [ ] Test in Swagger UI
+- [ ] Run tests: `mvn -q test -Dtest=RefsPaginationIT,RefServiceTest`
 - [ ] Full build: `mvn -q clean install`
 
 ---
@@ -449,7 +582,7 @@ private Tag createTag(String name) {
 
 1. Start application: `mvn spring-boot:run`
 2. Open Swagger UI: http://localhost:8080/swagger-ui.html
-3. Test GET /version/refs with:
+3. Test GET /{dataset}/version/refs with:
    - No parameters (default: limit=100, offset=0)
    - Custom pagination: offset=10, limit=20
    - Edge cases: offset=9999, limit=1001
@@ -461,3 +594,4 @@ private Tag createTag(String name) {
 
 - Pattern: Task 1 (BranchController) and Task 2 (TagController)
 - Protocol: SPARQL 1.2 Protocol §3.2
+- DTO: PaginationInfo (limit, offset, hasMore)

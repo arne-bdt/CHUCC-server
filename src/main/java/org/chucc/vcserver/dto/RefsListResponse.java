@@ -1,46 +1,27 @@
 package org.chucc.vcserver.dto;
 
-import java.util.ArrayList;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 /**
- * Response DTO for a list of refs (branches and tags).
+ * Response DTO for listing refs with pagination.
+ * Contains a list of refs (branches and tags) and pagination metadata.
  */
-public class RefsListResponse {
+@Schema(description = "Paginated list of refs (branches and tags)")
+public record RefsListResponse(
+    @Schema(description = "List of refs for current page")
+    List<RefResponse> refs,
 
-  private List<RefResponse> refs;
-
+    @Schema(description = "Pagination metadata")
+    PaginationInfo pagination
+) {
   /**
-   * Default constructor for JSON deserialization.
-   */
-  public RefsListResponse() {
-    this.refs = new ArrayList<>();
-  }
-
-  /**
-   * Constructor with refs list.
+   * Compact constructor with defensive copying.
    *
-   * @param refs the list of refs
+   * @param refs list of ref information
+   * @param pagination pagination metadata
    */
-  public RefsListResponse(List<RefResponse> refs) {
-    this.refs = new ArrayList<>(refs);
-  }
-
-  /**
-   * Gets the refs list (defensive copy).
-   *
-   * @return a copy of the refs list
-   */
-  public List<RefResponse> getRefs() {
-    return new ArrayList<>(refs);
-  }
-
-  /**
-   * Sets the refs list (defensive copy).
-   *
-   * @param refs the refs list
-   */
-  public void setRefs(List<RefResponse> refs) {
-    this.refs = new ArrayList<>(refs);
+  public RefsListResponse {
+    refs = refs != null ? List.copyOf(refs) : List.of();
   }
 }

@@ -35,7 +35,7 @@ This server implements:
 - ✅ **History** - Browse commit history with filtering (branch, date range, author) and RFC 5988 pagination
 - ✅ **Time-travel** - Query dataset state at any point in time (`asOf`)
 - ✅ **Merging** - Fast-forward and three-way merge with conflict resolution strategies (ours, theirs)
-- ✅ **Tags** - Create, list, get, and delete tags with immutability enforcement
+- ✅ **Tags** - Create, list, get, and delete tags with immutability enforcement and RFC 5988 pagination
 - ✅ **Diff** - Compare any two commits with RDFPatch output (configurable endpoint)
 - ✅ **Blame** - Last-writer attribution per quad with graph-scoped analysis and pagination
 - ✅ **Batch operations** - Apply multiple write operations (SPARQL updates or RDF patches) in single commit
@@ -247,7 +247,7 @@ See [.tasks/README.md](.tasks/README.md) for detailed task roadmap.
 - ✅ Zero SpotBugs warnings
 - ✅ Zero PMD violations
 - ✅ Zero compiler warnings (enforced by `-Werror`)
-- ✅ All 1394 tests passing (837 unit + 557 integration)
+- ✅ All 1419 tests passing (862 unit + 557 integration)
 
 See [Task Roadmap](./.tasks/README.md) for complete implementation history.
 

@@ -4,7 +4,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import org.chucc.vcserver.dto.PaginationInfo;
 import org.chucc.vcserver.dto.RefResponse;
+import org.chucc.vcserver.dto.RefsListResponse;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.TagRepository;
 import org.springframework.stereotype.Service;
@@ -35,18 +37,21 @@ public class RefService {
   }
 
   /**
-   * Gets all refs (branches and tags) for a dataset.
+   * Lists all refs (branches and tags) in a dataset with pagination.
    * Results are sorted with branches first (alphabetically), then tags (alphabetically).
    *
    * @param datasetName the dataset name
-   * @return a list of all refs
+   * @param limit maximum number of results to return
+   * @param offset number of results to skip
+   * @return refs list response with pagination metadata
    */
-  public List<RefResponse> getAllRefs(String datasetName) {
-    List<RefResponse> refs = new ArrayList<>();
+  public RefsListResponse getAllRefs(String datasetName, int limit, int offset) {
+    // Get all branches and tags
+    List<RefResponse> allRefs = new ArrayList<>();
 
     // Add all branches
     branchRepository.findAllByDataset(datasetName).forEach(branch -> {
-      refs.add(new RefResponse(
+      allRefs.add(new RefResponse(
           "branch",
           branch.getName(),
           branch.getCommitId().toString()
@@ -55,7 +60,7 @@ public class RefService {
 
     // Add all tags
     tagRepository.findAllByDataset(datasetName).forEach(tag -> {
-      refs.add(new RefResponse(
+      allRefs.add(new RefResponse(
           "tag",
           tag.name(),
           tag.commitId().toString()
@@ -63,10 +68,22 @@ public class RefService {
     });
 
     // Sort: branches first (alphabetically), then tags (alphabetically)
-    refs.sort(Comparator
+    allRefs.sort(Comparator
         .comparing(RefResponse::getType)
         .thenComparing(RefResponse::getName));
 
-    return refs;
+    // Calculate hasMore BEFORE applying pagination (matches HistoryService pattern)
+    boolean hasMore = allRefs.size() > offset + limit;
+
+    // Apply offset and limit
+    List<RefResponse> refs = allRefs.stream()
+        .skip(offset)
+        .limit(limit)
+        .toList();
+
+    // Build pagination metadata
+    PaginationInfo pagination = new PaginationInfo(limit, offset, hasMore);
+
+    return new RefsListResponse(refs, pagination);
   }
 }

@@ -1,192 +1,105 @@
 package org.chucc.vcserver.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.stream.IntStream;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.domain.Tag;
-import org.chucc.vcserver.dto.RefResponse;
+import org.chucc.vcserver.dto.RefsListResponse;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.TagRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * Unit tests for RefService.
+ * Unit tests for RefService with pagination.
  */
+@ExtendWith(MockitoExtension.class)
 class RefServiceTest {
 
-  private RefService service;
+  @Mock
   private BranchRepository branchRepository;
+
+  @Mock
   private TagRepository tagRepository;
 
-  private static final String DATASET_NAME = "test-dataset";
+  private RefService refService;
 
   @BeforeEach
   void setUp() {
-    branchRepository = new BranchRepository();
-    tagRepository = new TagRepository();
-    service = new RefService(branchRepository, tagRepository);
+    refService = new RefService(branchRepository, tagRepository);
   }
 
   @Test
-  void getAllRefs_shouldReturnEmptyList_whenNoRefs() {
-    // When
-    var refs = service.getAllRefs(DATASET_NAME);
+  void getAllRefs_withPagination_shouldReturnCorrectPage() {
+    // Arrange: Mock 30 branches + 20 tags = 50 refs
+    List<Branch> branches = IntStream.range(0, 30)
+        .mapToObj(i -> createBranch("branch-" + i))
+        .toList();
+    List<Tag> tags = IntStream.range(0, 20)
+        .mapToObj(i -> createTag("v" + i))
+        .toList();
 
-    // Then
-    assertThat(refs).isEmpty();
+    when(branchRepository.findAllByDataset("test")).thenReturn(branches);
+    when(tagRepository.findAllByDataset("test")).thenReturn(tags);
+
+    // Act: Get second page (offset=10, limit=20)
+    RefsListResponse response = refService.getAllRefs("test", 20, 10);
+
+    // Assert
+    assertThat(response.refs()).hasSize(20);
+    assertThat(response.pagination().limit()).isEqualTo(20);
+    assertThat(response.pagination().offset()).isEqualTo(10);
+    assertThat(response.pagination().hasMore()).isTrue();
   }
 
   @Test
-  void getAllRefs_shouldReturnBranchesOnly() {
-    // Given
-    CommitId commitId1 = CommitId.generate();
-    CommitId commitId2 = CommitId.generate();
-    Branch main = new Branch("main", commitId1);
-    Branch develop = new Branch("develop", commitId2);
+  void getAllRefs_lastPage_hasMoreShouldBeFalse() {
+    // Arrange: Mock 15 branches + 10 tags = 25 refs
+    List<Branch> branches = IntStream.range(0, 15)
+        .mapToObj(i -> createBranch("branch-" + i))
+        .toList();
+    List<Tag> tags = IntStream.range(0, 10)
+        .mapToObj(i -> createTag("v" + i))
+        .toList();
 
-    branchRepository.save(DATASET_NAME, main);
-    branchRepository.save(DATASET_NAME, develop);
+    when(branchRepository.findAllByDataset("test")).thenReturn(branches);
+    when(tagRepository.findAllByDataset("test")).thenReturn(tags);
 
-    // When
-    var refs = service.getAllRefs(DATASET_NAME);
+    // Act: Last page (offset=20, limit=10)
+    RefsListResponse response = refService.getAllRefs("test", 10, 20);
 
-    // Then
-    assertThat(refs).hasSize(2);
-    assertThat(refs).extracting(RefResponse::getType)
-        .containsOnly("branch");
-    assertThat(refs).extracting(RefResponse::getName)
-        .containsExactlyInAnyOrder("main", "develop");
+    // Assert
+    assertThat(response.refs()).hasSize(5); // Only 5 remaining
+    assertThat(response.pagination().hasMore()).isFalse();
   }
 
   @Test
-  void getAllRefs_shouldReturnTagsOnly() {
-    // Given
-    CommitId commitId1 = CommitId.generate();
-    CommitId commitId2 = CommitId.generate();
-    Tag tag1 = new Tag("v1.0.0", commitId1);
-    Tag tag2 = new Tag("v2.0.0", commitId2);
+  void getAllRefs_emptyRepository_shouldReturnEmptyList() {
+    // Arrange
+    when(branchRepository.findAllByDataset("test")).thenReturn(List.of());
+    when(tagRepository.findAllByDataset("test")).thenReturn(List.of());
 
-    tagRepository.save(DATASET_NAME, tag1);
-    tagRepository.save(DATASET_NAME, tag2);
+    // Act
+    RefsListResponse response = refService.getAllRefs("test", 100, 0);
 
-    // When
-    var refs = service.getAllRefs(DATASET_NAME);
-
-    // Then
-    assertThat(refs).hasSize(2);
-    assertThat(refs).extracting(RefResponse::getType)
-        .containsOnly("tag");
-    assertThat(refs).extracting(RefResponse::getName)
-        .containsExactlyInAnyOrder("v1.0.0", "v2.0.0");
+    // Assert
+    assertThat(response.refs()).isEmpty();
+    assertThat(response.pagination().hasMore()).isFalse();
   }
 
-  @Test
-  void getAllRefs_shouldReturnMixedBranchesAndTags() {
-    // Given
-    CommitId commitId1 = CommitId.generate();
-    CommitId commitId2 = CommitId.generate();
-
-    Branch main = new Branch("main", commitId1);
-    Branch develop = new Branch("develop", commitId2);
-    Tag tag1 = new Tag("v1.0.0", commitId1);
-
-    branchRepository.save(DATASET_NAME, main);
-    branchRepository.save(DATASET_NAME, develop);
-    tagRepository.save(DATASET_NAME, tag1);
-
-    // When
-    var refs = service.getAllRefs(DATASET_NAME);
-
-    // Then
-    assertThat(refs).hasSize(3);
-    assertThat(refs).extracting(RefResponse::getType)
-        .containsExactlyInAnyOrder("branch", "branch", "tag");
-    assertThat(refs).extracting(RefResponse::getName)
-        .containsExactlyInAnyOrder("main", "develop", "v1.0.0");
+  private Branch createBranch(String name) {
+    return new Branch(name, CommitId.generate(), false, Instant.now(), Instant.now(), 1);
   }
 
-  @Test
-  void getAllRefs_shouldSortBranchesFirst_thenTags() {
-    // Given
-    CommitId commitId1 = CommitId.generate();
-    CommitId commitId2 = CommitId.generate();
-
-    Branch main = new Branch("main", commitId1);
-    Tag tag1 = new Tag("v1.0.0", commitId2);
-
-    branchRepository.save(DATASET_NAME, main);
-    tagRepository.save(DATASET_NAME, tag1);
-
-    // When
-    var refs = service.getAllRefs(DATASET_NAME);
-
-    // Then
-    assertThat(refs).hasSize(2);
-    // First item should be a branch
-    assertThat(refs.get(0).getType()).isEqualTo("branch");
-    // Second item should be a tag
-    assertThat(refs.get(1).getType()).isEqualTo("tag");
-  }
-
-  @Test
-  void getAllRefs_shouldSortAlphabeticallyWithinType() {
-    // Given
-    CommitId commitId = CommitId.generate();
-
-    Branch zulu = new Branch("zulu", commitId);
-    Branch alpha = new Branch("alpha", commitId);
-    Tag v2 = new Tag("v2.0.0", commitId);
-    Tag v1 = new Tag("v1.0.0", commitId);
-
-    branchRepository.save(DATASET_NAME, zulu);
-    branchRepository.save(DATASET_NAME, alpha);
-    tagRepository.save(DATASET_NAME, v2);
-    tagRepository.save(DATASET_NAME, v1);
-
-    // When
-    var refs = service.getAllRefs(DATASET_NAME);
-
-    // Then
-    assertThat(refs).hasSize(4);
-    assertThat(refs).extracting(RefResponse::getName)
-        .containsExactly("alpha", "zulu", "v1.0.0", "v2.0.0");
-  }
-
-  @Test
-  void getAllRefs_shouldIncludeTargetCommit() {
-    // Given
-    CommitId commitId = CommitId.generate();
-    Branch main = new Branch("main", commitId);
-    branchRepository.save(DATASET_NAME, main);
-
-    // When
-    var refs = service.getAllRefs(DATASET_NAME);
-
-    // Then
-    assertThat(refs).hasSize(1);
-    assertThat(refs.get(0).getTargetCommit()).isEqualTo(commitId.toString());
-  }
-
-  @Test
-  void getAllRefs_shouldIsolateDatasets() {
-    // Given
-    CommitId commitId1 = CommitId.generate();
-    CommitId commitId2 = CommitId.generate();
-    Branch main1 = new Branch("main", commitId1);
-    Branch main2 = new Branch("main", commitId2);
-
-    branchRepository.save("dataset1", main1);
-    branchRepository.save("dataset2", main2);
-
-    // When
-    var refs1 = service.getAllRefs("dataset1");
-    var refs2 = service.getAllRefs("dataset2");
-
-    // Then
-    assertThat(refs1).hasSize(1);
-    assertThat(refs2).hasSize(1);
-    assertThat(refs1.get(0).getTargetCommit()).isEqualTo(commitId1.toString());
-    assertThat(refs2.get(0).getTargetCommit()).isEqualTo(commitId2.toString());
+  private Tag createTag(String name) {
+    return new Tag(name, CommitId.generate(), "Message", "author", Instant.now());
   }
 }

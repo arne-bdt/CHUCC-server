@@ -8,7 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Collections;
 import java.util.List;
+import org.chucc.vcserver.dto.PaginationInfo;
 import org.chucc.vcserver.dto.RefResponse;
+import org.chucc.vcserver.dto.RefsListResponse;
 import org.chucc.vcserver.service.RefService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Unit tests for RefsController.
+ * Unit tests for RefsController with pagination.
  */
 @WebMvcTest(RefsController.class)
 class RefsControllerTest {
@@ -33,18 +35,28 @@ class RefsControllerTest {
   private MeterRegistry meterRegistry;
 
   private static final String DATASET_NAME = "test-dataset";
+  private static final int DEFAULT_LIMIT = 100;
+  private static final int DEFAULT_OFFSET = 0;
 
   @Test
   void listRefs_shouldReturnEmptyArray_whenNoRefs() throws Exception {
     // Given
-    when(refService.getAllRefs(DATASET_NAME)).thenReturn(Collections.emptyList());
+    RefsListResponse response = new RefsListResponse(
+        Collections.emptyList(),
+        new PaginationInfo(DEFAULT_LIMIT, DEFAULT_OFFSET, false)
+    );
+    when(refService.getAllRefs(DATASET_NAME, DEFAULT_LIMIT, DEFAULT_OFFSET))
+        .thenReturn(response);
 
     // When & Then
     mockMvc.perform(get("/" + DATASET_NAME + "/version/refs"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.refs").isArray())
-        .andExpect(jsonPath("$.refs").isEmpty());
+        .andExpect(jsonPath("$.refs").isEmpty())
+        .andExpect(jsonPath("$.pagination.limit").value(DEFAULT_LIMIT))
+        .andExpect(jsonPath("$.pagination.offset").value(DEFAULT_OFFSET))
+        .andExpect(jsonPath("$.pagination.hasMore").value(false));
   }
 
   @Test
@@ -54,8 +66,13 @@ class RefsControllerTest {
         "01936c7f-8a2e-7890-abcd-ef1234567890");
     RefResponse branch2 = new RefResponse("branch", "develop",
         "01936c80-1234-7890-abcd-ef1234567890");
+    RefsListResponse response = new RefsListResponse(
+        List.of(branch1, branch2),
+        new PaginationInfo(DEFAULT_LIMIT, DEFAULT_OFFSET, false)
+    );
 
-    when(refService.getAllRefs(DATASET_NAME)).thenReturn(List.of(branch1, branch2));
+    when(refService.getAllRefs(DATASET_NAME, DEFAULT_LIMIT, DEFAULT_OFFSET))
+        .thenReturn(response);
 
     // When & Then
     mockMvc.perform(get("/" + DATASET_NAME + "/version/refs"))
@@ -75,8 +92,13 @@ class RefsControllerTest {
     // Given
     RefResponse tag = new RefResponse("tag", "v1.0.0",
         "01936c7f-8a2e-7890-abcd-ef1234567890");
+    RefsListResponse response = new RefsListResponse(
+        List.of(tag),
+        new PaginationInfo(DEFAULT_LIMIT, DEFAULT_OFFSET, false)
+    );
 
-    when(refService.getAllRefs(DATASET_NAME)).thenReturn(List.of(tag));
+    when(refService.getAllRefs(DATASET_NAME, DEFAULT_LIMIT, DEFAULT_OFFSET))
+        .thenReturn(response);
 
     // When & Then
     mockMvc.perform(get("/" + DATASET_NAME + "/version/refs"))
@@ -96,8 +118,13 @@ class RefsControllerTest {
         "01936c7f-8a2e-7890-abcd-ef1234567890");
     RefResponse tag = new RefResponse("tag", "v1.0.0",
         "01936c80-1234-7890-abcd-ef1234567890", "Release version 1.0.0");
+    RefsListResponse response = new RefsListResponse(
+        List.of(branch, tag),
+        new PaginationInfo(DEFAULT_LIMIT, DEFAULT_OFFSET, false)
+    );
 
-    when(refService.getAllRefs(DATASET_NAME)).thenReturn(List.of(branch, tag));
+    when(refService.getAllRefs(DATASET_NAME, DEFAULT_LIMIT, DEFAULT_OFFSET))
+        .thenReturn(response);
 
     // When & Then
     mockMvc.perform(get("/" + DATASET_NAME + "/version/refs"))
@@ -115,8 +142,13 @@ class RefsControllerTest {
     // Given
     RefResponse branch = new RefResponse("branch", "main",
         "01936c7f-8a2e-7890-abcd-ef1234567890");
+    RefsListResponse response = new RefsListResponse(
+        List.of(branch),
+        new PaginationInfo(DEFAULT_LIMIT, DEFAULT_OFFSET, false)
+    );
 
-    when(refService.getAllRefs(DATASET_NAME)).thenReturn(List.of(branch));
+    when(refService.getAllRefs(DATASET_NAME, DEFAULT_LIMIT, DEFAULT_OFFSET))
+        .thenReturn(response);
 
     // When & Then
     mockMvc.perform(get("/" + DATASET_NAME + "/version/refs"))
@@ -128,7 +160,12 @@ class RefsControllerTest {
   @Test
   void listRefs_shouldUseDefaultDataset_whenParamNotProvided() throws Exception {
     // Given - using default dataset name
-    when(refService.getAllRefs("default")).thenReturn(Collections.emptyList());
+    RefsListResponse response = new RefsListResponse(
+        Collections.emptyList(),
+        new PaginationInfo(DEFAULT_LIMIT, DEFAULT_OFFSET, false)
+    );
+    when(refService.getAllRefs("default", DEFAULT_LIMIT, DEFAULT_OFFSET))
+        .thenReturn(response);
 
     // When & Then
     mockMvc.perform(get("/default/version/refs"))

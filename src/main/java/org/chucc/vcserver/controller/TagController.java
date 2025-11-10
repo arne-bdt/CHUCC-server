@@ -2,11 +2,17 @@ package org.chucc.vcserver.controller;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.chucc.vcserver.command.CreateTagCommand;
 import org.chucc.vcserver.command.CreateTagCommandHandler;
+import org.chucc.vcserver.controller.util.PaginationValidator;
+import org.chucc.vcserver.controller.util.ResponseHeaderBuilder;
+import org.chucc.vcserver.controller.util.VersionControlUrls;
 import org.chucc.vcserver.dto.CreateTagRequest;
 import org.chucc.vcserver.dto.ProblemDetail;
 import org.chucc.vcserver.dto.TagInfo;
@@ -24,6 +30,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -56,20 +63,78 @@ public class TagController {
   }
 
   /**
-   * List all tags.
+   * List all tags with pagination.
    *
    * @param dataset the dataset name
-   * @return list of tags
+   * @param limit maximum number of results to return
+   * @param offset number of results to skip
+   * @return paginated list of tags
    */
   @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-  @Operation(summary = "List tags", description = "List all tags in the repository")
+  @Operation(
+      summary = "List tags",
+      description = "Returns a paginated list of all tags in the dataset"
+  )
   @ApiResponse(
       responseCode = "200",
-      description = "Tags",
+      description = "Tag list returned successfully",
+      headers = {
+          @Header(
+              name = "Content-Location",
+              description = "Canonical URL for this resource",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "Link",
+              description = "RFC 5988 pagination links (next page when available)",
+              schema = @Schema(type = "string")
+          )
+      },
       content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
   )
-  public ResponseEntity<TagListResponse> listTags(@PathVariable String dataset) {
-    return ResponseEntity.ok(new TagListResponse(tagService.listTags(dataset)));
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request - Invalid pagination parameters",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  public ResponseEntity<TagListResponse> listTags(
+      @Parameter(description = "Dataset name", example = "default", required = true)
+      @PathVariable String dataset,
+      @Parameter(description = "Maximum number of results (max 1000)", example = "100")
+      @RequestParam(required = false, defaultValue = "100") Integer limit,
+      @Parameter(description = "Offset for pagination", example = "0")
+      @RequestParam(required = false, defaultValue = "0") Integer offset
+  ) {
+    // Validate pagination parameters
+    PaginationValidator.validate(limit, offset);
+
+    // Call service with pagination
+    TagListResponse response = tagService.listTags(dataset, limit, offset);
+
+    // Build headers
+    HttpHeaders headers = new HttpHeaders();
+    ResponseHeaderBuilder.addContentLocation(headers, VersionControlUrls.tags(dataset));
+
+    // Add Link header for next page (RFC 5988)
+    if (response.pagination().hasMore()) {
+      String nextUrl = buildNextPageUrl(dataset, limit, offset);
+      headers.add("Link", String.format("<%s>; rel=\"next\"", nextUrl));
+    }
+
+    return ResponseEntity.ok().headers(headers).body(response);
+  }
+
+  /**
+   * Builds the URL for the next page in pagination.
+   *
+   * @param dataset dataset name
+   * @param limit page limit
+   * @param offset current offset
+   * @return URL for next page
+   */
+  private String buildNextPageUrl(String dataset, int limit, int offset) {
+    return String.format("/%s/version/tags?offset=%d&limit=%d",
+        dataset, offset + limit, limit);
   }
 
   /**

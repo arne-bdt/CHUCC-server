@@ -11,6 +11,7 @@ import org.chucc.vcserver.command.CreateBranchCommand;
 import org.chucc.vcserver.command.CreateBranchCommandHandler;
 import org.chucc.vcserver.command.DeleteBranchCommand;
 import org.chucc.vcserver.command.DeleteBranchCommandHandler;
+import org.chucc.vcserver.controller.util.PaginationValidator;
 import org.chucc.vcserver.controller.util.ResponseHeaderBuilder;
 import org.chucc.vcserver.controller.util.VersionControlUrls;
 import org.chucc.vcserver.dto.BranchListResponse;
@@ -42,8 +43,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/{dataset}/version/branches")
 @Tag(name = "Version Control", description = "Branch management operations")
 public class BranchController {
-
-  private static final int MAX_LIMIT = 1000;
 
   private final DeleteBranchCommandHandler deleteBranchCommandHandler;
   private final CreateBranchCommandHandler createBranchCommandHandler;
@@ -110,12 +109,7 @@ public class BranchController {
       @RequestParam(required = false, defaultValue = "0") Integer offset
   ) {
     // Validate pagination parameters
-    if (limit < 1 || limit > MAX_LIMIT) {
-      throw new IllegalArgumentException("Limit must be between 1 and " + MAX_LIMIT);
-    }
-    if (offset < 0) {
-      throw new IllegalArgumentException("Offset cannot be negative");
-    }
+    PaginationValidator.validate(limit, offset);
 
     // Call service with pagination
     BranchListResponse response = branchService.listBranches(dataset, limit, offset);

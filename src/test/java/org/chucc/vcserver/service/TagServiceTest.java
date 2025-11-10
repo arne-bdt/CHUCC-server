@@ -1,5 +1,6 @@
 package org.chucc.vcserver.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -9,11 +10,15 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.chucc.vcserver.config.VersionControlProperties;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.domain.Tag;
 import org.chucc.vcserver.dto.TagDetailResponse;
+import org.chucc.vcserver.dto.TagListResponse;
 import org.chucc.vcserver.exception.TagDeletionForbiddenException;
 import org.chucc.vcserver.exception.TagNotFoundException;
 import org.chucc.vcserver.repository.TagRepository;
@@ -123,5 +128,72 @@ class TagServiceTest {
         tagService.deleteTag(DATASET_NAME, TAG_NAME));
 
     verify(tagRepository, never()).delete(any(), any());
+  }
+
+  /**
+   * Test listing tags with pagination returns correct page.
+   */
+  @Test
+  void listTags_withPagination_shouldReturnCorrectPage() {
+    // Arrange: Mock 50 tags
+    List<Tag> allTags = IntStream.range(0, 50)
+        .mapToObj(i -> createTag("v1.0." + i))
+        .toList();
+    when(tagRepository.findAllByDataset("test")).thenReturn(allTags);
+
+    // Act: Get second page (limit=20, offset=10)
+    TagListResponse response = tagService.listTags("test", 20, 10);
+
+    // Assert
+    assertThat(response.tags()).hasSize(20);
+    assertThat(response.pagination().limit()).isEqualTo(20);
+    assertThat(response.pagination().offset()).isEqualTo(10);
+    assertThat(response.pagination().hasMore()).isTrue();
+    assertThat(response.tags().get(0).name()).isEqualTo("v1.0.10");
+  }
+
+  /**
+   * Test listing tags on last page has hasMore false.
+   */
+  @Test
+  void listTags_lastPage_hasMoreShouldBeFalse() {
+    // Arrange: Mock 25 tags
+    List<Tag> allTags = IntStream.range(0, 25)
+        .mapToObj(i -> createTag("v1.0." + i))
+        .toList();
+    when(tagRepository.findAllByDataset("test")).thenReturn(allTags);
+
+    // Act: Last page (offset=20, limit=10)
+    TagListResponse response = tagService.listTags("test", 10, 20);
+
+    // Assert
+    assertThat(response.tags()).hasSize(5); // Only 5 remaining
+    assertThat(response.pagination().hasMore()).isFalse();
+  }
+
+  /**
+   * Test listing tags from empty repository returns empty list.
+   */
+  @Test
+  void listTags_emptyRepository_shouldReturnEmptyList() {
+    // Arrange
+    when(tagRepository.findAllByDataset("test")).thenReturn(List.of());
+
+    // Act
+    TagListResponse response = tagService.listTags("test", 100, 0);
+
+    // Assert
+    assertThat(response.tags()).isEmpty();
+    assertThat(response.pagination().hasMore()).isFalse();
+  }
+
+  /**
+   * Helper method to create a Tag for testing.
+   *
+   * @param name the tag name
+   * @return the created tag
+   */
+  private Tag createTag(String name) {
+    return new Tag(name, CommitId.generate(), "Message", "author", Instant.now());
   }
 }

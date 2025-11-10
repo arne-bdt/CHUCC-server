@@ -4,8 +4,11 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.Optional;
 import org.chucc.vcserver.config.VersionControlProperties;
+import org.chucc.vcserver.domain.Tag;
+import org.chucc.vcserver.dto.PaginationInfo;
 import org.chucc.vcserver.dto.TagDetailResponse;
 import org.chucc.vcserver.dto.TagInfo;
+import org.chucc.vcserver.dto.TagListResponse;
 import org.chucc.vcserver.exception.TagDeletionForbiddenException;
 import org.chucc.vcserver.exception.TagNotFoundException;
 import org.chucc.vcserver.repository.TagRepository;
@@ -36,22 +39,46 @@ public class TagService {
   }
 
   /**
-   * Lists all tags in a dataset.
+   * Lists all tags in a dataset with pagination.
    *
    * @param datasetName the dataset name
-   * @return list of all tags
+   * @param limit maximum number of results to return
+   * @param offset number of results to skip
+   * @return tag list response with pagination metadata
    */
-  public List<TagInfo> listTags(String datasetName) {
-    return tagRepository.findAllByDataset(datasetName)
-        .stream()
-        .map(tag -> new TagInfo(
-            tag.name(),
-            tag.commitId().value(),
-            tag.message(),
-            tag.author(),
-            tag.createdAt()
-        ))
+  public TagListResponse listTags(String datasetName, int limit, int offset) {
+    List<Tag> allTags = tagRepository.findAllByDataset(datasetName);
+
+    // Calculate hasMore BEFORE applying pagination (matches HistoryService pattern)
+    boolean hasMore = allTags.size() > offset + limit;
+
+    // Apply offset and limit
+    List<TagInfo> tags = allTags.stream()
+        .skip(offset)
+        .limit(limit)
+        .map(this::toTagInfo)
         .toList();
+
+    // Build pagination metadata (uses existing PaginationInfo)
+    PaginationInfo pagination = new PaginationInfo(limit, offset, hasMore);
+
+    return new TagListResponse(tags, pagination);
+  }
+
+  /**
+   * Converts a Tag domain object to a TagInfo DTO.
+   *
+   * @param tag the tag domain object
+   * @return the tag info DTO
+   */
+  private TagInfo toTagInfo(Tag tag) {
+    return new TagInfo(
+        tag.name(),
+        tag.commitId().value(),
+        tag.message(),
+        tag.author(),
+        tag.createdAt()
+    );
   }
 
   /**

@@ -247,7 +247,7 @@ See [.tasks/README.md](.tasks/README.md) for detailed task roadmap.
 - ✅ Zero SpotBugs warnings
 - ✅ Zero PMD violations
 - ✅ Zero compiler warnings (enforced by `-Werror`)
-- ✅ All 1386 tests passing (834 unit + 552 integration)
+- ✅ All 1394 tests passing (837 unit + 557 integration)
 
 See [Task Roadmap](./.tasks/README.md) for complete implementation history.
 

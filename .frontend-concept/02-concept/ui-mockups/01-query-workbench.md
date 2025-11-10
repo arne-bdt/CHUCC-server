@@ -14,6 +14,8 @@
 │                                              [Dataset: default ▾] [Author ▾] │
 └──────────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────────────────────────────────────────────────────────┐
+│ Query Context: [🌿 Branch: main (latest) ▾]                                 │ ← UNIFIED CONTEXT
+│ ─────────────────────────────────────────────────────────────────────────────│
 │ ┌─ Query Editor ─────────────────────────────────────────────────────────┐  │
 │ │ [Tab 1: New Query *] [Tab 2: Saved Query] [+ New Tab]                  │  │
 │ ├─────────────────────────────────────────────────────────────────────────┤  │
@@ -30,12 +32,12 @@
 │ │    │                                                                    │  │
 │ └─────────────────────────────────────────────────────────────────────────┘  │
 │                                                                               │
-│ [Branch: main ▾] [asOf: Latest ▾]                                            │
 │ [📋 Prefixes] [📜 History] [💾 Save]     [▶ Execute Query] [⏹ Cancel]      │
 │                                                                               │
 │ ─────────────────────────────────────────────────────────────────────────────│
 │                                                                               │
 │ ┌─ Results (3 rows in 42ms) ────────────────────────────────────── [↓CSV]─┐ │
+│ │ ℹ️  Queried at: Branch 'main' (latest)                                   │ │ ← CONTEXT INDICATOR
 │ │ ┌─────────────────────┬────────────────────────┬──────────────────────┐ │ │
 │ │ │ ?subject      [▲]   │ ?predicate        [▲] │ ?object         [▲] │ │ │
 │ │ ├─────────────────────┼────────────────────────┼──────────────────────┤ │ │
@@ -47,7 +49,7 @@
 │ └───────────────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ Dataset: default  |  Branch: main  |  Author: Alice <alice@example.org>     │
+│ Dataset: default  |  Context: Branch 'main'  |  Author: Alice                │ ← UPDATED FOOTER
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -81,7 +83,78 @@
 
 ---
 
-### 2.2 Query Editor
+### 2.2 Query Context Selector
+
+**Component**: `<QueryContextSelector>` (custom, prominent)
+
+**Purpose**: **Unified selector** for query execution context (branch/commit/asOf)
+
+**Location**: Above query editor, always visible
+
+**Display States**:
+- **Branch (latest)**: `🌿 Branch: main (latest)`
+- **Specific Commit**: `● Commit: 019abc...`
+- **Time Travel**: `🕐 asOf: 2025-11-10 10:30:00`
+
+**Click behavior**: Opens context selection modal (see 2.2.1)
+
+**Key Principle**:
+> **The query editor and execution are identical regardless of context.**
+> Only the context parameter (branch/commit/asOf) changes.
+> The user always knows what version they're querying.
+
+---
+
+#### 2.2.1 Query Context Modal
+
+**Layout**:
+```
+┌─ Select Query Context ──────────────────────────────────┐
+│                                                          │
+│ ● Branch (latest)                                        │
+│   └─ [main ▾]  ← Dropdown to select branch              │
+│      Queries the latest commit on the selected branch.  │
+│                                                          │
+│ ○ Specific Commit                                        │
+│   └─ [Search commit... 🔍]  ← Commit ID or search       │
+│      Queries a specific immutable commit.               │
+│                                                          │
+│ ○ Time Travel (asOf)                                     │
+│   └─ [2025-11-10 ⏰ 10:30:00]  ← Date/time picker       │
+│      Queries data as it existed at a specific time.     │
+│                                                          │
+│                                [Cancel]  [Apply Context] │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Features**:
+- **Radio buttons**: Mutually exclusive (only one context type active)
+- **Branch selector**: Dropdown with recent branches + search
+- **Commit selector**: ComboBox with commit ID input or search by message
+- **Time picker**: Carbon DatePicker + TimePicker
+- **Help text**: Each option shows brief explanation
+
+**State**:
+```typescript
+interface QueryContext {
+  type: 'branch' | 'commit' | 'asOf';
+
+  // Only one of these is set based on type:
+  branch?: string;        // "main"
+  commit?: string;        // "019abc..."
+  asOf?: string;          // ISO 8601: "2025-11-10T10:30:00Z"
+}
+
+// Current context stored globally
+const queryContext = writable<QueryContext>({
+  type: 'branch',
+  branch: 'main'
+});
+```
+
+---
+
+### 2.3 Query Editor
 
 **Component**: `<SparqlQueryEditor>` (from CHUCC-SQUI)
 
@@ -99,8 +172,6 @@
   - Error underlining (red squiggly)
   - Word wrap (toggle in settings)
 - **Toolbar** (below editor):
-  - **Branch Selector**: `<Dropdown>` - Select branch for query execution
-  - **asOf Selector**: `<Dropdown>` - "Latest" or date picker
   - **Prefixes Button**: Opens modal with prefix manager
   - **History Button**: Opens sidebar with query history
   - **Save Button**: Save query with name
@@ -118,14 +189,12 @@
     results?: QueryResults;
   }>;
   activeTabId: string;
-  selectedBranch: string;   // "main"
-  selectedAsOf: string | null; // null or ISO 8601 timestamp
 }
 ```
 
 **Interactions**:
 - **Type in editor**: Auto-save to localStorage every 5 seconds
-- **Ctrl+Enter**: Execute query in active tab
+- **Ctrl+Enter**: Execute query in active tab (using current context)
 - **Ctrl+/**: Toggle line comment
 - **Ctrl+S**: Save query (open save dialog if unnamed)
 - **Click tab**: Switch active tab
@@ -133,13 +202,17 @@
 
 ---
 
-### 2.3 Results Table
+### 2.4 Results Table
 
 **Component**: `<ResultsTable>` (from CHUCC-SQUI with virtual scrolling)
 
 **Features**:
 - **Header Bar**:
   - **Title**: "Results (X rows in Yms)" or "No results"
+  - **Context Indicator**: Info notification showing query context
+    - "ℹ️ Queried at: Branch 'main' (latest)"
+    - "🕐 Queried at: asOf 2025-11-10 10:30:00 (Commit 019abc...)"
+    - "● Queried at: Commit 019abc..."
   - **Export Menu**: `<OverflowMenu>` (right)
     - Download as: CSV, TSV, JSON, XML, Turtle, N-Triples, JSON-LD, RDF/XML
 - **Table**: `<DataTable>` (Carbon) with virtual scrolling
@@ -284,13 +357,14 @@
 
 ---
 
-### 2.6 Footer (Global)
+### 2.5 Footer (Global)
 
 **Component**: `<Footer>` (custom)
 
 **Contents**:
 - **Status Bar** (left): `<div>` with text
-  - "Dataset: {name} | Branch: {branch} | Author: {author}"
+  - "Dataset: {name} | Context: {context} | Author: {author}"
+  - Context shows: "Branch 'main'" or "Commit '019abc...'" or "asOf '2025-11-10 10:30'"
 - **Notification Area** (bottom-right): `<ToastNotification>` (Carbon)
   - Stacked toasts (up to 3 visible)
 
@@ -298,19 +372,25 @@
 
 ## 3. Interaction Patterns
 
-### 3.1 Execute Query
+### 3.1 Execute Query (Unified Context)
+
+**Key Principle**: The query execution is **identical** regardless of context (branch/commit/asOf). Only the URL parameter changes based on the current context.
 
 **Flow**:
-1. User types query in editor
+1. User types query in editor (query text is context-independent)
 2. User clicks "Execute Query" or presses Ctrl+Enter
 3. Editor becomes read-only (dim overlay)
 4. Execute button changes to "Cancel" (ghost style)
 5. Loading spinner appears in results area
-6. Query sent to server: `POST /query?dataset={}&branch={}&asOf={}`
+6. Query sent to server with context parameter:
+   - Branch context: `POST /query?dataset={dataset}&branch={branch}`
+   - Commit context: `POST /query?dataset={dataset}&commit={commitId}`
+   - asOf context: `POST /query?dataset={dataset}&asOf={timestamp}`
 7. On success:
    - Results appear in table
+   - Context indicator shows: "ℹ️ Queried at: {context description}"
    - Toast notification: "Query executed successfully (Xms)"
-   - Query added to history
+   - Query added to history (with context recorded)
 8. On error:
    - Inline notification above results: "Query failed: {error message}"
    - Editor scrolls to error line (if syntax error)
@@ -318,8 +398,13 @@
 
 **Error Handling**:
 - **400 Bad Request**: Syntax error → highlight line in editor
-- **404 Not Found**: Branch not found → show inline notification
+- **404 Not Found**: Branch/commit not found → show inline notification
 - **408 Timeout**: Query took too long → show inline notification with "Increase timeout in settings" link
+
+**Example**: Same query `SELECT ?s ?p ?o WHERE { ?s ?p ?o }` can be executed:
+- At branch "main" (latest data)
+- At commit "019abc..." (immutable snapshot)
+- At asOf "2025-11-10T10:30:00Z" (historical point-in-time)
 
 ---
 

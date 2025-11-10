@@ -98,6 +98,54 @@ The documentation explains:
 - **If-Match**: Precondition checking for concurrent writes
 - **Conflict Detection**: How concurrent modifications are handled
 
+## Service Description Endpoint
+
+CHUCC-server implements [SPARQL 1.1 Service Description](https://www.w3.org/TR/sparql11-service-description/) to provide machine-readable metadata about service capabilities.
+
+### Endpoints
+
+- `GET /.well-known/void` - Service description (well-known URI)
+- `GET /service-description` - Service description (explicit endpoint)
+
+### Supported Formats
+
+- `text/turtle` (default)
+- `application/ld+json`
+- `application/rdf+xml`
+- `application/n-triples`
+
+### Example
+
+```bash
+# Get service description in Turtle format
+curl -H "Accept: text/turtle" http://localhost:8080/.well-known/void
+
+# Get service description in JSON-LD format
+curl -H "Accept: application/ld+json" http://localhost:8080/service-description
+```
+
+### What's Included
+
+The service description provides:
+
+- **Service capabilities**: SPARQL 1.1 Query, SPARQL 1.1 Update, GSP
+- **Available datasets**: Dynamically discovered from current state
+- **Named graphs**: Per-dataset graph enumeration
+- **Version control metadata**: Branches, tags, default branch
+- **Supported features**: Property paths, aggregates, federation, time-travel
+- **Result formats**: JSON, XML, CSV, Turtle, JSON-LD, etc.
+
+### Version Control Vocabulary
+
+CHUCC extends the standard Service Description with a custom `vc:` (version control) vocabulary to expose:
+
+- **Datasets**: Typed as `vc:VersionedDataset`
+- **Branches**: Branch names, HEAD commits, protection status
+- **Tags**: Tag names, target commits, creation timestamps
+- **Features**: Version control operations (merge, rebase, cherry-pick, diff, blame, etc.)
+
+See [Version Control Vocabulary](./version-control-vocabulary.md) for complete vocabulary reference.
+
 ### Error Handling
 
 All error responses documented with:

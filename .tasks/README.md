@@ -11,6 +11,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 **Now:** All feature tasks completed! Only optional technical debt remains.
 
 **Recent Completions:**
+- SPARQL 1.1 Service Description - All 6 phases (2025-11-10) ✅
 - Naming Conventions - All 4 tasks (2025-11-09) ✅
 - Test Output Quality - Eliminate Kafka Topic Warnings (2025-11-08) ✅
 - Dataset Routing Standardization (2025-11-07) ✅
@@ -29,56 +30,46 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Remaining Tasks
 
+### ✅ SPARQL 1.1 Service Description (Completed 2025-11-10)
+**File:** `.tasks/service-description/` (DELETED - tasks completed)
+
+**Endpoints:**
+- ✅ `GET /.well-known/void` - Service description (well-known URI)
+- ✅ `GET /service-description` - Service description (explicit endpoint)
+
+**Status:** ✅ Completed (2025-11-10)
+**Category:** Standards Compliance / Discoverability
+**W3C Spec:** SPARQL 1.1 Service Description
+**Total Time:** 14 hours (6 phases)
+
+**Implementation:**
+- Created ServiceDescriptionService (RDF model generation)
+- Created ServiceDescriptionController (content negotiation)
+- Implemented dynamic dataset discovery
+- Defined custom vc: vocabulary for version control
+- Exposed branches, tags, commits metadata
+- Content negotiation (Turtle, JSON-LD, RDF/XML, N-Triples)
+- Added 24 integration tests (all passing)
+- Comprehensive documentation and examples
+
+**Files Created:**
+- `src/main/java/org/chucc/vcserver/service/ServiceDescriptionService.java`
+- `src/main/java/org/chucc/vcserver/controller/ServiceDescriptionController.java`
+- `src/test/java/org/chucc/vcserver/integration/ServiceDescriptionIT.java`
+- `docs/api/version-control-vocabulary.md`
+- `docs/examples/service-description-examples.md`
+
+**Files Modified:**
+- `src/main/java/org/chucc/vcserver/repository/BranchRepository.java`
+- `docs/api/openapi-guide.md`
+- `docs/architecture/c4-level3-component.md`
+- `README.md`
+
+---
+
 ### 🟢 Optional Enhancement (Standards Compliance)
 
-#### 1. SPARQL 1.1 Service Description
-**File:** `.tasks/service-description/`
-
-**Overview:**
-Implement SPARQL 1.1 Service Description to provide machine-readable metadata about CHUCC-server's capabilities, datasets, and version control features.
-
-**Phases:**
-1. ✅ Research & Design (2-3 hours) - COMPLETED 2025-11-09
-2. ✅ Core SD Endpoint (3-4 hours) - COMPLETED 2025-11-09
-3. ✅ Dataset Integration (3-4 hours) - COMPLETED 2025-11-09
-4. ✅ Version Control Extension (3-4 hours) - COMPLETED 2025-11-10
-5. ✅ Dynamic Capabilities (1-2 hours) - COMPLETED 2025-11-10
-6. Documentation (1 hour) - PENDING
-
-**Total Estimated Time:** 12-16 hours
-**Time Spent:** ~13 hours (Phases 1-5)
-**Status:** 🚧 In Progress (Phase 1-5 complete, Phase 6 pending)
-
-**Completed:**
-- ✅ Version control vocabulary (`vc:`) designed and documented
-- ✅ Endpoint structure: `GET /.well-known/void` and `/service-description`
-- ✅ Content negotiation (Turtle, JSON-LD, RDF/XML, N-Triples)
-- ✅ Service capabilities description (SPARQL 1.1 Query/Update, VC features)
-- ✅ Dataset discovery (list all datasets, named graphs, graph sizes)
-- ✅ Per-dataset SPARQL endpoints
-- ✅ Dynamic graph enumeration from MaterializedBranchRepository
-- ✅ Version control metadata exposure (branches, tags, default branch)
-- ✅ Datasets typed as `vc:VersionedDataset`
-- ✅ Branch metadata (name, head, protected, timestamps)
-- ✅ Tag metadata (name, commitId, message, author, timestamp)
-- ✅ Dynamic SPARQL features detection (PropertyPaths, Aggregates, SubQueries)
-- ✅ Dynamic result formats detection (SPARQL Results + RDF formats from Jena)
-- ✅ Input formats listing (Turtle, RDF/XML, JSON-LD, N-Triples, N-Quads, TriG)
-- ✅ 24 integration tests (all passing)
-- ✅ Zero quality violations
-- ✅ Files: ServiceDescriptionService, ServiceDescriptionController, ServiceDescriptionIT
-- ✅ Documentation: `docs/api/service-description.md`, `docs/api/version-control-vocabulary.md`, `vc-vocabulary.ttl`
-
-**Benefits:**
-- W3C standards compliance
-- Programmatic discovery of datasets, branches, tags
-- Better tooling integration
-- Self-documenting API
-- Federation support
-
-**Priority:** Optional (high value, but not critical for core functionality)
-
-See [Service Description README](./.tasks/service-description/README.md) for details.
+No remaining tasks in this category.
 
 ---
 

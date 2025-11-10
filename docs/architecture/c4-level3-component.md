@@ -223,6 +223,12 @@ This document describes the **Component** (C4 Level 3) - a detailed view of the 
     - Manual topic healing/recreation
     - Operational diagnostics
 
+14. **ServiceDescriptionController**
+    - Endpoints: GET /.well-known/void, GET /service-description
+    - SPARQL 1.1 Service Description
+    - Content negotiation (Turtle, JSON-LD, RDF/XML, N-Triples)
+    - Exposes version control vocabulary extension
+
 **Responsibilities**:
 - Validate HTTP requests
 - Parse request bodies (RDF, JSON)
@@ -435,6 +441,14 @@ All handlers:
     - Implements snapshot compaction and retention policies
     - Provides fast snapshot retrieval for frequently accessed commits
     - Used by SnapshotService for snapshot persistence
+
+19. **ServiceDescriptionService**
+    - Generates SPARQL 1.1 Service Description RDF model
+    - Discovers available datasets dynamically from BranchRepository
+    - Exposes version control vocabulary (branches, tags, features)
+    - Used by GET /.well-known/void endpoint
+    - Content negotiation (Turtle, JSON-LD, RDF/XML, N-Triples)
+    - Read-only service (no mutations)
 
 **Responsibilities**:
 - Pure business logic (no side effects)

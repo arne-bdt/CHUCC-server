@@ -30,7 +30,7 @@ This server implements:
 - ✅ Full version control integration
 
 ### Version Control
-- ✅ **Branches** - Create, list, get info, delete with Git-like metadata (timestamps, commit count, protection)
+- ✅ **Branches** - Create, list, get info, delete with Git-like metadata (timestamps, commit count, protection) and RFC 5988 pagination
 - ✅ **Commits** - Create commits, query metadata (id, message, author, timestamp, parents, patchSize)
 - ✅ **History** - Browse commit history with filtering (branch, date range, author) and RFC 5988 pagination
 - ✅ **Time-travel** - Query dataset state at any point in time (`asOf`)

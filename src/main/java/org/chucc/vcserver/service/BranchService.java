@@ -3,7 +3,10 @@ package org.chucc.vcserver.service;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.Optional;
+import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.dto.BranchInfo;
+import org.chucc.vcserver.dto.BranchListResponse;
+import org.chucc.vcserver.dto.PaginationInfo;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.springframework.stereotype.Service;
 
@@ -29,14 +32,23 @@ public class BranchService {
   }
 
   /**
-   * Lists all branches in a dataset with full metadata.
+   * Lists all branches in a dataset with pagination.
    *
    * @param dataset the dataset name
-   * @return list of branch information
+   * @param limit maximum number of results to return
+   * @param offset number of results to skip
+   * @return branch list response with pagination metadata
    */
-  public List<BranchInfo> listBranches(String dataset) {
-    return branchRepository.findAllByDataset(dataset)
-        .stream()
+  public BranchListResponse listBranches(String dataset, int limit, int offset) {
+    List<Branch> allBranches = branchRepository.findAllByDataset(dataset);
+
+    // Calculate hasMore BEFORE applying pagination (matches HistoryService pattern)
+    boolean hasMore = allBranches.size() > offset + limit;
+
+    // Apply offset and limit
+    List<BranchInfo> branches = allBranches.stream()
+        .skip(offset)
+        .limit(limit)
         .map(branch -> new BranchInfo(
             branch.getName(),
             branch.getCommitId().value(),
@@ -46,6 +58,11 @@ public class BranchService {
             branch.getCommitCount()
         ))
         .toList();
+
+    // Build pagination metadata (uses existing PaginationInfo)
+    PaginationInfo pagination = new PaginationInfo(limit, offset, hasMore);
+
+    return new BranchListResponse(branches, pagination);
   }
 
   /**

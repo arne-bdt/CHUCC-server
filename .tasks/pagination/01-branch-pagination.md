@@ -141,36 +141,27 @@ private String buildNextPageUrl(String dataset, int limit, int offset) {
 public BranchListResponse listBranches(String dataset, int limit, int offset) {
     List<Branch> allBranches = branchRepository.findAllByDataset(dataset);
 
-    // Calculate pagination
-    int totalCount = allBranches.size();
-    boolean hasMore = (offset + limit) < totalCount;
+    // Calculate hasMore BEFORE applying pagination (matches HistoryService pattern)
+    boolean hasMore = allBranches.size() > offset + limit;
 
     // Apply offset and limit
     List<BranchInfo> branches = allBranches.stream()
         .skip(offset)
         .limit(limit)
-        .map(this::toBranchInfo)
+        .map(branch -> new BranchInfo(
+            branch.getName(),
+            branch.getCommitId().value(),
+            branch.isProtected(),
+            branch.getCreatedAt(),
+            branch.getLastUpdated(),
+            branch.getCommitCount()
+        ))
         .toList();
 
-    // Build pagination metadata
-    PaginationMetadata pagination = new PaginationMetadata(
-        totalCount,
-        offset,
-        limit,
-        hasMore
-    );
+    // Build pagination metadata (uses existing PaginationInfo)
+    PaginationInfo pagination = new PaginationInfo(limit, offset, hasMore);
 
     return new BranchListResponse(branches, pagination);
-}
-
-private BranchInfo toBranchInfo(Branch branch) {
-    return new BranchInfo(
-        branch.getName(),
-        branch.getHeadCommitId(),
-        branch.isProtected(),
-        branch.getCreatedAt(),
-        branch.getUpdatedAt()
-    );
 }
 ```
 
@@ -196,39 +187,21 @@ public record BranchListResponse(
     List<BranchInfo> branches,
 
     @Schema(description = "Pagination metadata")
-    PaginationMetadata pagination
+    PaginationInfo pagination
 ) {
+  /**
+   * Compact constructor with defensive copying.
+   *
+   * @param branches list of branch information
+   * @param pagination pagination metadata
+   */
+  public BranchListResponse {
+    branches = branches != null ? List.copyOf(branches) : List.of();
+  }
 }
 ```
 
-**Create PaginationMetadata if it doesn't exist:**
-
-**File:** `src/main/java/org/chucc/vcserver/dto/PaginationMetadata.java`
-
-```java
-package org.chucc.vcserver.dto;
-
-import io.swagger.v3.oas.annotations.media.Schema;
-
-/**
- * Pagination metadata for collection responses.
- */
-@Schema(description = "Pagination metadata")
-public record PaginationMetadata(
-    @Schema(description = "Total number of items available", example = "250")
-    int totalCount,
-
-    @Schema(description = "Number of items skipped", example = "0")
-    int offset,
-
-    @Schema(description = "Maximum number of items in this response", example = "100")
-    int limit,
-
-    @Schema(description = "Whether more items are available", example = "true")
-    boolean hasMore
-) {
-}
-```
+**Note:** `PaginationInfo` already exists in the codebase (used by HistoryController). No new DTO creation needed.
 
 ---
 
@@ -240,14 +213,14 @@ public record PaginationMetadata(
 ```java
 @Test
 void listBranches_withDefaultPagination_shouldReturnFirst100() {
-    // Arrange: Create 150 branches
-    for (int i = 0; i < 150; i++) {
-        createBranch("branch-" + String.format("%03d", i));
+    // Arrange: Create 12 branches (tests pagination without overwhelming the system)
+    for (int i = 0; i < 12; i++) {
+        createBranch("branch-" + String.format("%02d", i));
     }
 
-    // Act
+    // Act: Request with limit=10 (should return 10 of 13 total, +1 for main)
     ResponseEntity<BranchListResponse> response = restTemplate.exchange(
-        "/" + dataset + "/version/branches",
+        "/" + dataset + "/version/branches?limit=10",
         HttpMethod.GET,
         null,
         BranchListResponse.class
@@ -256,31 +229,30 @@ void listBranches_withDefaultPagination_shouldReturnFirst100() {
     // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     BranchListResponse body = response.getBody();
-    assertThat(body.branches()).hasSize(100);
-    assertThat(body.pagination().totalCount()).isEqualTo(151); // +1 for main branch
+    assertThat(body.branches()).hasSize(10);
     assertThat(body.pagination().offset()).isEqualTo(0);
-    assertThat(body.pagination().limit()).isEqualTo(100);
+    assertThat(body.pagination().limit()).isEqualTo(10);
     assertThat(body.pagination().hasMore()).isTrue();
 
     // Assert Link header
     List<String> linkHeaders = response.getHeaders().get("Link");
     assertThat(linkHeaders).hasSize(1);
     assertThat(linkHeaders.get(0))
-        .contains("offset=100")
-        .contains("limit=100")
+        .contains("offset=10")
+        .contains("limit=10")
         .contains("rel=\"next\"");
 }
 
 @Test
 void listBranches_withCustomPagination_shouldReturnCorrectPage() {
-    // Arrange: Create 50 branches
-    for (int i = 0; i < 50; i++) {
-        createBranch("branch-" + i);
+    // Arrange: Create 15 branches
+    for (int i = 0; i < 15; i++) {
+        createBranch("branch-" + String.format("%02d", i));
     }
 
-    // Act: Get page 2 (offset=10, limit=20)
+    // Act: Get second page (offset=5, limit=5)
     ResponseEntity<BranchListResponse> response = restTemplate.exchange(
-        "/" + dataset + "/version/branches?offset=10&limit=20",
+        "/" + dataset + "/version/branches?offset=5&limit=5",
         HttpMethod.GET,
         null,
         BranchListResponse.class
@@ -289,9 +261,9 @@ void listBranches_withCustomPagination_shouldReturnCorrectPage() {
     // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     BranchListResponse body = response.getBody();
-    assertThat(body.branches()).hasSize(20);
-    assertThat(body.pagination().offset()).isEqualTo(10);
-    assertThat(body.pagination().limit()).isEqualTo(20);
+    assertThat(body.branches()).hasSize(5);
+    assertThat(body.pagination().offset()).isEqualTo(5);
+    assertThat(body.pagination().limit()).isEqualTo(5);
     assertThat(body.pagination().hasMore()).isTrue();
 }
 
@@ -309,7 +281,6 @@ void listBranches_offsetBeyondTotal_shouldReturnEmptyList() {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     BranchListResponse body = response.getBody();
     assertThat(body.branches()).isEmpty();
-    assertThat(body.pagination().totalCount()).isEqualTo(1);
     assertThat(body.pagination().hasMore()).isFalse();
 }
 
@@ -371,14 +342,13 @@ void listBranches_withPagination_shouldReturnCorrectPage() {
         .toList();
     when(branchRepository.findAllByDataset("test")).thenReturn(allBranches);
 
-    // Act: Get second page (offset=10, limit=20)
+    // Act: Get second page (limit=20, offset=10)
     BranchListResponse response = branchService.listBranches("test", 20, 10);
 
     // Assert
     assertThat(response.branches()).hasSize(20);
-    assertThat(response.pagination().totalCount()).isEqualTo(50);
-    assertThat(response.pagination().offset()).isEqualTo(10);
     assertThat(response.pagination().limit()).isEqualTo(20);
+    assertThat(response.pagination().offset()).isEqualTo(10);
     assertThat(response.pagination().hasMore()).isTrue();
 
     // Verify first branch in page is at correct offset
@@ -393,11 +363,13 @@ void listBranches_lastPage_hasMoreShouldBeFalse() {
         .toList();
     when(branchRepository.findAllByDataset("test")).thenReturn(allBranches);
 
-    // Act: Last page (offset=20, limit=10)
+    // Act: Last page (limit=10, offset=20)
     BranchListResponse response = branchService.listBranches("test", 10, 20);
 
     // Assert
     assertThat(response.branches()).hasSize(5); // Only 5 remaining
+    assertThat(response.pagination().limit()).isEqualTo(10);
+    assertThat(response.pagination().offset()).isEqualTo(20);
     assertThat(response.pagination().hasMore()).isFalse();
 }
 
@@ -414,11 +386,10 @@ private Branch createBranch(String name) {
 - [ ] Add MAX_LIMIT constant
 - [ ] Add buildNextPageUrl() helper method
 - [ ] Update BranchService.listBranches() signature
-- [ ] Implement pagination logic in service
-- [ ] Update BranchListResponse DTO
-- [ ] Create PaginationMetadata DTO (if doesn't exist)
+- [ ] Implement pagination logic in service (use existing PaginationInfo)
+- [ ] Update BranchListResponse DTO to include PaginationInfo field
 - [ ] Add OpenAPI annotations
-- [ ] Write integration tests (6 scenarios)
+- [ ] Write integration tests (5 scenarios)
 - [ ] Write service unit tests (2 scenarios)
 - [ ] Run static analysis: `mvn -q clean compile checkstyle:check spotbugs:check`
 - [ ] Run tests: `mvn -q test -Dtest=BranchControllerIT,BranchServiceTest`

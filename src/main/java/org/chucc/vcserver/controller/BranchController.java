@@ -7,14 +7,12 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.List;
 import org.chucc.vcserver.command.CreateBranchCommand;
 import org.chucc.vcserver.command.CreateBranchCommandHandler;
 import org.chucc.vcserver.command.DeleteBranchCommand;
 import org.chucc.vcserver.command.DeleteBranchCommandHandler;
 import org.chucc.vcserver.controller.util.ResponseHeaderBuilder;
 import org.chucc.vcserver.controller.util.VersionControlUrls;
-import org.chucc.vcserver.dto.BranchInfo;
 import org.chucc.vcserver.dto.BranchListResponse;
 import org.chucc.vcserver.dto.CreateBranchRequest;
 import org.chucc.vcserver.dto.CreateBranchResponse;
@@ -34,6 +32,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -43,6 +42,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/{dataset}/version/branches")
 @Tag(name = "Version Control", description = "Branch management operations")
 public class BranchController {
+
+  private static final int MAX_LIMIT = 1000;
 
   private final DeleteBranchCommandHandler deleteBranchCommandHandler;
   private final CreateBranchCommandHandler createBranchCommandHandler;
@@ -65,38 +66,71 @@ public class BranchController {
   }
 
   /**
-   * List all branches with full metadata.
+   * List all branches with pagination.
    *
    * @param dataset the dataset name
-   * @return list of branches
+   * @param limit maximum number of results to return
+   * @param offset number of results to skip
+   * @return paginated list of branches
    */
   @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
       summary = "List branches",
-      description = "Returns a list of all branches in the dataset with metadata including "
-          + "HEAD commit ID, protection status, and timestamps"
+      description = "Returns a paginated list of all branches in the dataset with metadata "
+          + "including HEAD commit ID, protection status, and timestamps"
   )
   @ApiResponse(
       responseCode = "200",
       description = "Branch list returned successfully",
-      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE),
-      headers = @Header(
-          name = "Content-Location",
-          description = "Canonical URL for this resource",
-          schema = @Schema(type = "string")
-      )
+      headers = {
+          @Header(
+              name = "Content-Location",
+              description = "Canonical URL for this resource",
+              schema = @Schema(type = "string")
+          ),
+          @Header(
+              name = "Link",
+              description = "RFC 5988 pagination links (next page when available)",
+              schema = @Schema(type = "string")
+          )
+      },
+      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+  )
+  @ApiResponse(
+      responseCode = "400",
+      description = "Bad Request - Invalid pagination parameters",
+      content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<BranchListResponse> listBranches(
       @Parameter(description = "Dataset name", example = "default", required = true)
-      @PathVariable String dataset
+      @PathVariable String dataset,
+      @Parameter(description = "Maximum number of results (max 1000)", example = "100")
+      @RequestParam(required = false, defaultValue = "100") Integer limit,
+      @Parameter(description = "Offset for pagination", example = "0")
+      @RequestParam(required = false, defaultValue = "0") Integer offset
   ) {
-    List<BranchInfo> branches = branchService.listBranches(dataset);
+    // Validate pagination parameters
+    if (limit < 1 || limit > MAX_LIMIT) {
+      throw new IllegalArgumentException("Limit must be between 1 and " + MAX_LIMIT);
+    }
+    if (offset < 0) {
+      throw new IllegalArgumentException("Offset cannot be negative");
+    }
 
-    // Add Content-Location header with canonical URL
+    // Call service with pagination
+    BranchListResponse response = branchService.listBranches(dataset, limit, offset);
+
+    // Build headers
     HttpHeaders headers = new HttpHeaders();
     ResponseHeaderBuilder.addContentLocation(headers, VersionControlUrls.branches(dataset));
 
-    return ResponseEntity.ok().headers(headers).body(new BranchListResponse(branches));
+    // Add Link header for next page (RFC 5988)
+    if (response.pagination().hasMore()) {
+      String nextUrl = buildNextPageUrl(dataset, limit, offset);
+      headers.add("Link", String.format("<%s>; rel=\"next\"", nextUrl));
+    }
+
+    return ResponseEntity.ok().headers(headers).body(response);
   }
 
   /**
@@ -348,5 +382,18 @@ public class BranchController {
 
     // Return 202 Accepted (response sent before repository update)
     return ResponseEntity.accepted().headers(headers).build();
+  }
+
+  /**
+   * Builds the URL for the next page in pagination.
+   *
+   * @param dataset dataset name
+   * @param limit page limit
+   * @param offset current offset
+   * @return URL for next page
+   */
+  private String buildNextPageUrl(String dataset, int limit, int offset) {
+    return String.format("/%s/version/branches?offset=%d&limit=%d",
+        dataset, offset + limit, limit);
   }
 }

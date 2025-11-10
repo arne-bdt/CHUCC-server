@@ -68,6 +68,7 @@ No remaining tasks in this category.
 ### 🔵 Low Priority (Technical Debt)
 
 #### 3. Fix CreateBranchCommandHandler Write-Through Pattern
+#### 3. Fix CreateBranchCommandHandler Write-Through Pattern
 **File:** TBD
 
 **Problem:**

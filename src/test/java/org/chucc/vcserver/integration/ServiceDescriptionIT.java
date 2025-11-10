@@ -4,10 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
+import org.chucc.vcserver.domain.Tag;
+import org.chucc.vcserver.repository.TagRepository;
 import org.chucc.vcserver.testutil.ITFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +33,9 @@ class ServiceDescriptionIT extends ITFixture {
 
   @Autowired
   private TestRestTemplate restTemplate;
+
+  @Autowired
+  private TagRepository tagRepository;
 
   @Test
   void wellKnownVoid_shouldReturnServiceDescription() {
@@ -247,5 +253,78 @@ class ServiceDescriptionIT extends ITFixture {
     // Assert
     assertThat(response.getBody()).contains("void:sparqlEndpoint");
     assertThat(response.getBody()).contains("/default/sparql");
+  }
+
+  @Test
+  void serviceDescription_shouldExposeVersionControlVocabulary() {
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert
+    assertThat(response.getBody()).contains("vc:VersionedDataset");
+  }
+
+  @Test
+  void serviceDescription_shouldListBranches() {
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert
+    assertThat(response.getBody()).contains("vc:branch");
+    assertThat(response.getBody()).contains("vc:name");
+    assertThat(response.getBody()).contains("\"main\""); // Default branch
+  }
+
+  @Test
+  void serviceDescription_shouldDescribeBranchDetails() {
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert
+    assertThat(response.getBody()).contains("vc:head");
+    assertThat(response.getBody()).contains("vc:protected");
+    assertThat(response.getBody()).contains("vc:createdAt");
+  }
+
+  @Test
+  void serviceDescription_shouldListTags() {
+    // Arrange: Create a tag directly via repository
+    Tag tag = new Tag(
+        "v1.0.0",
+        initialCommitId,
+        "Initial release",
+        "Test Author <test@example.org>",
+        Instant.now());
+    tagRepository.save(DEFAULT_DATASET, tag);
+
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert
+    assertThat(response.getBody()).contains("vc:tag");
+    assertThat(response.getBody()).contains("vc:Tag");
+    assertThat(response.getBody()).contains("v1.0.0");
+    assertThat(response.getBody()).contains("vc:message");
+    assertThat(response.getBody()).contains("Initial release");
+  }
+
+  @Test
+  void serviceDescription_shouldIndicateDefaultBranch() {
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert
+    assertThat(response.getBody()).contains("vc:defaultBranch");
+    assertThat(response.getBody()).contains("\"main\"");
   }
 }

@@ -20,6 +20,7 @@ This server implements:
 - ✅ Content negotiation (JSON, XML, CSV, TSV)
 - ✅ Graph protocol support (default-graph-uri, named-graph-uri)
 - ✅ Both GET and POST methods
+- ✅ **Service Description** - SPARQL 1.1 Service Description with version control vocabulary extension
 
 ### Graph Store Protocol
 - ✅ GET, PUT, POST, DELETE, PATCH, HEAD operations

@@ -4,6 +4,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.rdf.model.Model;
@@ -14,8 +15,10 @@ import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.vocabulary.RDF;
 import org.chucc.vcserver.domain.Branch;
+import org.chucc.vcserver.domain.Tag;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.MaterializedBranchRepository;
+import org.chucc.vcserver.repository.TagRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +38,7 @@ public class ServiceDescriptionService {
 
   private final String baseUrl;
   private final BranchRepository branchRepository;
+  private final TagRepository tagRepository;
   private final MaterializedBranchRepository materializedBranchRepository;
 
   /**
@@ -42,6 +46,7 @@ public class ServiceDescriptionService {
    *
    * @param baseUrl Base URL of the service (configurable via application.yml)
    * @param branchRepository Repository for branch lookups
+   * @param tagRepository Repository for tag lookups
    * @param materializedBranchRepository Repository for materialized graphs
    */
   @SuppressFBWarnings(
@@ -50,9 +55,11 @@ public class ServiceDescriptionService {
   public ServiceDescriptionService(
       @Value("${server.base-url:http://localhost:8080}") String baseUrl,
       BranchRepository branchRepository,
+      TagRepository tagRepository,
       MaterializedBranchRepository materializedBranchRepository) {
     this.baseUrl = baseUrl;
     this.branchRepository = branchRepository;
+    this.tagRepository = tagRepository;
     this.materializedBranchRepository = materializedBranchRepository;
   }
 
@@ -233,11 +240,15 @@ public class ServiceDescriptionService {
 
     // Dataset metadata
     dataset.addProperty(RDF.type, model.createResource(SD_NS + "Dataset"));
+    dataset.addProperty(RDF.type, model.createResource(VC_NS + "VersionedDataset"));
 
     Property sparqlEndpoint = model.createProperty(VOID_NS + "sparqlEndpoint");
     dataset.addProperty(
         sparqlEndpoint,
         model.createResource(datasetUri + "/sparql"));
+
+    // Add version control metadata
+    addVersionControlMetadata(model, dataset, datasetName);
 
     return dataset;
   }
@@ -314,5 +325,112 @@ public class ServiceDescriptionService {
     graphResource.addProperty(voidTriples, model.createTypedLiteral(tripleCount));
 
     return graphResource;
+  }
+
+  /**
+   * Adds version control metadata to a dataset resource.
+   * Includes default branch, all branches, and all tags.
+   *
+   * @param model RDF model
+   * @param dataset Dataset resource
+   * @param datasetName Dataset name
+   */
+  private void addVersionControlMetadata(Model model, Resource dataset, String datasetName) {
+    // Default branch
+    Optional<Branch> mainBranch = branchRepository.findByDatasetAndName(datasetName, "main");
+    if (mainBranch.isPresent()) {
+      Property defaultBranch = model.createProperty(VC_NS + "defaultBranch");
+      dataset.addProperty(defaultBranch, model.createLiteral("main"));
+    }
+
+    // Add all branches
+    List<Branch> branches = branchRepository.findAllByDataset(datasetName);
+    Property branchProp = model.createProperty(VC_NS + "branch");
+    for (Branch branch : branches) {
+      Resource branchResource = createBranchResource(model, branch);
+      dataset.addProperty(branchProp, branchResource);
+    }
+
+    // Add all tags
+    List<Tag> tags = tagRepository.findAllByDataset(datasetName);
+    Property tagProp = model.createProperty(VC_NS + "tag");
+    for (Tag tag : tags) {
+      Resource tagResource = createTagResource(model, tag);
+      dataset.addProperty(tagProp, tagResource);
+    }
+  }
+
+  /**
+   * Creates a branch resource with metadata.
+   *
+   * @param model RDF model
+   * @param branch Branch entity
+   * @return Branch resource with type and properties
+   */
+  private Resource createBranchResource(Model model, Branch branch) {
+    Resource branchRes = model.createResource();
+    branchRes.addProperty(RDF.type, model.createResource(VC_NS + "Branch"));
+
+    Property nameProp = model.createProperty(VC_NS + "name");
+    branchRes.addProperty(nameProp, model.createLiteral(branch.getName()));
+
+    Property headProp = model.createProperty(VC_NS + "head");
+    branchRes.addProperty(headProp, model.createLiteral(branch.getCommitId().value()));
+
+    Property protectedProp = model.createProperty(VC_NS + "protected");
+    branchRes.addProperty(protectedProp, model.createTypedLiteral(branch.isProtected()));
+
+    if (branch.getCreatedAt() != null) {
+      Property createdAtProp = model.createProperty(VC_NS + "createdAt");
+      branchRes.addProperty(
+          createdAtProp,
+          model.createTypedLiteral(branch.getCreatedAt().toString(), XSDDatatype.XSDdateTime));
+    }
+
+    if (branch.getLastUpdated() != null) {
+      Property updatedAtProp = model.createProperty(VC_NS + "updatedAt");
+      branchRes.addProperty(
+          updatedAtProp,
+          model.createTypedLiteral(branch.getLastUpdated().toString(), XSDDatatype.XSDdateTime));
+    }
+
+    return branchRes;
+  }
+
+  /**
+   * Creates a tag resource with metadata.
+   *
+   * @param model RDF model
+   * @param tag Tag entity
+   * @return Tag resource with type and properties
+   */
+  private Resource createTagResource(Model model, Tag tag) {
+    Resource tagRes = model.createResource();
+    tagRes.addProperty(RDF.type, model.createResource(VC_NS + "Tag"));
+
+    Property nameProp = model.createProperty(VC_NS + "name");
+    tagRes.addProperty(nameProp, model.createLiteral(tag.name()));
+
+    Property commitIdProp = model.createProperty(VC_NS + "commitId");
+    tagRes.addProperty(commitIdProp, model.createLiteral(tag.commitId().value()));
+
+    if (tag.message() != null) {
+      Property messageProp = model.createProperty(VC_NS + "message");
+      tagRes.addProperty(messageProp, model.createLiteral(tag.message()));
+    }
+
+    if (tag.author() != null) {
+      Property authorProp = model.createProperty(VC_NS + "author");
+      tagRes.addProperty(authorProp, model.createLiteral(tag.author()));
+    }
+
+    if (tag.createdAt() != null) {
+      Property createdAtProp = model.createProperty(VC_NS + "createdAt");
+      tagRes.addProperty(
+          createdAtProp,
+          model.createTypedLiteral(tag.createdAt().toString(), XSDDatatype.XSDdateTime));
+    }
+
+    return tagRes;
   }
 }

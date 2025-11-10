@@ -41,13 +41,13 @@ Implement SPARQL 1.1 Service Description to provide machine-readable metadata ab
 1. ✅ Research & Design (2-3 hours) - COMPLETED 2025-11-09
 2. ✅ Core SD Endpoint (3-4 hours) - COMPLETED 2025-11-09
 3. ✅ Dataset Integration (3-4 hours) - COMPLETED 2025-11-09
-4. Version Control Extension (3-4 hours) - PENDING
+4. ✅ Version Control Extension (3-4 hours) - COMPLETED 2025-11-10
 5. Dynamic Capabilities (1-2 hours) - PENDING
 6. Documentation (1 hour) - PENDING
 
 **Total Estimated Time:** 12-16 hours
-**Time Spent:** ~8 hours (Phases 1-3)
-**Status:** 🚧 In Progress (Phase 1-3 complete, Phase 4-6 pending)
+**Time Spent:** ~12 hours (Phases 1-4)
+**Status:** 🚧 In Progress (Phase 1-4 complete, Phase 5-6 pending)
 
 **Completed:**
 - ✅ Version control vocabulary (`vc:`) designed and documented
@@ -57,10 +57,14 @@ Implement SPARQL 1.1 Service Description to provide machine-readable metadata ab
 - ✅ Dataset discovery (list all datasets, named graphs, graph sizes)
 - ✅ Per-dataset SPARQL endpoints
 - ✅ Dynamic graph enumeration from MaterializedBranchRepository
-- ✅ 15 integration tests (all passing)
+- ✅ Version control metadata exposure (branches, tags, default branch)
+- ✅ Datasets typed as `vc:VersionedDataset`
+- ✅ Branch metadata (name, head, protected, timestamps)
+- ✅ Tag metadata (name, commitId, message, author, timestamp)
+- ✅ 21 integration tests (all passing)
 - ✅ Zero quality violations
 - ✅ Files: ServiceDescriptionService, ServiceDescriptionController, ServiceDescriptionIT
-- ✅ Documentation: `docs/api/service-description.md`, `vc-vocabulary.ttl`
+- ✅ Documentation: `docs/api/service-description.md`, `docs/api/version-control-vocabulary.md`, `vc-vocabulary.ttl`
 
 **Benefits:**
 - W3C standards compliance

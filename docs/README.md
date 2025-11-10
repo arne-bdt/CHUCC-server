@@ -22,6 +22,8 @@
 - [OpenAPI Guide](api/openapi-guide.md) - Using and maintaining OpenAPI documentation
 - [Error Codes](api/error-codes.md) - RFC 7807 error code reference
 - [API Extensions](api/api-extensions.md) - Version control extensions to SPARQL protocol
+- [Service Description](api/service-description.md) - SPARQL 1.1 Service Description implementation
+- [Version Control Vocabulary](api/version-control-vocabulary.md) - RDF vocabulary for version control metadata
 - [Spec Compliance](api/spec-compliance.md) - SPARQL 1.2 compliance status
 
 ### Operations

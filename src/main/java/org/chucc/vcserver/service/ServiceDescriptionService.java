@@ -11,6 +11,8 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.vocabulary.RDF;
@@ -95,6 +97,9 @@ public class ServiceDescriptionService {
     // Result formats
     addResultFormats(model, service);
 
+    // Input formats
+    addInputFormats(model, service);
+
     // Extension features
     addExtensionFeatures(model, service);
 
@@ -123,6 +128,7 @@ public class ServiceDescriptionService {
 
   /**
    * Adds standard SPARQL 1.1 features to the service description.
+   * Detects features supported by Apache Jena ARQ.
    *
    * @param model RDF model
    * @param service Service resource
@@ -130,45 +136,102 @@ public class ServiceDescriptionService {
   private void addFeatures(Model model, Resource service) {
     Property feature = model.createProperty(SD_NS + "feature");
 
-    // Standard SPARQL 1.1 features
+    // Standard SPARQL 1.1 features (always supported by Jena)
     service.addProperty(
         feature,
         model.createResource(SD_NS + "UnionDefaultGraph"));
     service.addProperty(
         feature,
         model.createResource(SD_NS + "BasicFederatedQuery"));
+
+    // Optional features supported by Jena ARQ
+    // Property Paths - supported by Jena ARQ
+    service.addProperty(
+        feature,
+        model.createResource(SD_NS + "PropertyPaths"));
+
+    // Aggregates - supported by Jena ARQ
+    service.addProperty(
+        feature,
+        model.createResource(SD_NS + "Aggregates"));
+
+    // Subqueries - supported by Jena ARQ
+    service.addProperty(
+        feature,
+        model.createResource(SD_NS + "SubQueries"));
   }
 
   /**
    * Adds supported result formats to the service description.
+   * Dynamically detects RDF formats supported by Jena.
    *
    * @param model RDF model
    * @param service Service resource
    */
   private void addResultFormats(Model model, Resource service) {
-    Property resultFormat = model.createProperty(SD_NS + "resultFormat");
+    // SPARQL Results formats (from RDFLanguages)
+    addResultFormat(service, model, "http://www.w3.org/ns/formats/SPARQL_Results_JSON");
+    addResultFormat(service, model, "http://www.w3.org/ns/formats/SPARQL_Results_XML");
+    addResultFormat(service, model, "http://www.w3.org/ns/formats/SPARQL_Results_CSV");
+    addResultFormat(service, model, "http://www.w3.org/ns/formats/SPARQL_Results_TSV");
 
-    // SPARQL Results formats
-    service.addProperty(
-        resultFormat,
-        model.createResource("http://www.w3.org/ns/formats/SPARQL_Results_JSON"));
-    service.addProperty(
-        resultFormat,
-        model.createResource("http://www.w3.org/ns/formats/SPARQL_Results_XML"));
-    service.addProperty(
-        resultFormat,
-        model.createResource("http://www.w3.org/ns/formats/SPARQL_Results_CSV"));
+    // RDF serialization formats (supported by Jena)
+    for (Lang lang : RDFLanguages.getRegisteredLanguages()) {
+      if (lang.equals(Lang.TURTLE)
+          || lang.equals(Lang.RDFXML)
+          || lang.equals(Lang.JSONLD)
+          || lang.equals(Lang.NTRIPLES)
+          || lang.equals(Lang.NQUADS)
+          || lang.equals(Lang.TRIG)) {
+        String formatUri = "http://www.w3.org/ns/formats/" + lang.getName();
+        addResultFormat(service, model, formatUri);
+      }
+    }
+  }
 
-    // RDF serialization formats
+  /**
+   * Adds a single result format to the service description.
+   * Helper method to avoid code duplication.
+   *
+   * @param service Service resource
+   * @param model RDF model
+   * @param formatUri Format URI
+   */
+  private void addResultFormat(Resource service, Model model, String formatUri) {
     service.addProperty(
-        resultFormat,
+        model.createProperty(SD_NS + "resultFormat"),
+        model.createResource(formatUri));
+  }
+
+  /**
+   * Adds supported input formats to the service description.
+   * These formats are accepted for SPARQL UPDATE and GSP operations.
+   *
+   * @param model RDF model
+   * @param service Service resource
+   */
+  private void addInputFormats(Model model, Resource service) {
+    Property inputFormat = model.createProperty(SD_NS + "inputFormat");
+
+    // Input formats for SPARQL UPDATE and GSP
+    service.addProperty(
+        inputFormat,
         model.createResource("http://www.w3.org/ns/formats/Turtle"));
     service.addProperty(
-        resultFormat,
+        inputFormat,
         model.createResource("http://www.w3.org/ns/formats/RDF_XML"));
     service.addProperty(
-        resultFormat,
+        inputFormat,
         model.createResource("http://www.w3.org/ns/formats/JSON-LD"));
+    service.addProperty(
+        inputFormat,
+        model.createResource("http://www.w3.org/ns/formats/N-Triples"));
+    service.addProperty(
+        inputFormat,
+        model.createResource("http://www.w3.org/ns/formats/N-Quads"));
+    service.addProperty(
+        inputFormat,
+        model.createResource("http://www.w3.org/ns/formats/TriG"));
   }
 
   /**

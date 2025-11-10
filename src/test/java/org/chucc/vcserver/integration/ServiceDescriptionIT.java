@@ -327,4 +327,47 @@ class ServiceDescriptionIT extends ITFixture {
     assertThat(response.getBody()).contains("vc:defaultBranch");
     assertThat(response.getBody()).contains("\"main\"");
   }
+
+  @Test
+  void serviceDescription_shouldDescribeSparqlFeatures() {
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert - SPARQL 1.1 features
+    assertThat(response.getBody()).contains("sd:PropertyPaths");
+    assertThat(response.getBody()).contains("sd:Aggregates");
+    assertThat(response.getBody()).contains("sd:SubQueries");
+  }
+
+  @Test
+  void serviceDescription_shouldDescribeAllResultFormats() {
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert - Result formats
+    assertThat(response.getBody()).contains("SPARQL_Results_JSON");
+    assertThat(response.getBody()).contains("SPARQL_Results_XML");
+    assertThat(response.getBody()).contains("SPARQL_Results_CSV");
+    assertThat(response.getBody()).contains("SPARQL_Results_TSV");
+    assertThat(response.getBody()).contains("Turtle");
+    assertThat(response.getBody()).contains("JSON-LD");
+  }
+
+  @Test
+  void serviceDescription_shouldDescribeInputFormats() {
+    // Act
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        "/service-description",
+        String.class);
+
+    // Assert - Input formats (verify key formats for SPARQL UPDATE and GSP)
+    assertThat(response.getBody()).contains("sd:inputFormat");
+    assertThat(response.getBody()).contains("Turtle");
+    assertThat(response.getBody()).contains("N-Triples");
+    assertThat(response.getBody()).contains("JSON-LD");
+  }
 }

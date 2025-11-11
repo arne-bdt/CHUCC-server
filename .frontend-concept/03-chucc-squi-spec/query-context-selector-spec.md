@@ -57,12 +57,21 @@ export interface CommitContext {
 }
 
 /**
- * Query data as it existed at a specific timestamp (time-travel).
+ * Query data as it existed at a specific timestamp.
+ *
+ * **Implementation Note**: The server resolves this timestamp to the
+ * commit at or before the specified time. There is no data "between"
+ * commits - each commit is an immutable snapshot.
+ *
  * Maps to: ?asOf={timestamp}
+ * Server resolves to: commit ID (UUIDv7) at or before timestamp
  */
 export interface AsOfContext {
   type: 'asOf';
   asOf: string;    // ISO 8601 timestamp: "2025-11-10T10:30:00Z"
+
+  // Optional: Resolved commit ID (populated after server resolution)
+  _resolvedCommit?: string;  // UUIDv7
 }
 
 /**

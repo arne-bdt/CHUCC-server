@@ -122,6 +122,29 @@ TAGS
   - Keyboard: ← / → arrows
   - Context menu: "Collapse all branches"
 
+**Visualization Modes**:
+
+The commit graph can be displayed in multiple ways:
+
+1. **Graph View** (default) - DAG visualization
+   - Shows branch structure and merges
+   - Colored lines for different branches
+   - Best for understanding relationships
+
+2. **Timeline View** - Chronological list
+   - Shows commits ordered by timestamp
+   - Similar to Time Travel view
+   - Best for historical analysis
+   - Each marker is clickable to view commit details
+
+3. **Calendar View** (future) - Heatmap
+   - Shows commit activity over time
+   - Color intensity = number of changes
+   - Best for activity analysis
+
+Toggle between views with buttons above the graph:
+`[Graph] [Timeline] [Calendar]`
+
 **Interactions**:
 - **Click commit**: Select (highlights commit, shows details below)
 - **Double-click commit**: Navigate to Time Travel view with asOf=commitTimestamp

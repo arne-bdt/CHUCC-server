@@ -58,7 +58,15 @@ export interface CommitContext {
 }
 
 /**
- * Query data as it existed at a specific timestamp (time-travel).
+ * Query data as it existed at a specific timestamp.
+ *
+ * **Server-Side Resolution**: The backend finds the commit at or
+ * before this timestamp. The resolved commit ID is what actually
+ * gets queried.
+ *
+ * **UI Consideration**: Users select times, but they're querying
+ * commits. Show resolved commit in UI: "asOf: 10:30 (commit 019abc...)"
+ *
  * Protocol mapping: ?asOf={timestamp}
  *
  * @example
@@ -67,6 +75,7 @@ export interface CommitContext {
  *   asOf: '2025-11-10T10:30:00Z'
  * };
  * // URL: /query?dataset=default&asOf=2025-11-10T10:30:00Z
+ * // Server resolves to commit at or before 10:30:00Z
  */
 export interface AsOfContext {
   type: 'asOf';

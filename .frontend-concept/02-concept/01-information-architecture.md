@@ -64,6 +64,9 @@ CHUCC Frontend
 │   ├── asOf Date Picker
 │   ├── Commit Selector
 │   └── Comparison Mode (side-by-side results)
+│   Note: Provides timeline view of commits for historical analysis.
+│         Queries resolve to specific commits (no data "between" commits).
+│         Alternative: Consider merging with /version as visualization mode
 │
 ├── Dataset Manager (/datasets)
 │   ├── Dataset List (table)

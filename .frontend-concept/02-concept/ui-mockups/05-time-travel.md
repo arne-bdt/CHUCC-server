@@ -84,6 +84,20 @@
 - **Smart Defaults**: Default to "now" (latest commit) when view loads
 - **Commit Snapping**: Option to snap to nearest commit timestamp
 
+**Understanding Time Travel**:
+
+Time travel in CHUCC queries specific commits in your dataset's history.
+When you select a timestamp:
+1. The system finds the commit at or before that time
+2. Your query executes against that commit's snapshot
+3. There is no data "between" commits
+
+Think of commits as bookmarks in time - the timeline shows your commit
+history in chronological order, not a continuous stream.
+
+**Why this matters**: Selecting "10:30:00" executes at the commit created
+at or just before 10:30, not at some interpolated state.
+
 **State**:
 ```typescript
 interface TimeTravelState {
@@ -374,7 +388,11 @@ interface ChangeHistoryState {
 5. Commit info updates: "Branch: main @ commit 019xyz..."
 6. User clicks "Execute at Selected Time"
 7. Results load: Data as it existed at 18:00 yesterday
-8. Results header shows: "ℹ️ Queried at: 2025-11-09T18:00:00Z"
+8. Results header shows: "ℹ️ Queried at: 2025-11-09T18:00:00Z (commit 019xyz...)"
+
+**Note**: When user selects a timestamp, the server resolves it to a
+commit (e.g., "18:00:00" → commit 019xyz...). The query results show
+which commit was used for transparency.
 
 ### 3.2 Timeline Animation
 

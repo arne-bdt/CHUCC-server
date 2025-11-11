@@ -227,6 +227,45 @@
 
 ---
 
+### Pattern 4: AsOf Resolution
+
+**Challenge**: asOf context resolves to commit server-side. Should UI show resolved commit?
+
+**Option A - Show both** (recommended):
+```svelte
+<script>
+  let context = { type: 'asOf', asOf: '2025-11-10T10:30:00Z' };
+  let resolvedCommit = null;
+
+  async function handleExecute() {
+    const response = await executeQuery(query, dataset, context);
+    // Server includes resolved commit in response headers
+    resolvedCommit = response.headers.get('X-Resolved-Commit');
+  }
+</script>
+
+<QueryContextIndicator {context} />
+{#if resolvedCommit}
+  <small>(resolved to commit {resolvedCommit.slice(0, 7)})</small>
+{/if}
+```
+
+**Option B - Convert to CommitContext after resolution**:
+```svelte
+async function handleExecute() {
+  if (context.type === 'asOf') {
+    // Convert to commit context after resolution
+    const commit = await resolveAsOf(context.asOf);
+    context = { type: 'commit', commit };
+  }
+  await executeQuery(query, dataset, context);
+}
+```
+
+**Recommendation**: Use Option A. Keep asOf as user input but show resolved commit for transparency.
+
+---
+
 ## State Management
 
 ### Global Stores (Frontend)

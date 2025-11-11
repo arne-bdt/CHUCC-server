@@ -180,6 +180,18 @@ The CHUCC frontend combines the **query-focused simplicity of Apache Jena Fuseki
 - **Comparison Mode**: Side-by-side results (time A vs time B)
 - **Query Indicator**: "Results as of 2025-11-10 10:30:00"
 
+**Architecture Note**: Time travel queries execute at specific commits.
+The asOf selector finds the commit at or before the specified timestamp.
+The timeline visualization shows commit history chronologically -
+essentially the same data as the Version Control view's commit graph,
+but laid out by time instead of by branch structure.
+
+**Design Decision**: We maintain separate views because:
+- Version Control focuses on branch operations (merge, rebase, etc.)
+- Time Travel focuses on historical query analysis (animation, comparison)
+
+Alternative: These could be merged into a single view with visualization modes.
+
 ### 4.6 Dataset Manager
 
 **Layout**: Table view

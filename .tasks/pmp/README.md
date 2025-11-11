@@ -1,6 +1,6 @@
 # Prefix Management Protocol (PMP) Implementation Tasks
 
-**Status:** Not Started
+**Status:** In Progress (Session 1 completed)
 **Priority:** Medium
 **Total Estimated Time:** 1.5 weeks (7-10 days)
 
@@ -482,13 +482,13 @@ All prefix changes are **auditable**:
 
 | Session | Status | Estimated | Actual | Notes |
 |---------|--------|-----------|--------|-------|
-| 1: Core Implementation | ⏳ Not Started | 4-5h | - | GET/PUT/PATCH/DELETE |
+| 1: Core Implementation | ✅ Completed | 4-5h | ~5h | GET/PUT/PATCH/DELETE + RdfPatchUtil fix |
 | 2: Time-Travel | ⏳ Not Started | 2-3h | - | Commit-based queries |
 | 3: Suggested Prefixes | ⏳ Not Started | 2-3h | - | Namespace analysis |
 | 4: OpenAPI & Tests | ⏳ Not Started | 2-3h | - | Docs + comprehensive tests |
 | 5: Merge Conflicts | ⏸️ Deferred | 3-4h | - | Optional enhancement |
 
-**Total Progress:** 0% (0/4 core sessions completed)
+**Total Progress:** 25% (1/4 core sessions completed)
 
 ---
 
@@ -502,6 +502,6 @@ All prefix changes are **auditable**:
 
 ---
 
-**Status:** Ready to start
-**Next Step:** Begin [Session 1: Core Implementation](./session-1-core-implementation.md)
-**Last Updated:** 2025-11-06
+**Status:** Session 1 completed, ready for Session 2
+**Next Step:** Begin [Session 2: Time-Travel Support](./session-2-time-travel-support.md)
+**Last Updated:** 2025-11-11

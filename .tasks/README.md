@@ -30,6 +30,44 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 ## Remaining Tasks
 
+### 🟢 In Progress - Prefix Management Protocol
+
+#### 1. Prefix Management Protocol (PMP) Implementation
+**Directory:** `.tasks/pmp/`
+**Status:** 🟡 In Progress (Session 1 completed, 3 remaining)
+**Priority:** Medium
+**Category:** Standards Compliance / IDE Integration
+
+**Overview:**
+Implement REST API for managing RDF namespace prefixes with version control. Enables IDE integration, preserves RDF/XML namespace declarations, and supports SPARQL query template generation.
+
+**Sessions:**
+1. ✅ Core Implementation (GET/PUT/PATCH/DELETE) - Completed 2025-11-11
+2. ⏳ Time-Travel Support (commit-based prefix queries)
+3. ⏳ Suggested Prefixes (namespace discovery)
+4. ⏳ OpenAPI and Comprehensive Testing
+
+**Completed Work (Session 1):**
+- ✅ UpdatePrefixesCommandHandler (PA/PD directive generation)
+- ✅ PrefixManagementController (4 endpoints)
+- ✅ DTOs (UpdatePrefixesRequest, PrefixResponse, CommitResponse)
+- ✅ Enhanced RdfPatchUtil.isNoOp() to detect prefix changes
+- ✅ 11 integration tests + 7 unit tests (all passing)
+- ✅ Zero quality violations
+
+**Estimated Time:** 10-14 hours total (5 hours completed, 5-9 hours remaining)
+
+**Benefits:**
+- Store prefixes in version control (RDFPatch PA/PD directives)
+- Time-travel prefix queries (query prefixes at any commit)
+- IDE auto-completion for SPARQL queries
+- Preserve RDF/XML namespace declarations
+- Reduce manual typing errors
+
+**Next Step:** Begin [Session 2: Time-Travel Support](.tasks/pmp/session-2-time-travel-support.md)
+
+---
+
 ### ✅ Completed Tasks - REST Best Practices
 
 #### 1. ✅ Add Pagination to Collection Endpoints (COMPLETED 2025-11-10)
@@ -1144,5 +1182,5 @@ When a task is completed:
 
 ---
 
-**Last Updated:** 2025-11-08
-**Next Review:** All feature tasks and major architecture refactoring completed! 🎉
+**Last Updated:** 2025-11-11
+**Next Review:** Prefix Management Protocol (PMP) Session 1 completed, 3 sessions remaining

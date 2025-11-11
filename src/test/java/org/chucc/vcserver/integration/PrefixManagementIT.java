@@ -1,0 +1,332 @@
+package org.chucc.vcserver.integration;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.Map;
+import org.chucc.vcserver.dto.CommitResponse;
+import org.chucc.vcserver.dto.PrefixResponse;
+import org.chucc.vcserver.dto.UpdatePrefixesRequest;
+import org.chucc.vcserver.testutil.ITFixture;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.ActiveProfiles;
+
+/**
+ * Integration tests for Prefix Management Protocol (PMP).
+ *
+ * <p>Tests API layer only (projector disabled by default).
+ * Verifies HTTP contract for GET/PUT/PATCH/DELETE prefix operations.
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("it")
+class PrefixManagementIT extends ITFixture {
+
+  private static final String DATASET_NAME = "test-prefixes";
+
+  @Autowired
+  private TestRestTemplate restTemplate;
+
+  @Override
+  protected String getDatasetName() {
+    return DATASET_NAME;
+  }
+
+  @Test
+  void getPrefixes_shouldReturnEmptyMap_whenNoPrefixesDefined() {
+    // Act
+    ResponseEntity<PrefixResponse> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.GET,
+        null,
+        PrefixResponse.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().dataset()).isEqualTo(DATASET_NAME);
+    assertThat(response.getBody().branch()).isEqualTo("main");
+    assertThat(response.getBody().commitId()).isNotNull();
+    assertThat(response.getBody().prefixes()).isEmpty();
+    assertThat(response.getHeaders().getETag()).isNotNull();
+  }
+
+  @Test
+  void putPrefixes_shouldReturn201Created_withCommitMetadata() {
+    // Arrange
+    UpdatePrefixesRequest request = new UpdatePrefixesRequest(
+        "Add RDF prefixes",
+        Map.of(
+            "rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+            "rdfs", "http://www.w3.org/2000/01/rdf-schema#"
+        )
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+
+    HttpEntity<UpdatePrefixesRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    // Act
+    ResponseEntity<CommitResponse> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.PUT,
+        httpEntity,
+        CommitResponse.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getId()).isNotNull();
+    assertThat(response.getBody().getMessage()).isEqualTo("Add RDF prefixes");
+    assertThat(response.getBody().getAuthor()).isEqualTo("TestUser <test@example.org>");
+    assertThat(response.getHeaders().getLocation()).isNotNull();
+    assertThat(response.getHeaders().getLocation().toString())
+        .contains("/version/datasets/" + DATASET_NAME + "/commits/");
+    assertThat(response.getHeaders().getETag()).isNotNull();
+
+    // Note: Repository updates handled by ReadModelProjector (disabled in this test)
+  }
+
+  @Test
+  void patchPrefixes_shouldReturn201Created() {
+    // Arrange
+    UpdatePrefixesRequest request = new UpdatePrefixesRequest(
+        "Add FOAF prefix",
+        Map.of("foaf", "http://xmlns.com/foaf/0.1/")
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+
+    HttpEntity<UpdatePrefixesRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    // Act
+    ResponseEntity<CommitResponse> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.PATCH,
+        httpEntity,
+        CommitResponse.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage()).isEqualTo("Add FOAF prefix");
+    assertThat(response.getHeaders().getETag()).isNotNull();
+  }
+
+  @Test
+  void patchPrefixes_shouldUseDefaultMessage_whenMessageNotProvided() {
+    // Arrange
+    UpdatePrefixesRequest request = new UpdatePrefixesRequest(
+        null,  // No message
+        Map.of(
+            "geo", "http://www.opengis.net/ont/geosparql#",
+            "sf", "http://www.opengis.net/ont/sf#"
+        )
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+
+    HttpEntity<UpdatePrefixesRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    // Act
+    ResponseEntity<CommitResponse> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.PATCH,
+        httpEntity,
+        CommitResponse.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getBody()).isNotNull();
+    // Map iteration order not guaranteed - check for both prefixes
+    assertThat(response.getBody().getMessage()).contains("Add prefixes:");
+    assertThat(response.getBody().getMessage()).contains("geo");
+    assertThat(response.getBody().getMessage()).contains("sf");
+  }
+
+  @Test
+  void deletePrefixes_shouldReturn200Ok_whenPrefixesDoNotExist() {
+    // Arrange - trying to delete prefixes that don't exist
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+
+    HttpEntity<Void> httpEntity = new HttpEntity<>(headers);
+
+    // Act
+    ResponseEntity<CommitResponse> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes?prefix=temp&prefix=test",
+        HttpMethod.DELETE,
+        httpEntity,
+        CommitResponse.class
+    );
+
+    // Assert - no-op returns 200 OK (no new commit created)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage()).contains("No changes made");
+  }
+
+  @Test
+  void deletePrefixes_shouldReturn200Ok_whenPrefixDoesNotExist() {
+    // Arrange - trying to delete prefix that doesn't exist
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+
+    HttpEntity<Void> httpEntity = new HttpEntity<>(headers);
+
+    // Act
+    ResponseEntity<CommitResponse> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME
+            + "/branches/main/prefixes?prefix=old&message=Clean+up+old+prefixes",
+        HttpMethod.DELETE,
+        httpEntity,
+        CommitResponse.class
+    );
+
+    // Assert - no-op returns 200 OK
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage()).contains("No changes made");
+  }
+
+  @Test
+  void putPrefixes_shouldReturn400_whenAuthorMissing() {
+    // Arrange
+    UpdatePrefixesRequest request = new UpdatePrefixesRequest(
+        null,
+        Map.of("ex", "http://example.org/")
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    // No SPARQL-VC-Author header
+
+    HttpEntity<UpdatePrefixesRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    // Act
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.PUT,
+        httpEntity,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
+  void getPrefixes_shouldReturn404_whenBranchNotFound() {
+    // Act
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/nonexistent/prefixes",
+        HttpMethod.GET,
+        null,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void putPrefixes_shouldReturn404_whenBranchNotFound() {
+    // Arrange
+    UpdatePrefixesRequest request = new UpdatePrefixesRequest(
+        "Test",
+        Map.of("ex", "http://example.org/")
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+
+    HttpEntity<UpdatePrefixesRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    // Act
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/nonexistent/prefixes",
+        HttpMethod.PUT,
+        httpEntity,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void putPrefixes_shouldReturnETagInResponse() {
+    // Arrange
+    UpdatePrefixesRequest request = new UpdatePrefixesRequest(
+        "Add schema prefix",
+        Map.of("schema", "http://schema.org/")
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+
+    HttpEntity<UpdatePrefixesRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    // Act
+    ResponseEntity<CommitResponse> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.PUT,
+        httpEntity,
+        CommitResponse.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    String etag = response.getHeaders().getETag();
+    assertThat(etag).isNotNull();
+    assertThat(etag).matches("\"[0-9a-f-]+\"");  // UUIDv7 format
+    assertThat(response.getBody().getId()).isEqualTo(etag.replace("\"", ""));
+  }
+
+  @Test
+  void putPrefixes_shouldReturn200Ok_whenAlreadyEmpty() {
+    // Arrange - empty prefix map when branch already has no prefixes (no-op)
+    UpdatePrefixesRequest request = new UpdatePrefixesRequest(
+        "Clear all prefixes",
+        Map.of()
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+
+    HttpEntity<UpdatePrefixesRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    // Act
+    ResponseEntity<CommitResponse> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.PUT,
+        httpEntity,
+        CommitResponse.class
+    );
+
+    // Assert - no-op returns 200 OK (no new commit created)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage()).contains("No changes made");
+  }
+}

@@ -200,6 +200,9 @@ public final class RdfPatchUtil {
    * Checks if applying a patch to a dataset results in no semantic change.
    * Per SPARQL 1.2 Protocol §7: A no-op patch applies cleanly but yields no dataset change.
    *
+   * <p>This checks both quad changes (A/D directives) and prefix mapping changes (PA/PD
+   * directives).
+   *
    * @param patch the RDF Patch to check
    * @param baseDataset the dataset to apply the patch to
    * @return true if the patch is a no-op (produces no semantic change)
@@ -219,6 +222,9 @@ public final class RdfPatchUtil {
     // Copy all quads from base to temp
     baseDataset.find().forEachRemaining(tempDataset::add);
 
+    // Copy prefix mappings from base to temp
+    copyPrefixMappings(baseDataset, tempDataset);
+
     // Apply the patch to the temporary dataset
     try {
       RDFPatchOps.applyChange(tempDataset, patch);
@@ -227,8 +233,9 @@ public final class RdfPatchUtil {
       return false;
     }
 
-    // Compare the base and temp datasets for isomorphism
-    return isIsomorphic(baseDataset, tempDataset);
+    // Compare the base and temp datasets for isomorphism (quads + prefixes)
+    return isIsomorphic(baseDataset, tempDataset)
+        && prefixMappingsEqual(baseDataset, tempDataset);
   }
 
   /**
@@ -278,5 +285,68 @@ public final class RdfPatchUtil {
             triple.getPredicate(), triple.getObject());
       }
     });
+  }
+
+  /**
+   * Copies prefix mappings from source dataset to target dataset.
+   * Copies prefixes from the default graph and all named graphs.
+   *
+   * @param source the source dataset
+   * @param target the target dataset
+   */
+  private static void copyPrefixMappings(DatasetGraph source, DatasetGraph target) {
+    // Copy default graph prefixes
+    source.getDefaultGraph().getPrefixMapping().getNsPrefixMap()
+        .forEach((prefix, uri) ->
+            target.getDefaultGraph().getPrefixMapping().setNsPrefix(prefix, uri));
+
+    // Copy named graph prefixes
+    source.listGraphNodes().forEachRemaining(graphName -> {
+      Graph sourceGraph = source.getGraph(graphName);
+      Graph targetGraph = target.getGraph(graphName);
+      if (targetGraph != null) {
+        sourceGraph.getPrefixMapping().getNsPrefixMap()
+            .forEach((prefix, uri) ->
+                targetGraph.getPrefixMapping().setNsPrefix(prefix, uri));
+      }
+    });
+  }
+
+  /**
+   * Checks if two datasets have equal prefix mappings.
+   * Compares prefixes in the default graph and all named graphs.
+   *
+   * @param g1 the first dataset
+   * @param g2 the second dataset
+   * @return true if prefix mappings are equal
+   */
+  private static boolean prefixMappingsEqual(DatasetGraph g1, DatasetGraph g2) {
+    // Compare default graph prefixes
+    if (!g1.getDefaultGraph().getPrefixMapping().getNsPrefixMap()
+        .equals(g2.getDefaultGraph().getPrefixMapping().getNsPrefixMap())) {
+      return false;
+    }
+
+    // Collect all graph names from both datasets
+    Set<Node> allGraphNames = new HashSet<>();
+    g1.listGraphNodes().forEachRemaining(allGraphNames::add);
+    g2.listGraphNodes().forEachRemaining(allGraphNames::add);
+
+    // Compare prefixes for each named graph
+    for (Node graphName : allGraphNames) {
+      Graph graph1 = g1.getGraph(graphName);
+      Graph graph2 = g2.getGraph(graphName);
+
+      if (graph1 == null || graph2 == null) {
+        return false;  // Graph exists in only one dataset
+      }
+
+      if (!graph1.getPrefixMapping().getNsPrefixMap()
+          .equals(graph2.getPrefixMapping().getNsPrefixMap())) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }

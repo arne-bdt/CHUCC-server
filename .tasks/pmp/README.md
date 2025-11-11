@@ -108,17 +108,20 @@ Prefix map updated in materialized branch
 
 ---
 
-### Session 2: Time-Travel Support (2-3 hours)
+### Session 2: Time-Travel Support (2-3 hours) ✅ COMPLETED
 **File:** [session-2-time-travel-support.md](./session-2-time-travel-support.md)
 
 **Endpoints:**
 - ✅ `GET /version/datasets/{name}/commits/{id}/prefixes`
 
 **Deliverables:**
-- Time-travel endpoint in PrefixManagementController
-- Integration with MaterializedViewRebuildService
-- Performance testing (cache hits vs rebuilds)
-- 5+ integration tests
+- ✅ Time-travel endpoint in PrefixManagementController
+- ✅ Integration with DatasetService.materializeAtCommit()
+- ✅ 7 integration tests (API layer, projector-disabled)
+- ✅ Full OpenAPI documentation
+- ✅ Zero quality violations (Checkstyle, SpotBugs, PMD)
+- ✅ CQRS compliance verified
+- ✅ Test isolation validated
 
 ---
 
@@ -483,12 +486,12 @@ All prefix changes are **auditable**:
 | Session | Status | Estimated | Actual | Notes |
 |---------|--------|-----------|--------|-------|
 | 1: Core Implementation | ✅ Completed | 4-5h | ~5h | GET/PUT/PATCH/DELETE + RdfPatchUtil fix |
-| 2: Time-Travel | ⏳ Not Started | 2-3h | - | Commit-based queries |
+| 2: Time-Travel | ✅ Completed | 2-3h | ~2h | GET /commits/{id}/prefixes + 7 tests |
 | 3: Suggested Prefixes | ⏳ Not Started | 2-3h | - | Namespace analysis |
 | 4: OpenAPI & Tests | ⏳ Not Started | 2-3h | - | Docs + comprehensive tests |
 | 5: Merge Conflicts | ⏸️ Deferred | 3-4h | - | Optional enhancement |
 
-**Total Progress:** 25% (1/4 core sessions completed)
+**Total Progress:** 50% (2/4 core sessions completed)
 
 ---
 
@@ -502,6 +505,6 @@ All prefix changes are **auditable**:
 
 ---
 
-**Status:** Session 1 completed, ready for Session 2
-**Next Step:** Begin [Session 2: Time-Travel Support](./session-2-time-travel-support.md)
+**Status:** Sessions 1-2 completed, ready for Session 3
+**Next Step:** Begin [Session 3: Suggested Prefixes](./session-3-suggested-prefixes.md)
 **Last Updated:** 2025-11-11

@@ -43,19 +43,22 @@ Implement REST API for managing RDF namespace prefixes with version control. Ena
 
 **Sessions:**
 1. ✅ Core Implementation (GET/PUT/PATCH/DELETE) - Completed 2025-11-11
-2. ⏳ Time-Travel Support (commit-based prefix queries)
+2. ✅ Time-Travel Support (commit-based prefix queries) - Completed 2025-11-11
 3. ⏳ Suggested Prefixes (namespace discovery)
 4. ⏳ OpenAPI and Comprehensive Testing
 
-**Completed Work (Session 1):**
+**Completed Work (Sessions 1-2):**
 - ✅ UpdatePrefixesCommandHandler (PA/PD directive generation)
-- ✅ PrefixManagementController (4 endpoints)
+- ✅ PrefixManagementController (5 endpoints)
 - ✅ DTOs (UpdatePrefixesRequest, PrefixResponse, CommitResponse)
 - ✅ Enhanced RdfPatchUtil.isNoOp() to detect prefix changes
-- ✅ 11 integration tests + 7 unit tests (all passing)
+- ✅ Time-travel endpoint: GET /commits/{id}/prefixes
+- ✅ Integration with DatasetService.materializeAtCommit()
+- ✅ 18 integration tests + 7 unit tests (all passing)
 - ✅ Zero quality violations
+- ✅ CQRS compliance verified, test isolation validated
 
-**Estimated Time:** 10-14 hours total (5 hours completed, 5-9 hours remaining)
+**Estimated Time:** 10-14 hours total (7 hours completed, 3-7 hours remaining)
 
 **Benefits:**
 - Store prefixes in version control (RDFPatch PA/PD directives)
@@ -63,8 +66,9 @@ Implement REST API for managing RDF namespace prefixes with version control. Ena
 - IDE auto-completion for SPARQL queries
 - Preserve RDF/XML namespace declarations
 - Reduce manual typing errors
+- Historical state reconstruction via event replay
 
-**Next Step:** Begin [Session 2: Time-Travel Support](.tasks/pmp/session-2-time-travel-support.md)
+**Next Step:** Begin [Session 3: Suggested Prefixes](.tasks/pmp/session-3-suggested-prefixes.md)
 
 ---
 

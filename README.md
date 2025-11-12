@@ -39,11 +39,12 @@ This server implements:
 - ✅ **Diff** - Compare any two commits with RDFPatch output (configurable endpoint)
 - ✅ **Blame** - Last-writer attribution per quad with graph-scoped analysis and pagination
 - ✅ **Batch operations** - Apply multiple write operations (SPARQL updates or RDF patches) in single commit
+- ✅ **Prefix Management** - Version-controlled RDF namespace prefixes with time-travel queries and automatic suggestions
 
 ### Advanced Features
 - ✅ **Optimistic Concurrency** - ETags and If-Match headers
 - ✅ **Fast-forward merges** - Automatic when possible
-- ✅ **Conflict detection** - Structured representation of merge conflicts
+- ✅ **Conflict detection** - Structured representation of merge conflicts (including prefix conflicts)
 - ✅ **Conflict resolution** - Automatic strategies (ours, theirs) with configurable scope (graph-level, dataset-level)
 - ✅ **RFC 7807 Problem Details** - Standardized error responses
 - ✅ **RESTful API** - Dataset-in-path routing (`/{dataset}/version/{endpoint}`) following Apache Jena Fuseki pattern
@@ -233,6 +234,7 @@ To temporarily increase test logging, override in your test:
 - ✅ **History & Diff API** (GET /version/history, GET /version/diff) - Completed 2025-11-01
 - ✅ **Blame API** (GET /version/blame) - Completed 2025-11-02
 - ✅ **Batch Operations API** (POST /version/batch) - Completed 2025-11-03
+- ✅ **Prefix Management Protocol** (6 endpoints for RDF namespace prefix management) - Completed 2025-11-12
 
 See [.tasks/README.md](.tasks/README.md) for detailed task roadmap.
 - ✅ Kafka best practices: Aggregate-ID partition key strategy

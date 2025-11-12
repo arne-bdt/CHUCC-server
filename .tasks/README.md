@@ -11,6 +11,8 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 **Now:** All feature tasks completed! Only optional technical debt remains.
 
 **Recent Completions:**
+- MergeOperationsIT Test Refactoring (2025-11-12) ✅
+- Prefix Management Protocol - All 6 sessions (2025-11-12) ✅
 - SPARQL 1.1 Service Description - All 6 phases (2025-11-10) ✅
 - Naming Conventions - All 4 tasks (2025-11-09) ✅
 - Test Output Quality - Eliminate Kafka Topic Warnings (2025-11-08) ✅
@@ -29,63 +31,6 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 ---
 
 ## Remaining Tasks
-
-### ✅ Completed - Prefix Management Protocol
-
-#### 1. Prefix Management Protocol (PMP) Implementation
-**Directory:** `.tasks/pmp/`
-**Status:** ✅ COMPLETED (All 6 sessions completed)
-**Priority:** Medium
-**Category:** Standards Compliance / IDE Integration
-
-**Overview:**
-Implement REST API for managing RDF namespace prefixes with version control. Enables IDE integration, preserves RDF/XML namespace declarations, and supports SPARQL query template generation.
-
-**Sessions:**
-1. ✅ Core Implementation (GET/PUT/PATCH/DELETE) - Completed 2025-11-11
-2. ✅ Time-Travel Support (commit-based prefix queries) - Completed 2025-11-11
-3. ✅ Suggested Prefixes (namespace discovery) - Completed 2025-11-12
-4. ✅ OpenAPI and Comprehensive Testing - Completed 2025-11-12
-5. ✅ Merge Conflict Handling (prefix conflict detection) - Completed 2025-11-12
-6. ✅ Cross-Protocol Integration Fix - Completed 2025-11-12
-
-**Completed Work (All Sessions):**
-- ✅ UpdatePrefixesCommandHandler (PA/PD directive generation)
-- ✅ PrefixManagementController (6 endpoints with comprehensive OpenAPI docs)
-- ✅ DTOs (UpdatePrefixesRequest, PrefixResponse, CommitResponse, PrefixSuggestion, SuggestedPrefixesResponse)
-- ✅ PrefixValidator utility (SPARQL 1.1 PN_PREFIX pattern + absolute IRI validation)
-- ✅ Enhanced RdfPatchUtil.isNoOp() to detect prefix changes
-- ✅ Time-travel endpoint: GET /commits/{id}/prefixes
-- ✅ Suggested prefixes endpoint: GET /branches/{branch}/prefixes/suggested
-- ✅ PrefixSuggestionService (namespace discovery with frequency analysis)
-- ✅ ConventionalPrefixes utility (~25 common RDF namespaces from prefix.cc)
-- ✅ Integration with DatasetService.materializeAtCommit()
-- ✅ MergeUtil enhanced for prefix conflict detection (PA/PD directives)
-- ✅ Prefix conflict resolution via "ours"/"theirs" strategies
-- ✅ Cross-protocol integration (PMP + GSP) working correctly
-- ✅ Fixed URL routing issue in cross-protocol test
-- ✅ Removed investigation test (cleanup)
-- ✅ Fixed RFC 7807 type URI for ConcurrentWriteConflictException
-- ✅ 32 integration tests + 36 unit tests (all passing)
-- ✅ Zero quality violations (Checkstyle, PMD with CPD suppression, SpotBugs)
-- ✅ CQRS compliance verified, test isolation validated
-- ✅ Fixed pre-existing BranchTest.testEquality issue
-
-**Estimated Time:** 15-17 hours total (15.5 hours actual)
-
-**Benefits:**
-- Store prefixes in version control (RDFPatch PA/PD directives)
-- Time-travel prefix queries (query prefixes at any commit)
-- Suggested prefixes based on dataset analysis and conventional mappings
-- SPARQL-compliant prefix name validation (prevents invalid prefixes)
-- Absolute IRI validation (prevents relative IRIs)
-- Comprehensive OpenAPI documentation for all endpoints
-- IDE auto-completion for SPARQL queries
-- Preserve RDF/XML namespace declarations
-- Reduce manual typing errors
-- Historical state reconstruction via event replay
-
----
 
 ### ✅ Completed Tasks - REST Best Practices
 
@@ -499,6 +444,109 @@ All tasks implement endpoints from:
 - `docs/api/openapi-guide.md`
 - `docs/architecture/c4-level3-component.md`
 - `README.md`
+
+---
+
+### ✅ Prefix Management Protocol (PMP) Implementation (Completed 2025-11-12)
+**Directory:** `.tasks/pmp/` (DELETED - tasks completed)
+
+**Endpoints:**
+- ✅ `GET /{dataset}/version/prefixes` - Get current prefixes
+- ✅ `PUT /{dataset}/version/prefixes` - Replace all prefixes
+- ✅ `PATCH /{dataset}/version/prefixes` - Update specific prefixes
+- ✅ `DELETE /{dataset}/version/prefixes` - Delete all prefixes
+- ✅ `GET /{dataset}/version/commits/{id}/prefixes` - Time-travel prefix query
+- ✅ `GET /{dataset}/version/branches/{branch}/prefixes/suggested` - Suggest prefixes
+
+**Status:** ✅ Completed (2025-11-12)
+**Category:** Standards Compliance / IDE Integration
+**Total Time:** 15.5 hours (6 sessions)
+
+**Implementation:**
+- Created UpdatePrefixesCommandHandler (PA/PD directive generation)
+- Created PrefixManagementController (6 endpoints with OpenAPI docs)
+- Created DTOs (UpdatePrefixesRequest, PrefixResponse, CommitResponse, PrefixSuggestion, SuggestedPrefixesResponse)
+- Created PrefixValidator utility (SPARQL 1.1 PN_PREFIX pattern + absolute IRI validation)
+- Enhanced RdfPatchUtil.isNoOp() to detect prefix changes
+- Created PrefixSuggestionService (namespace discovery with frequency analysis)
+- Created ConventionalPrefixes utility (~25 common RDF namespaces from prefix.cc)
+- Enhanced MergeUtil for prefix conflict detection (PA/PD directives)
+- Prefix conflict resolution via "ours"/"theirs" strategies
+- Fixed RFC 7807 type URI for ConcurrentWriteConflictException
+- Added 32 integration tests + 36 unit tests (all passing)
+- Zero quality violations (Checkstyle, PMD with CPD suppression, SpotBugs)
+- CQRS compliance verified, test isolation validated
+
+**Files Created:**
+- `src/main/java/org/chucc/vcserver/controller/PrefixManagementController.java`
+- `src/main/java/org/chucc/vcserver/command/UpdatePrefixesCommandHandler.java`
+- `src/main/java/org/chucc/vcserver/service/PrefixSuggestionService.java`
+- `src/main/java/org/chucc/vcserver/util/PrefixValidator.java`
+- `src/main/java/org/chucc/vcserver/util/ConventionalPrefixes.java`
+- `src/main/java/org/chucc/vcserver/dto/UpdatePrefixesRequest.java`
+- `src/main/java/org/chucc/vcserver/dto/PrefixResponse.java`
+- `src/main/java/org/chucc/vcserver/dto/CommitResponse.java`
+- `src/main/java/org/chucc/vcserver/dto/PrefixSuggestion.java`
+- `src/main/java/org/chucc/vcserver/dto/SuggestedPrefixesResponse.java`
+- `src/test/java/org/chucc/vcserver/integration/PrefixManagementIT.java`
+- `src/test/java/org/chucc/vcserver/service/PrefixSuggestionServiceTest.java`
+- `src/test/java/org/chucc/vcserver/util/PrefixValidatorTest.java`
+- `src/test/java/org/chucc/vcserver/util/ConventionalPrefixesTest.java`
+
+**Files Modified:**
+- `src/main/java/org/chucc/vcserver/util/RdfPatchUtil.java`
+- `src/main/java/org/chucc/vcserver/util/MergeUtil.java`
+- `src/main/java/org/chucc/vcserver/exception/VcExceptionHandler.java`
+- `src/test/java/org/chucc/vcserver/integration/MergeOperationsIT.java`
+- `src/test/java/org/chucc/vcserver/util/RdfPatchUtilTest.java`
+
+**Benefits:**
+- Store prefixes in version control (RDFPatch PA/PD directives)
+- Time-travel prefix queries (query prefixes at any commit)
+- Suggested prefixes based on dataset analysis and conventional mappings
+- SPARQL-compliant prefix name validation (prevents invalid prefixes)
+- Absolute IRI validation (prevents relative IRIs)
+- Comprehensive OpenAPI documentation for all endpoints
+- IDE auto-completion for SPARQL queries
+- Preserve RDF/XML namespace declarations
+- Reduce manual typing errors
+- Historical state reconstruction via event replay
+
+---
+
+### ✅ MergeOperationsIT Test Refactoring (Completed 2025-11-12)
+
+**Status:** ✅ Completed (2025-11-12)
+**Category:** Test Infrastructure / Architectural Consistency
+**Actual Time:** 2 hours
+
+**Problem:**
+- MergeOperationsIT used direct repository writes in setup
+- Manual Kafka container management
+- Violated CQRS/Event Sourcing pattern
+- Generated "Could not rebuild graph" warnings
+
+**Solution:**
+- Refactored to extend ITFixture base class
+- Removed manual Kafka setup (78 lines deleted, 46 added)
+- Replaced mainCommit1Id with initialCommitId from ITFixture (32 occurrences)
+- Updated setUp() to use direct repository write for feature branch
+- Changed dataset name to "test-merge-ops"
+
+**Files Modified:**
+- `src/test/java/org/chucc/vcserver/integration/MergeOperationsIT.java`
+
+**Agent Validation:**
+- test-isolation-validator: ✅ PASS - All patterns correctly implemented
+- code-reviewer: ✅ Approved for commit with minor suggestions
+
+**Benefits:**
+- Follows CQRS/Event Sourcing architecture pattern
+- Eliminates "Could not rebuild graph" warnings
+- Kafka topics created automatically via ITFixture
+- Dataset graph properly cached and materialized
+- Consistent with other integration tests
+- All 20 tests pass successfully
 
 ---
 
@@ -1202,4 +1250,4 @@ When a task is completed:
 ---
 
 **Last Updated:** 2025-11-12
-**Next Review:** All core PMP tasks completed (Sessions 1-4), Session 5 (cross-protocol fix) documented for future work
+**Next Review:** All tasks completed! Only optional technical debt remains (CreateBranchCommandHandler write-through pattern)

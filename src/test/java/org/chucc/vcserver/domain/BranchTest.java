@@ -1,5 +1,6 @@
 package org.chucc.vcserver.domain;
 
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -114,10 +115,11 @@ class BranchTest {
 
   @Test
   void testEquality() {
-    Branch branch1 = new Branch("main", COMMIT_ID_1);
-    Branch branch2 = new Branch("main", COMMIT_ID_1);
-    Branch branch3 = new Branch("develop", COMMIT_ID_1);
-    Branch branch4 = new Branch("main", COMMIT_ID_2);
+    Instant now = Instant.now();
+    Branch branch1 = new Branch("main", COMMIT_ID_1, false, now, now, 1);
+    Branch branch2 = new Branch("main", COMMIT_ID_1, false, now, now, 1);
+    Branch branch3 = new Branch("develop", COMMIT_ID_1, false, now, now, 1);
+    Branch branch4 = new Branch("main", COMMIT_ID_2, false, now, now, 1);
 
     assertEquals(branch1, branch2);
     assertNotEquals(branch1, branch3); // Different name

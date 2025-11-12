@@ -34,7 +34,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 #### 1. Prefix Management Protocol (PMP) Implementation
 **Directory:** `.tasks/pmp/`
-**Status:** 🟡 In Progress (Session 1 completed, 3 remaining)
+**Status:** 🟡 In Progress (Sessions 1-3 completed, 1 remaining)
 **Priority:** Medium
 **Category:** Standards Compliance / IDE Integration
 
@@ -44,31 +44,36 @@ Implement REST API for managing RDF namespace prefixes with version control. Ena
 **Sessions:**
 1. ✅ Core Implementation (GET/PUT/PATCH/DELETE) - Completed 2025-11-11
 2. ✅ Time-Travel Support (commit-based prefix queries) - Completed 2025-11-11
-3. ⏳ Suggested Prefixes (namespace discovery)
+3. ✅ Suggested Prefixes (namespace discovery) - Completed 2025-11-12
 4. ⏳ OpenAPI and Comprehensive Testing
 
-**Completed Work (Sessions 1-2):**
+**Completed Work (Sessions 1-3):**
 - ✅ UpdatePrefixesCommandHandler (PA/PD directive generation)
-- ✅ PrefixManagementController (5 endpoints)
-- ✅ DTOs (UpdatePrefixesRequest, PrefixResponse, CommitResponse)
+- ✅ PrefixManagementController (6 endpoints: CRUD + time-travel + suggestions)
+- ✅ DTOs (UpdatePrefixesRequest, PrefixResponse, CommitResponse, PrefixSuggestion, SuggestedPrefixesResponse)
 - ✅ Enhanced RdfPatchUtil.isNoOp() to detect prefix changes
 - ✅ Time-travel endpoint: GET /commits/{id}/prefixes
+- ✅ Suggested prefixes endpoint: GET /branches/{branch}/prefixes/suggested
+- ✅ PrefixSuggestionService (namespace discovery with frequency analysis)
+- ✅ ConventionalPrefixes utility (~25 common RDF namespaces from prefix.cc)
 - ✅ Integration with DatasetService.materializeAtCommit()
-- ✅ 18 integration tests + 7 unit tests (all passing)
+- ✅ 25 integration tests + 7 unit tests (all passing)
 - ✅ Zero quality violations
 - ✅ CQRS compliance verified, test isolation validated
+- ✅ Fixed pre-existing BranchTest.testEquality issue
 
-**Estimated Time:** 10-14 hours total (7 hours completed, 3-7 hours remaining)
+**Estimated Time:** 10-14 hours total (10 hours completed, 2-3 hours remaining)
 
 **Benefits:**
 - Store prefixes in version control (RDFPatch PA/PD directives)
 - Time-travel prefix queries (query prefixes at any commit)
+- Suggested prefixes based on dataset analysis and conventional mappings
 - IDE auto-completion for SPARQL queries
 - Preserve RDF/XML namespace declarations
 - Reduce manual typing errors
 - Historical state reconstruction via event replay
 
-**Next Step:** Begin [Session 3: Suggested Prefixes](.tasks/pmp/session-3-suggested-prefixes.md)
+**Next Step:** Begin [Session 4: OpenAPI and Comprehensive Testing](.tasks/pmp/session-4-openapi-and-tests.md)
 
 ---
 

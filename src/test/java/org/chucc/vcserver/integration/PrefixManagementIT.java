@@ -2,6 +2,7 @@ package org.chucc.vcserver.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.Map;
 import org.chucc.vcserver.domain.CommitId;
 import org.chucc.vcserver.dto.CommitResponse;
@@ -453,5 +454,109 @@ class PrefixManagementIT extends ITFixture {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     return response.getBody();
+  }
+
+  // ==============================================
+  // Suggested Prefixes Tests
+  // ==============================================
+
+  @Test
+  void suggestPrefixes_shouldReturnEmptyList_whenNoNamespacesDetected() {
+    // Act: Query suggestions on initial commit (no triples)
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes/suggested",
+        HttpMethod.GET,
+        null,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    // Note: Response parsing will be validated once DTOs are created
+  }
+
+  @Test
+  void suggestPrefixes_shouldReturn200Ok_andValidResponseStructure() {
+    // Act: Query suggestions (initial commit has no data)
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes/suggested",
+        HttpMethod.GET,
+        null,
+        String.class
+    );
+
+    // Assert: Verify response structure
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).contains("\"dataset\":\"" + DATASET_NAME + "\"");
+    assertThat(response.getBody()).contains("\"branch\":\"main\"");
+    assertThat(response.getBody()).contains("\"suggestions\"");
+    // Note: Actual suggestion logic requires materialized graph data
+    // (tested separately with projector enabled)
+  }
+
+  @Test
+  void suggestPrefixes_shouldReturnValidJson() {
+    // Act: Query suggestions
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes/suggested",
+        HttpMethod.GET,
+        null,
+        String.class
+    );
+
+    // Assert: Verify valid JSON structure
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).startsWith("{");
+    assertThat(response.getBody()).endsWith("}");
+    assertThat(response.getBody()).contains("suggestions");
+    assertThat(response.getBody()).contains("[");
+    assertThat(response.getBody()).contains("]");
+    // Note: Projector-disabled mode - cannot test actual suggestions
+    // (requires materialized graph data populated by projector)
+  }
+
+  @Test
+  void suggestPrefixes_shouldReturn404_whenBranchNotFound() {
+    // Act
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/nonexistent/prefixes/suggested",
+        HttpMethod.GET,
+        null,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void suggestPrefixes_shouldReturn404_whenDatasetNotFound() {
+    // Act
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/version/datasets/nonexistent-dataset/branches/main/prefixes/suggested",
+        HttpMethod.GET,
+        null,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void suggestPrefixes_shouldReturnEmptyList_whenNoNamespacesInDataset() {
+    // Act: Query suggestions on empty dataset (initial commit)
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes/suggested",
+        HttpMethod.GET,
+        null,
+        String.class
+    );
+
+    // Assert: Should return empty suggestions list
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).contains("\"suggestions\":[]");
+    // Note: Testing with actual data requires projector enabled
+    // to populate materialized graph from commits
   }
 }

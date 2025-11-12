@@ -17,6 +17,8 @@ import org.chucc.vcserver.command.UpdatePrefixesCommandHandler;
 import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.dto.CommitResponse;
 import org.chucc.vcserver.dto.PrefixResponse;
+import org.chucc.vcserver.dto.PrefixSuggestion;
+import org.chucc.vcserver.dto.SuggestedPrefixesResponse;
 import org.chucc.vcserver.dto.UpdatePrefixesRequest;
 import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.exception.BranchNotFoundException;
@@ -53,6 +55,7 @@ public class PrefixManagementController {
   private final BranchRepository branchRepository;
   private final UpdatePrefixesCommandHandler updatePrefixesCommandHandler;
   private final org.chucc.vcserver.service.DatasetService datasetService;
+  private final org.chucc.vcserver.service.PrefixSuggestionService prefixSuggestionService;
 
   /**
    * Creates a prefix management controller.
@@ -61,6 +64,7 @@ public class PrefixManagementController {
    * @param branchRepository the branch repository
    * @param updatePrefixesCommandHandler the prefix update handler
    * @param datasetService the dataset service for time-travel queries
+   * @param prefixSuggestionService the prefix suggestion service
    */
   @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
       value = "EI_EXPOSE_REP2",
@@ -70,11 +74,13 @@ public class PrefixManagementController {
       MaterializedBranchRepository materializedBranchRepository,
       BranchRepository branchRepository,
       UpdatePrefixesCommandHandler updatePrefixesCommandHandler,
-      org.chucc.vcserver.service.DatasetService datasetService) {
+      org.chucc.vcserver.service.DatasetService datasetService,
+      org.chucc.vcserver.service.PrefixSuggestionService prefixSuggestionService) {
     this.materializedBranchRepository = materializedBranchRepository;
     this.branchRepository = branchRepository;
     this.updatePrefixesCommandHandler = updatePrefixesCommandHandler;
     this.datasetService = datasetService;
+    this.prefixSuggestionService = prefixSuggestionService;
   }
 
   /**
@@ -451,5 +457,62 @@ public class PrefixManagementController {
           e
       );
     }
+  }
+
+  /**
+   * Suggests conventional prefix mappings for a branch.
+   *
+   * <p>Analyzes the dataset to discover common namespace patterns and suggests
+   * conventional prefixes based on the prefix.cc database. Suggestions are sorted
+   * by usage frequency (descending) and marked as either SUGGESTED or ALREADY_DEFINED.
+   *
+   * <p><strong>Use Cases:</strong></p>
+   * <ul>
+   *   <li>After importing RDF/XML with full URIs (no prefixes)</li>
+   *   <li>Discovering ontologies used in the dataset</li>
+   *   <li>Standardizing prefix names across team</li>
+   * </ul>
+   *
+   * @param dataset the dataset name
+   * @param branch the branch name
+   * @return suggested prefixes response with suggestions sorted by frequency
+   * @throws BranchNotFoundException if branch doesn't exist
+   */
+  @GetMapping("/branches/{branch}/prefixes/suggested")
+  @Operation(
+      summary = "Suggest prefix mappings",
+      description = "Analyzes dataset to discover namespaces and suggest conventional prefixes. "
+          + "Useful after importing RDF/XML or discovering new ontologies."
+  )
+  @ApiResponse(
+      responseCode = "200",
+      description = "Suggestions retrieved successfully",
+      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+  )
+  @ApiResponse(
+      responseCode = "404",
+      description = "Branch or dataset not found",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  public ResponseEntity<SuggestedPrefixesResponse> suggestPrefixes(
+      @Parameter(description = "Dataset name") @PathVariable String dataset,
+      @Parameter(description = "Branch name") @PathVariable String branch) {
+
+    // Validate branch exists (throws BranchNotFoundException if not)
+    branchRepository
+        .findByDatasetAndName(dataset, branch)
+        .orElseThrow(() -> new BranchNotFoundException(branch));
+
+    // Analyze branch and get suggestions
+    List<PrefixSuggestion> suggestions = prefixSuggestionService
+        .analyzeBranch(dataset, branch);
+
+    SuggestedPrefixesResponse response = new SuggestedPrefixesResponse(
+        dataset,
+        branch,
+        suggestions
+    );
+
+    return ResponseEntity.ok(response);
   }
 }

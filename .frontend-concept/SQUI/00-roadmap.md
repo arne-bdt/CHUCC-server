@@ -11,6 +11,8 @@
 
 Implement the QueryContextSelector component and related utilities as an optional extension to CHUCC-SQUI for systems implementing the SPARQL 1.2 Protocol Version Control Extension.
 
+**Note (2025-11-12)**: CHUCC-SQUI's store migration ([Task 70](https://github.com/arne-bdt/CHUCC-SQUI/commit/53689c8c4b1db43b25032b383cc0037324b6bfae)) does NOT affect this component. QueryContextSelector is stateless and callback-driven, with no internal store usage. See [15-revised-impact-analysis.md](./15-revised-impact-analysis.md) for details.
+
 ---
 
 ## Goals

@@ -9,13 +9,9 @@ import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
-import org.chucc.vcserver.domain.Branch;
 import org.chucc.vcserver.domain.Commit;
 import org.chucc.vcserver.domain.CommitId;
-import org.chucc.vcserver.repository.BranchRepository;
-import org.chucc.vcserver.repository.CommitRepository;
-import org.chucc.vcserver.testutil.KafkaTestContainers;
-import org.junit.jupiter.api.BeforeAll;
+import org.chucc.vcserver.testutil.ITFixture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,77 +24,49 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.kafka.KafkaContainer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration tests for POST /version/merge endpoint (Phase 1).
  * Tests fast-forward detection, three-way merge, and conflict detection.
+ *
+ * <p><strong>Note:</strong> This test uses event-driven setup via ITFixture.
+ * The projector is DISABLED by default (API layer tests only).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
-class MergeOperationsIT {
-
-  private static KafkaContainer kafkaContainer;
+class MergeOperationsIT extends ITFixture {
 
   @Autowired
   private TestRestTemplate restTemplate;
 
-  @Autowired
-  private BranchRepository branchRepository;
-
-  @Autowired
-  private CommitRepository commitRepository;
-
   private final ObjectMapper objectMapper = new ObjectMapper();
 
-  private static final String DATASET_NAME = "test-dataset";
+  private static final String DATASET_NAME = "test-merge-ops";
   private static final String BASE_URL = "/" + DATASET_NAME + "/version/merge";
 
-  @BeforeAll
-  static void startKafka() {
-    kafkaContainer = KafkaTestContainers.createKafkaContainer();
-  }
-
-  @DynamicPropertySource
-  static void configureKafka(DynamicPropertyRegistry registry) {
-    registry.add("kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
-    registry.add("spring.kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
-    registry.add("spring.kafka.consumer.group-id",
-        () -> "test-" + System.currentTimeMillis() + "-" + Math.random());
-  }
-
-  private CommitId mainCommit1Id;
   private CommitId mainCommit2Id;
   private CommitId featureCommit1Id;
 
+  @Override
+  protected String getDatasetName() {
+    return DATASET_NAME;
+  }
+
   /**
    * Sets up two branches: main and feature with different commit histories.
+   *
+   * <p>ITFixture already created initial commit (initialCommitId) and main branch.
+   * We create feature branch directly as test setup (acceptable for simple branch creation).
+   *
+   * <p><strong>Note:</strong> Uses direct repository write for feature branch. This is acceptable
+   * for test setup when the projector is disabled. Tests remain API layer tests (no projector).
    */
   @BeforeEach
   void setUp() {
-    // Clean up repositories before each test
-    branchRepository.deleteAllByDataset(DATASET_NAME);
-    commitRepository.deleteAllByDataset(DATASET_NAME);
-
-    // Create main branch: commit1 (empty)
-    mainCommit1Id = CommitId.generate();
-    Commit mainCommit1 = new Commit(
-        mainCommit1Id,
-        List.of(),
-        "Alice",
-        "Initial commit on main",
-        Instant.now(),
-        0
-    );
-    commitRepository.save(DATASET_NAME, mainCommit1, RDFPatchOps.emptyPatch());
-    branchRepository.save(DATASET_NAME, new Branch("main", mainCommit1Id));
-
-    // Create feature branch starting from same commit
-    branchRepository.save(DATASET_NAME, new Branch("feature", mainCommit1Id));
+    // Create feature branch starting from same commit as main
+    branchRepository.save(DATASET_NAME, new org.chucc.vcserver.domain.Branch("feature", initialCommitId));
   }
 
   /**
@@ -116,7 +84,7 @@ class MergeOperationsIT {
     );
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Feature commit 1",
         Instant.now(),
@@ -199,7 +167,7 @@ class MergeOperationsIT {
     );
     Commit mainCommit2 = new Commit(
         mainCommit2Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Alice",
         "Main commit",
         Instant.now(),
@@ -218,7 +186,7 @@ class MergeOperationsIT {
     );
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Feature commit",
         Instant.now(),
@@ -275,7 +243,7 @@ class MergeOperationsIT {
     );
     Commit mainCommit2 = new Commit(
         mainCommit2Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Alice",
         "Main commit",
         Instant.now(),
@@ -294,7 +262,7 @@ class MergeOperationsIT {
     );
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Feature commit",
         Instant.now(),
@@ -349,7 +317,7 @@ class MergeOperationsIT {
     );
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Feature commit",
         Instant.now(),
@@ -398,7 +366,7 @@ class MergeOperationsIT {
     );
     Commit mainCommit2 = new Commit(
         mainCommit2Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Alice",
         "Main commit",
         Instant.now(),
@@ -416,7 +384,7 @@ class MergeOperationsIT {
     );
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Feature commit",
         Instant.now(),
@@ -469,7 +437,7 @@ class MergeOperationsIT {
     );
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Feature commit",
         Instant.now(),
@@ -593,7 +561,7 @@ class MergeOperationsIT {
     mainCollector.finish();
     Commit mainCommit2 = new Commit(
         mainCommit2Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Alice",
         "Update Alice's age to 31",
         Instant.now(),
@@ -623,7 +591,7 @@ class MergeOperationsIT {
     featureCollector.finish();
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Update Alice to 32 and add Bob",
         Instant.now(),
@@ -687,7 +655,7 @@ class MergeOperationsIT {
     mainCollector.finish();
     Commit mainCommit2 = new Commit(
         mainCommit2Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Alice",
         "Update Alice's age to 31",
         Instant.now(),
@@ -714,7 +682,7 @@ class MergeOperationsIT {
     featureCollector.finish();
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Update Alice to 32 and add Bob",
         Instant.now(),
@@ -780,7 +748,7 @@ class MergeOperationsIT {
     mainCollector.finish();
     Commit mainCommit2 = new Commit(
         mainCommit2Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Alice",
         "Update Alice and add Charlie",
         Instant.now(),
@@ -802,7 +770,7 @@ class MergeOperationsIT {
     featureCollector.finish();
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Update Alice to 32",
         Instant.now(),
@@ -866,7 +834,7 @@ class MergeOperationsIT {
     mainCollector.finish();
     Commit mainCommit2 = new Commit(
         mainCommit2Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Alice",
         "Update Alice and add Charlie",
         Instant.now(),
@@ -887,7 +855,7 @@ class MergeOperationsIT {
     featureCollector.finish();
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Update Alice to 32",
         Instant.now(),
@@ -1009,7 +977,7 @@ class MergeOperationsIT {
     RDFPatch mainPrefixPatch = createPrefixPatch("foaf", "http://xmlns.com/foaf/0.1/");
     Commit mainCommit2 = new Commit(
         mainCommit2Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Alice",
         "Add foaf prefix on main",
         Instant.now(),
@@ -1023,7 +991,7 @@ class MergeOperationsIT {
     RDFPatch featurePrefixPatch = createPrefixPatch("foaf", "http://example.org/my-foaf#");
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Add different foaf prefix on feature",
         Instant.now(),
@@ -1091,7 +1059,7 @@ class MergeOperationsIT {
     RDFPatch mainPrefixPatch = createPrefixPatch("foaf", "http://xmlns.com/foaf/0.1/");
     Commit mainCommit2 = new Commit(
         mainCommit2Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Alice",
         "Add foaf prefix on main",
         Instant.now(),
@@ -1104,7 +1072,7 @@ class MergeOperationsIT {
     RDFPatch featurePrefixPatch = createPrefixPatch("foaf", "http://example.org/my-foaf#");
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Add different foaf prefix on feature",
         Instant.now(),
@@ -1157,7 +1125,7 @@ class MergeOperationsIT {
     RDFPatch mainPrefixPatch = createPrefixPatch("foaf", "http://xmlns.com/foaf/0.1/");
     Commit mainCommit2 = new Commit(
         mainCommit2Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Alice",
         "Add foaf prefix on main",
         Instant.now(),
@@ -1170,7 +1138,7 @@ class MergeOperationsIT {
     RDFPatch featurePrefixPatch = createPrefixPatch("foaf", "http://example.org/my-foaf#");
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Add different foaf prefix on feature",
         Instant.now(),
@@ -1217,7 +1185,7 @@ class MergeOperationsIT {
     RDFPatch mainPrefixPatch = createPrefixPatch("foaf", "http://xmlns.com/foaf/0.1/");
     Commit mainCommit2 = new Commit(
         mainCommit2Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Alice",
         "Add foaf prefix on main",
         Instant.now(),
@@ -1230,7 +1198,7 @@ class MergeOperationsIT {
     RDFPatch featurePrefixPatch = createPrefixPatch("foaf", "http://xmlns.com/foaf/0.1/");
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Add same foaf prefix on feature",
         Instant.now(),
@@ -1284,7 +1252,7 @@ class MergeOperationsIT {
     );
     Commit mainCommit2 = new Commit(
         mainCommit2Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Alice",
         "Add foaf prefix and data on main",
         Instant.now(),
@@ -1304,7 +1272,7 @@ class MergeOperationsIT {
     );
     Commit featureCommit1 = new Commit(
         featureCommit1Id,
-        List.of(mainCommit1Id),
+        List.of(initialCommitId),
         "Bob",
         "Add different foaf prefix and data on feature",
         Instant.now(),

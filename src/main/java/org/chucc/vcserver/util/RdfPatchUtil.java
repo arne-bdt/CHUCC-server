@@ -162,7 +162,16 @@ public final class RdfPatchUtil {
     RDFChangesCollector collector = new RDFChangesCollector();
     RDFChanges changes = collector;
 
-    // Start transaction
+    // Start patch collection
+    collector.start();
+
+    // Diff prefix mappings FIRST (before transaction)
+    diffPrefixMappings(
+        sourceDataset.getDefaultGraph().getPrefixMapping(),
+        targetDataset.getDefaultGraph().getPrefixMapping(),
+        changes);
+
+    // Start transaction for quad changes
     changes.txnBegin();
 
     // Diff the default graph
@@ -192,6 +201,9 @@ public final class RdfPatchUtil {
 
     // Commit transaction
     changes.txnCommit();
+
+    // Finish patch collection
+    collector.finish();
 
     return collector.getRDFPatch();
   }
@@ -285,6 +297,46 @@ public final class RdfPatchUtil {
             triple.getPredicate(), triple.getObject());
       }
     });
+  }
+
+  /**
+   * Diffs two prefix mappings and generates PA/PD directives.
+   *
+   * @param sourcePrefixes the source prefix mapping
+   * @param targetPrefixes the target prefix mapping
+   * @param changes the RDFChanges to apply PA/PD directives to
+   */
+  private static void diffPrefixMappings(
+      org.apache.jena.shared.PrefixMapping sourcePrefixes,
+      org.apache.jena.shared.PrefixMapping targetPrefixes,
+      RDFChanges changes) {
+
+    java.util.Map<String, String> sourceMap = sourcePrefixes.getNsPrefixMap();
+    java.util.Map<String, String> targetMap = targetPrefixes.getNsPrefixMap();
+
+    // Find prefixes to delete or modify (in source but not in target, or mapped differently)
+    for (java.util.Map.Entry<String, String> entry : sourceMap.entrySet()) {
+      String prefix = entry.getKey();
+      String sourceIri = entry.getValue();
+      String targetIri = targetMap.get(prefix);
+
+      if (targetIri == null) {
+        // Prefix exists in source but not target - delete it
+        changes.deletePrefix(null, prefix);
+      } else if (!sourceIri.equals(targetIri)) {
+        // Prefix mapped to different IRI - delete old, add new
+        changes.deletePrefix(null, prefix);
+        changes.addPrefix(null, prefix, targetIri);
+      }
+    }
+
+    // Find prefixes to add (in target but not in source)
+    for (java.util.Map.Entry<String, String> entry : targetMap.entrySet()) {
+      String prefix = entry.getKey();
+      if (!sourceMap.containsKey(prefix)) {
+        changes.addPrefix(null, prefix, entry.getValue());
+      }
+    }
   }
 
   /**

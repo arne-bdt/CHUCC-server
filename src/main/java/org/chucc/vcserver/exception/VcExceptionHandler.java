@@ -58,6 +58,7 @@ public class VcExceptionHandler {
   public ResponseEntity<ConflictProblemDetail> handleMergeConflict(
       MergeConflictException ex) {
     ConflictProblemDetail problem = new ConflictProblemDetail(
+        "/problems/merge-conflict",
         ex.getMessage(),
         ex.getStatus(),
         ex.getCode(),
@@ -81,6 +82,7 @@ public class VcExceptionHandler {
   public ResponseEntity<ConflictProblemDetail> handleRebaseConflict(
       RebaseConflictException ex) {
     ConflictProblemDetail problem = new ConflictProblemDetail(
+        "/problems/rebase-conflict",
         ex.getMessage(),
         ex.getStatus(),
         ex.getCode(),
@@ -104,6 +106,7 @@ public class VcExceptionHandler {
   public ResponseEntity<ConflictProblemDetail> handleCherryPickConflict(
       CherryPickConflictException ex) {
     ConflictProblemDetail problem = new ConflictProblemDetail(
+        "/problems/cherry-pick-conflict",
         ex.getMessage(),
         ex.getStatus(),
         ex.getCode(),
@@ -132,6 +135,7 @@ public class VcExceptionHandler {
     // If conflicts are present, return ConflictProblemDetail
     if (!ex.getConflicts().isEmpty()) {
       ConflictProblemDetail problem = new ConflictProblemDetail(
+          "/problems/concurrent-write-conflict",
           ex.getMessage(),
           ex.getStatus(),
           ex.getCode(),

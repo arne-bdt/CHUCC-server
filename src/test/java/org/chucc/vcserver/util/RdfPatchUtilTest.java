@@ -641,4 +641,178 @@ class RdfPatchUtilTest {
       RdfPatchUtil.countOperations(null);
     }, "countOperations should throw IllegalArgumentException for null patch");
   }
+
+  @Test
+  void testApplyPrefixPatchUpdatesDatasetGraph() {
+    // Create a patch with PA directive
+    org.apache.jena.rdfpatch.changes.RDFChangesCollector collector =
+        new org.apache.jena.rdfpatch.changes.RDFChangesCollector();
+    collector.start();
+    collector.addPrefix(null, "foaf", "http://xmlns.com/foaf/0.1/");
+    collector.finish();
+    RDFPatch patch = collector.getRDFPatch();
+
+    // Apply patch to empty dataset
+    DatasetGraph dataset = new DatasetGraphInMemory();
+    RdfPatchUtil.apply(dataset, patch);
+
+    // Verify prefix was actually applied to the dataset
+    String foafIri = dataset.getDefaultGraph().getPrefixMapping().getNsPrefixURI("foaf");
+    assertEquals("http://xmlns.com/foaf/0.1/", foafIri,
+        "Prefix should be applied to dataset graph");
+  }
+
+  @Test
+  void testPrefixConflictDetectionEndToEnd() {
+    // Simulate the merge flow: apply patches, materialize, diff, detect conflicts
+
+    // Base: empty dataset
+    DatasetGraph base = new DatasetGraphInMemory();
+
+    // Into: add foaf prefix with one IRI
+    DatasetGraph into = new DatasetGraphInMemory();
+    org.apache.jena.rdfpatch.changes.RDFChangesCollector intoCollector =
+        new org.apache.jena.rdfpatch.changes.RDFChangesCollector();
+    intoCollector.start();
+    intoCollector.addPrefix(null, "foaf", "http://xmlns.com/foaf/0.1/");
+    intoCollector.finish();
+    RDFPatch intoPatch = intoCollector.getRDFPatch();
+    RdfPatchUtil.apply(into, intoPatch);
+
+    // From: add foaf prefix with different IRI
+    DatasetGraph from = new DatasetGraphInMemory();
+    org.apache.jena.rdfpatch.changes.RDFChangesCollector fromCollector =
+        new org.apache.jena.rdfpatch.changes.RDFChangesCollector();
+    fromCollector.start();
+    fromCollector.addPrefix(null, "foaf", "http://example.org/my-foaf#");
+    fromCollector.finish();
+    RDFPatch fromPatch = fromCollector.getRDFPatch();
+    RdfPatchUtil.apply(from, fromPatch);
+
+    // Verify prefix mappings are actually there
+    assertEquals("http://xmlns.com/foaf/0.1/",
+        into.getDefaultGraph().getPrefixMapping().getNsPrefixURI("foaf"),
+        "Into should have foaf prefix");
+    assertEquals("http://example.org/my-foaf#",
+        from.getDefaultGraph().getPrefixMapping().getNsPrefixURI("foaf"),
+        "From should have foaf prefix");
+
+    // Diff to get change patches
+    RDFPatch baseToInto = RdfPatchUtil.diff(base, into);
+    RDFPatch baseToFrom = RdfPatchUtil.diff(base, from);
+
+    // Detect conflicts
+    java.util.List<org.chucc.vcserver.dto.ConflictItem> conflicts =
+        org.chucc.vcserver.util.MergeUtil.detectConflicts(baseToInto, baseToFrom);
+
+    // Should detect prefix conflict
+    assertEquals(1, conflicts.size(), "Should detect exactly one conflict");
+    org.chucc.vcserver.dto.ConflictItem conflict = conflicts.get(0);
+    assertTrue(conflict.getSubject().startsWith("PREFIX:"),
+        "Conflict should be for a prefix");
+    assertTrue(conflict.getSubject().contains("foaf"),
+        "Conflict should be for foaf prefix");
+  }
+
+  @Test
+  void testRDFChangesCollectorRecordsPrefixes() {
+    // Minimal test to verify RDFChangesCollector records PA/PD directives
+    org.apache.jena.rdfpatch.changes.RDFChangesCollector collector =
+        new org.apache.jena.rdfpatch.changes.RDFChangesCollector();
+
+    collector.start();
+    collector.addPrefix(null, "foaf", "http://xmlns.com/foaf/0.1/");
+    collector.finish();
+
+    RDFPatch patch = collector.getRDFPatch();
+
+    // Serialize patch to string
+    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+    org.apache.jena.rdfpatch.RDFPatchOps.write(baos, patch);
+    String patchString = baos.toString(java.nio.charset.StandardCharsets.UTF_8);
+
+    assertTrue(patchString.contains("PA") || patchString.contains("foaf"),
+        "Collector should record prefix. Actual: " + patchString);
+  }
+
+  @Test
+  void testDiffWithPrefixChanges() {
+    // Create source dataset with no prefixes
+    DatasetGraph sourceDataset = new DatasetGraphInMemory();
+
+    // Create target dataset with prefix mapping
+    DatasetGraph targetDataset = new DatasetGraphInMemory();
+    targetDataset.getDefaultGraph().getPrefixMapping()
+        .setNsPrefix("foaf", "http://xmlns.com/foaf/0.1/");
+
+    // Generate diff
+    RDFPatch patch = RdfPatchUtil.diff(sourceDataset, targetDataset);
+
+    // Serialize patch to string
+    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+    org.apache.jena.rdfpatch.RDFPatchOps.write(baos, patch);
+    String patchString = baos.toString(java.nio.charset.StandardCharsets.UTF_8);
+
+    // Verify patch contains PA directive
+    assertTrue(patchString.contains("PA"),
+        "Patch should contain PA (Prefix Add) directive. Actual: " + patchString);
+    assertTrue(patchString.contains("foaf"),
+        "Patch should contain 'foaf' prefix");
+    assertTrue(patchString.contains("http://xmlns.com/foaf/0.1/"),
+        "Patch should contain foaf IRI");
+  }
+
+  @Test
+  void testDiffWithPrefixDeletion() {
+    // Create source dataset with prefix
+    DatasetGraph sourceDataset = new DatasetGraphInMemory();
+    sourceDataset.getDefaultGraph().getPrefixMapping()
+        .setNsPrefix("foaf", "http://xmlns.com/foaf/0.1/");
+
+    // Create target dataset with no prefixes
+    DatasetGraph targetDataset = new DatasetGraphInMemory();
+
+    // Generate diff
+    RDFPatch patch = RdfPatchUtil.diff(sourceDataset, targetDataset);
+
+    // Serialize patch to string
+    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+    org.apache.jena.rdfpatch.RDFPatchOps.write(baos, patch);
+    String patchString = baos.toString(java.nio.charset.StandardCharsets.UTF_8);
+
+    // Verify patch contains PD directive
+    assertTrue(patchString.contains("PD"),
+        "Patch should contain PD (Prefix Delete) directive. Actual: " + patchString);
+    assertTrue(patchString.contains("foaf"),
+        "Patch should contain 'foaf' prefix");
+  }
+
+  @Test
+  void testDiffWithPrefixModification() {
+    // Create source dataset with one prefix IRI
+    DatasetGraph sourceDataset = new DatasetGraphInMemory();
+    sourceDataset.getDefaultGraph().getPrefixMapping()
+        .setNsPrefix("foaf", "http://xmlns.com/foaf/0.1/");
+
+    // Create target dataset with same prefix but different IRI
+    DatasetGraph targetDataset = new DatasetGraphInMemory();
+    targetDataset.getDefaultGraph().getPrefixMapping()
+        .setNsPrefix("foaf", "http://example.org/my-foaf#");
+
+    // Generate diff
+    RDFPatch patch = RdfPatchUtil.diff(sourceDataset, targetDataset);
+
+    // Serialize patch to string
+    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+    org.apache.jena.rdfpatch.RDFPatchOps.write(baos, patch);
+    String patchString = baos.toString(java.nio.charset.StandardCharsets.UTF_8);
+
+    // Verify patch contains both PD and PA (delete old, add new)
+    assertTrue(patchString.contains("PD"),
+        "Patch should contain PD (Prefix Delete) directive for old IRI. Actual: " + patchString);
+    assertTrue(patchString.contains("PA"),
+        "Patch should contain PA (Prefix Add) directive for new IRI");
+    assertTrue(patchString.contains("http://example.org/my-foaf#"),
+        "Patch should contain new IRI");
+  }
 }

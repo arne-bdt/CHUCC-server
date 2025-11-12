@@ -34,7 +34,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 #### 1. Prefix Management Protocol (PMP) Implementation
 **Directory:** `.tasks/pmp/`
-**Status:** ✅ COMPLETED (Sessions 1-5 completed, Session 6 optional)
+**Status:** ✅ COMPLETED (All 6 sessions completed)
 **Priority:** Medium
 **Category:** Standards Compliance / IDE Integration
 
@@ -47,8 +47,9 @@ Implement REST API for managing RDF namespace prefixes with version control. Ena
 3. ✅ Suggested Prefixes (namespace discovery) - Completed 2025-11-12
 4. ✅ OpenAPI and Comprehensive Testing - Completed 2025-11-12
 5. ✅ Merge Conflict Handling (prefix conflict detection) - Completed 2025-11-12
+6. ✅ Cross-Protocol Integration Fix - Completed 2025-11-12
 
-**Completed Work (Sessions 1-5):**
+**Completed Work (All Sessions):**
 - ✅ UpdatePrefixesCommandHandler (PA/PD directive generation)
 - ✅ PrefixManagementController (6 endpoints with comprehensive OpenAPI docs)
 - ✅ DTOs (UpdatePrefixesRequest, PrefixResponse, CommitResponse, PrefixSuggestion, SuggestedPrefixesResponse)
@@ -61,15 +62,16 @@ Implement REST API for managing RDF namespace prefixes with version control. Ena
 - ✅ Integration with DatasetService.materializeAtCommit()
 - ✅ MergeUtil enhanced for prefix conflict detection (PA/PD directives)
 - ✅ Prefix conflict resolution via "ours"/"theirs" strategies
+- ✅ Cross-protocol integration (PMP + GSP) working correctly
+- ✅ Fixed URL routing issue in cross-protocol test
+- ✅ Removed investigation test (cleanup)
+- ✅ Fixed RFC 7807 type URI for ConcurrentWriteConflictException
 - ✅ 32 integration tests + 36 unit tests (all passing)
 - ✅ Zero quality violations (Checkstyle, PMD with CPD suppression, SpotBugs)
 - ✅ CQRS compliance verified, test isolation validated
 - ✅ Fixed pre-existing BranchTest.testEquality issue
 
-**Future Work:**
-- Optional: Session 6 - Cross-protocol integration fix (see `.tasks/pmp/session-5-cross-protocol-integration-fix.md`)
-
-**Estimated Time:** 14-16 hours total (14.5 hours completed)
+**Estimated Time:** 15-17 hours total (15.5 hours actual)
 
 **Benefits:**
 - Store prefixes in version control (RDFPatch PA/PD directives)

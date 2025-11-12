@@ -996,11 +996,388 @@ class MergeOperationsIT {
     assertThat(body.get("code").asText()).isEqualTo("invalid_request");
   }
 
+  /**
+   * Test prefix conflict detection during three-way merge.
+   *
+   * <p>Both branches modify the same prefix to different IRIs.
+   */
+  @Test
+  void threeWayMerge_withPrefixConflict_shouldReturn409() {
+    // Arrange: Create two branches with conflicting prefixes
+    // Main branch: PA foaf: <http://xmlns.com/foaf/0.1/>
+    CommitId mainCommit2Id = CommitId.generate();
+    RDFPatch mainPrefixPatch = createPrefixPatch("foaf", "http://xmlns.com/foaf/0.1/");
+    Commit mainCommit2 = new Commit(
+        mainCommit2Id,
+        List.of(mainCommit1Id),
+        "Alice",
+        "Add foaf prefix on main",
+        Instant.now(),
+        1
+    );
+    commitRepository.save(DATASET_NAME, mainCommit2, mainPrefixPatch);
+    branchRepository.updateBranchHead(DATASET_NAME, "main", mainCommit2Id);
+
+    // Feature branch: PA foaf: <http://example.org/my-foaf#>
+    CommitId featureCommit1Id = CommitId.generate();
+    RDFPatch featurePrefixPatch = createPrefixPatch("foaf", "http://example.org/my-foaf#");
+    Commit featureCommit1 = new Commit(
+        featureCommit1Id,
+        List.of(mainCommit1Id),
+        "Bob",
+        "Add different foaf prefix on feature",
+        Instant.now(),
+        1
+    );
+    commitRepository.save(DATASET_NAME, featureCommit1, featurePrefixPatch);
+    branchRepository.updateBranchHead(DATASET_NAME, "feature", featureCommit1Id);
+
+    // Act: Attempt merge without strategy
+    String requestBody = """
+        {
+          "into": "main",
+          "from": "feature"
+        }
+        """;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "Alice");
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        BASE_URL,
+        HttpMethod.POST,
+        new HttpEntity<>(requestBody, headers),
+        String.class
+    );
+
+    // Assert: Conflict detected
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getHeaders().getContentType().toString())
+        .contains("application/problem+json");
+
+    JsonNode body = parseJson(response.getBody());
+    assertThat(body.get("status").asInt()).isEqualTo(409);
+    assertThat(body.get("type").asText()).isEqualTo("/problems/merge-conflict");
+
+    // Verify prefix conflict is reported
+    JsonNode conflicts = body.get("conflicts");
+    assertThat(conflicts).isNotNull();
+    assertThat(conflicts.isArray()).isTrue();
+    assertThat(conflicts.size()).isGreaterThan(0);
+
+    boolean foundPrefixConflict = false;
+    for (JsonNode conflict : conflicts) {
+      String subject = conflict.get("subject").asText();
+      if (subject.startsWith("PREFIX:")) {
+        foundPrefixConflict = true;
+        assertThat(subject).isEqualTo("PREFIX:foaf");
+        assertThat(conflict.get("predicate").asText()).isEqualTo("maps-to");
+        assertThat(conflict.get("object").asText())
+            .contains("http://xmlns.com/foaf/0.1/")
+            .contains("http://example.org/my-foaf#");
+      }
+    }
+    assertThat(foundPrefixConflict).isTrue();
+  }
+
+  /**
+   * Test resolving prefix conflicts using "ours" strategy.
+   */
+  @Test
+  void threeWayMerge_withPrefixConflict_oursStrategy_shouldResolve() {
+    // Arrange: Create prefix conflict (same as previous test)
+    CommitId mainCommit2Id = CommitId.generate();
+    RDFPatch mainPrefixPatch = createPrefixPatch("foaf", "http://xmlns.com/foaf/0.1/");
+    Commit mainCommit2 = new Commit(
+        mainCommit2Id,
+        List.of(mainCommit1Id),
+        "Alice",
+        "Add foaf prefix on main",
+        Instant.now(),
+        1
+    );
+    commitRepository.save(DATASET_NAME, mainCommit2, mainPrefixPatch);
+    branchRepository.updateBranchHead(DATASET_NAME, "main", mainCommit2Id);
+
+    CommitId featureCommit1Id = CommitId.generate();
+    RDFPatch featurePrefixPatch = createPrefixPatch("foaf", "http://example.org/my-foaf#");
+    Commit featureCommit1 = new Commit(
+        featureCommit1Id,
+        List.of(mainCommit1Id),
+        "Bob",
+        "Add different foaf prefix on feature",
+        Instant.now(),
+        1
+    );
+    commitRepository.save(DATASET_NAME, featureCommit1, featurePrefixPatch);
+    branchRepository.updateBranchHead(DATASET_NAME, "feature", featureCommit1Id);
+
+    // Act: Merge with "ours" strategy
+    String requestBody = """
+        {
+          "into": "main",
+          "from": "feature",
+          "strategy": "ours"
+        }
+        """;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "Alice");
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        BASE_URL,
+        HttpMethod.POST,
+        new HttpEntity<>(requestBody, headers),
+        String.class
+    );
+
+    // Assert: Merge successful
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_JSON);
+
+    JsonNode body = parseJson(response.getBody());
+    assertThat(body.get("result").asText()).isEqualTo("merged");
+    assertThat(body.get("into").asText()).isEqualTo("main");
+    assertThat(body.get("from").asText()).isEqualTo("feature");
+    assertThat(body.get("mergeCommit").asText()).isNotNull();
+    assertThat(body.get("conflictsResolved").asInt()).isEqualTo(1);
+
+    // Note: Verifying final prefix value requires projector-enabled test
+  }
+
+  /**
+   * Test resolving prefix conflicts using "theirs" strategy.
+   */
+  @Test
+  void threeWayMerge_withPrefixConflict_theirsStrategy_shouldResolve() {
+    // Arrange: Create prefix conflict
+    CommitId mainCommit2Id = CommitId.generate();
+    RDFPatch mainPrefixPatch = createPrefixPatch("foaf", "http://xmlns.com/foaf/0.1/");
+    Commit mainCommit2 = new Commit(
+        mainCommit2Id,
+        List.of(mainCommit1Id),
+        "Alice",
+        "Add foaf prefix on main",
+        Instant.now(),
+        1
+    );
+    commitRepository.save(DATASET_NAME, mainCommit2, mainPrefixPatch);
+    branchRepository.updateBranchHead(DATASET_NAME, "main", mainCommit2Id);
+
+    CommitId featureCommit1Id = CommitId.generate();
+    RDFPatch featurePrefixPatch = createPrefixPatch("foaf", "http://example.org/my-foaf#");
+    Commit featureCommit1 = new Commit(
+        featureCommit1Id,
+        List.of(mainCommit1Id),
+        "Bob",
+        "Add different foaf prefix on feature",
+        Instant.now(),
+        1
+    );
+    commitRepository.save(DATASET_NAME, featureCommit1, featurePrefixPatch);
+    branchRepository.updateBranchHead(DATASET_NAME, "feature", featureCommit1Id);
+
+    // Act: Merge with "theirs" strategy
+    String requestBody = """
+        {
+          "into": "main",
+          "from": "feature",
+          "strategy": "theirs"
+        }
+        """;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "Alice");
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        BASE_URL,
+        HttpMethod.POST,
+        new HttpEntity<>(requestBody, headers),
+        String.class
+    );
+
+    // Assert: Merge successful
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    JsonNode body = parseJson(response.getBody());
+    assertThat(body.get("result").asText()).isEqualTo("merged");
+    assertThat(body.get("conflictsResolved").asInt()).isEqualTo(1);
+  }
+
+  /**
+   * Test that identical prefix changes don't create conflicts.
+   */
+  @Test
+  void threeWayMerge_withIdenticalPrefixChanges_shouldNotConflict() {
+    // Arrange: Both branches add same prefix with same IRI
+    CommitId mainCommit2Id = CommitId.generate();
+    RDFPatch mainPrefixPatch = createPrefixPatch("foaf", "http://xmlns.com/foaf/0.1/");
+    Commit mainCommit2 = new Commit(
+        mainCommit2Id,
+        List.of(mainCommit1Id),
+        "Alice",
+        "Add foaf prefix on main",
+        Instant.now(),
+        1
+    );
+    commitRepository.save(DATASET_NAME, mainCommit2, mainPrefixPatch);
+    branchRepository.updateBranchHead(DATASET_NAME, "main", mainCommit2Id);
+
+    CommitId featureCommit1Id = CommitId.generate();
+    RDFPatch featurePrefixPatch = createPrefixPatch("foaf", "http://xmlns.com/foaf/0.1/");
+    Commit featureCommit1 = new Commit(
+        featureCommit1Id,
+        List.of(mainCommit1Id),
+        "Bob",
+        "Add same foaf prefix on feature",
+        Instant.now(),
+        1
+    );
+    commitRepository.save(DATASET_NAME, featureCommit1, featurePrefixPatch);
+    branchRepository.updateBranchHead(DATASET_NAME, "feature", featureCommit1Id);
+
+    // Act: Merge without strategy
+    String requestBody = """
+        {
+          "into": "main",
+          "from": "feature"
+        }
+        """;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "Alice");
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        BASE_URL,
+        HttpMethod.POST,
+        new HttpEntity<>(requestBody, headers),
+        String.class
+    );
+
+    // Assert: No conflict (identical changes)
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    JsonNode body = parseJson(response.getBody());
+    assertThat(body.get("result").asText()).isEqualTo("merged");
+    // Identical changes result in no conflicts, so conflictsResolved should be 0
+    assertThat(body.get("conflictsResolved").asInt()).isEqualTo(0);
+  }
+
+  /**
+   * Test prefix conflict combined with quad conflict.
+   */
+  @Test
+  void threeWayMerge_withPrefixAndQuadConflicts_shouldDetectBoth() {
+    // Arrange: Create both prefix conflict and quad conflict
+    // Main branch: PA foaf + quad
+    CommitId mainCommit2Id = CommitId.generate();
+    RDFPatch mainPatch = createPrefixAndQuadPatch(
+        "foaf", "http://xmlns.com/foaf/0.1/",
+        NodeFactory.createURI("http://ex.org/g1"),
+        NodeFactory.createURI("http://ex.org/s1"),
+        NodeFactory.createURI("http://ex.org/p1"),
+        NodeFactory.createLiteralString("main-value")
+    );
+    Commit mainCommit2 = new Commit(
+        mainCommit2Id,
+        List.of(mainCommit1Id),
+        "Alice",
+        "Add foaf prefix and data on main",
+        Instant.now(),
+        2
+    );
+    commitRepository.save(DATASET_NAME, mainCommit2, mainPatch);
+    branchRepository.updateBranchHead(DATASET_NAME, "main", mainCommit2Id);
+
+    // Feature branch: Different PA foaf + conflicting quad
+    CommitId featureCommit1Id = CommitId.generate();
+    RDFPatch featurePatch = createPrefixAndQuadPatch(
+        "foaf", "http://example.org/my-foaf#",
+        NodeFactory.createURI("http://ex.org/g1"),
+        NodeFactory.createURI("http://ex.org/s1"),
+        NodeFactory.createURI("http://ex.org/p1"),
+        NodeFactory.createLiteralString("feature-value")
+    );
+    Commit featureCommit1 = new Commit(
+        featureCommit1Id,
+        List.of(mainCommit1Id),
+        "Bob",
+        "Add different foaf prefix and data on feature",
+        Instant.now(),
+        2
+    );
+    commitRepository.save(DATASET_NAME, featureCommit1, featurePatch);
+    branchRepository.updateBranchHead(DATASET_NAME, "feature", featureCommit1Id);
+
+    // Act: Attempt merge
+    String requestBody = """
+        {
+          "into": "main",
+          "from": "feature"
+        }
+        """;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "Alice");
+
+    ResponseEntity<String> response = restTemplate.exchange(
+        BASE_URL,
+        HttpMethod.POST,
+        new HttpEntity<>(requestBody, headers),
+        String.class
+    );
+
+    // Assert: Both conflicts detected
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+    JsonNode body = parseJson(response.getBody());
+    JsonNode conflicts = body.get("conflicts");
+    assertThat(conflicts.size()).isEqualTo(2);  // One prefix conflict + one quad conflict
+
+    // Verify both types of conflicts are present
+    boolean foundPrefixConflict = false;
+    boolean foundQuadConflict = false;
+    for (JsonNode conflict : conflicts) {
+      String subject = conflict.get("subject").asText();
+      if (subject.startsWith("PREFIX:")) {
+        foundPrefixConflict = true;
+      } else {
+        foundQuadConflict = true;
+      }
+    }
+    assertThat(foundPrefixConflict).isTrue();
+    assertThat(foundQuadConflict).isTrue();
+  }
+
   // Helper methods
 
   private RDFPatch createPatch(Node g, Node s, Node p, Node o) {
     RDFChangesCollector collector = new RDFChangesCollector();
     collector.start();
+    collector.add(g, s, p, o);
+    collector.finish();
+    return collector.getRDFPatch();
+  }
+
+  private RDFPatch createPrefixPatch(String prefix, String iri) {
+    RDFChangesCollector collector = new RDFChangesCollector();
+    collector.start();
+    collector.addPrefix(null, prefix, iri);
+    collector.finish();
+    return collector.getRDFPatch();
+  }
+
+  private RDFPatch createPrefixAndQuadPatch(
+      String prefix, String iri,
+      Node g, Node s, Node p, Node o) {
+    RDFChangesCollector collector = new RDFChangesCollector();
+    collector.start();
+    collector.addPrefix(null, prefix, iri);
     collector.add(g, s, p, o);
     collector.finish();
     return collector.getRDFPatch();

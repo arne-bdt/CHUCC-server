@@ -34,7 +34,7 @@ This directory contains task breakdowns for implementing the remaining SPARQL 1.
 
 #### 1. Prefix Management Protocol (PMP) Implementation
 **Directory:** `.tasks/pmp/`
-**Status:** ✅ Completed (Sessions 1-4 completed, Session 5 documented for future work)
+**Status:** ✅ COMPLETED (Sessions 1-5 completed, Session 6 optional)
 **Priority:** Medium
 **Category:** Standards Compliance / IDE Integration
 
@@ -46,8 +46,9 @@ Implement REST API for managing RDF namespace prefixes with version control. Ena
 2. ✅ Time-Travel Support (commit-based prefix queries) - Completed 2025-11-11
 3. ✅ Suggested Prefixes (namespace discovery) - Completed 2025-11-12
 4. ✅ OpenAPI and Comprehensive Testing - Completed 2025-11-12
+5. ✅ Merge Conflict Handling (prefix conflict detection) - Completed 2025-11-12
 
-**Completed Work (Sessions 1-4):**
+**Completed Work (Sessions 1-5):**
 - ✅ UpdatePrefixesCommandHandler (PA/PD directive generation)
 - ✅ PrefixManagementController (6 endpoints with comprehensive OpenAPI docs)
 - ✅ DTOs (UpdatePrefixesRequest, PrefixResponse, CommitResponse, PrefixSuggestion, SuggestedPrefixesResponse)
@@ -58,15 +59,17 @@ Implement REST API for managing RDF namespace prefixes with version control. Ena
 - ✅ PrefixSuggestionService (namespace discovery with frequency analysis)
 - ✅ ConventionalPrefixes utility (~25 common RDF namespaces from prefix.cc)
 - ✅ Integration with DatasetService.materializeAtCommit()
-- ✅ 27 integration tests + 36 unit tests (all passing)
+- ✅ MergeUtil enhanced for prefix conflict detection (PA/PD directives)
+- ✅ Prefix conflict resolution via "ours"/"theirs" strategies
+- ✅ 32 integration tests + 36 unit tests (all passing)
 - ✅ Zero quality violations (Checkstyle, PMD with CPD suppression, SpotBugs)
 - ✅ CQRS compliance verified, test isolation validated
 - ✅ Fixed pre-existing BranchTest.testEquality issue
 
 **Future Work:**
-- Optional: Session 5 - Cross-protocol integration fix (see `.tasks/pmp/session-5-cross-protocol-integration-fix.md`)
+- Optional: Session 6 - Cross-protocol integration fix (see `.tasks/pmp/session-5-cross-protocol-integration-fix.md`)
 
-**Estimated Time:** 12-14 hours total (12.5 hours completed)
+**Estimated Time:** 14-16 hours total (14.5 hours completed)
 
 **Benefits:**
 - Store prefixes in version control (RDFPatch PA/PD directives)

@@ -687,4 +687,139 @@ class PrefixManagementIT extends ITFixture {
     // Note: Testing with actual data requires projector enabled
     // to populate materialized graph from commits
   }
+
+  /**
+   * INVESTIGATION TEST: How are prefix conflicts handled during merge?
+   *
+   * <p>This test creates two branches that define the same prefix (foaf) with
+   * different IRIs, then attempts to merge them. The purpose is to observe
+   * the current system behavior:
+   *
+   * <ul>
+   *   <li>Are prefix conflicts detected?</li>
+   *   <li>Does merge return 409 CONFLICT?</li>
+   *   <li>Does merge return 200 OK (auto-merged)?</li>
+   *   <li>If auto-merged, which prefix value "wins"?</li>
+   * </ul>
+   *
+   * <p><b>Hypothesis (based on code review):</b>
+   * MergeUtil.detectConflicts() uses RdfChangesAdapter which only overrides
+   * add() and delete() methods (not addPrefix/deletePrefix). Therefore,
+   * PA/PD directives are likely ignored during conflict detection, resulting
+   * in silent auto-merge.
+   *
+   * <p><b>Expected Result:</b> 200 OK (auto-merge, no conflict detected)
+   *
+   * <p><b>TODO:</b> After running this test, document findings in
+   * session-5-merge-conflict-handling.md
+   */
+  @Test
+  void merge_withConflictingPrefixes_investigation() {
+    // Step 1: Get initial commit ID (common ancestor)
+    ResponseEntity<PrefixResponse> initialState = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.GET,
+        null,
+        PrefixResponse.class
+    );
+    assertThat(initialState.getStatusCode()).isEqualTo(HttpStatus.OK);
+    String ancestorCommitId = initialState.getBody().commitId();
+
+    // Step 2: Add foaf prefix to main branch
+    UpdatePrefixesRequest mainRequest = new UpdatePrefixesRequest(
+        "Add foaf prefix to main",
+        Map.of("foaf", "http://xmlns.com/foaf/0.1/")
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "MainUser <main@example.org>");
+
+    ResponseEntity<CommitResponse> mainPrefixResponse = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.PUT,
+        new HttpEntity<>(mainRequest, headers),
+        CommitResponse.class
+    );
+    assertThat(mainPrefixResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    String mainCommitId = mainPrefixResponse.getBody().getId();
+
+    // Step 3: Create dev branch from ancestor (before prefix was added)
+    String createBranchJson = String.format("""
+        {
+          "name": "dev",
+          "startPoint": "%s"
+        }
+        """, ancestorCommitId);
+
+    HttpHeaders branchHeaders = new HttpHeaders();
+    branchHeaders.setContentType(MediaType.APPLICATION_JSON);
+    branchHeaders.set("SPARQL-VC-Author", "DevUser <dev@example.org>");
+
+    ResponseEntity<String> branchResponse = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches",
+        HttpMethod.POST,
+        new HttpEntity<>(createBranchJson, branchHeaders),
+        String.class
+    );
+    assertThat(branchResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+    // Step 4: Add DIFFERENT foaf prefix to dev branch
+    UpdatePrefixesRequest devRequest = new UpdatePrefixesRequest(
+        "Add different foaf prefix to dev",
+        Map.of("foaf", "http://example.org/my-foaf#")
+    );
+
+    HttpHeaders devHeaders = new HttpHeaders();
+    devHeaders.setContentType(MediaType.APPLICATION_JSON);
+    devHeaders.set("SPARQL-VC-Author", "DevUser <dev@example.org>");
+
+    ResponseEntity<CommitResponse> devPrefixResponse = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/dev/prefixes",
+        HttpMethod.PUT,
+        new HttpEntity<>(devRequest, devHeaders),
+        CommitResponse.class
+    );
+    assertThat(devPrefixResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    String devCommitId = devPrefixResponse.getBody().getId();
+
+    // Step 5: Attempt merge dev → main
+    String mergeJson = """
+        {
+          "into": "main",
+          "from": "dev"
+        }
+        """;
+
+    HttpHeaders mergeHeaders = new HttpHeaders();
+    mergeHeaders.setContentType(MediaType.APPLICATION_JSON);
+    mergeHeaders.set("SPARQL-VC-Author", "MergeUser <merge@example.org>");
+
+    ResponseEntity<String> mergeResponse = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/version/merge",
+        HttpMethod.POST,
+        new HttpEntity<>(mergeJson, mergeHeaders),
+        String.class
+    );
+
+    // Observe: What happens?
+    System.out.println("=== MERGE INVESTIGATION RESULTS ===");
+    System.out.println("Ancestor commit: " + ancestorCommitId);
+    System.out.println("Main commit (foaf → http://xmlns.com/foaf/0.1/): " + mainCommitId);
+    System.out.println("Dev commit (foaf → http://example.org/my-foaf#): " + devCommitId);
+    System.out.println();
+    System.out.println("Merge HTTP Status: " + mergeResponse.getStatusCode());
+    System.out.println("Merge Response Body: " + mergeResponse.getBody());
+    System.out.println("=================================");
+
+    // Document findings:
+    // [FILL IN after running test]
+    // - Does it return 409 CONFLICT?
+    // - Does it return 200 OK (auto-merged)?
+    // - What does the response body contain?
+    // - If merged, which prefix value "won"?
+
+    // TODO: Based on findings, update session-5-merge-conflict-handling.md
+    // with actual behavior and recommended enhancement approach.
+  }
 }

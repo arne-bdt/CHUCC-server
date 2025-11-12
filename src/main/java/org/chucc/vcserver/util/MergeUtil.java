@@ -69,29 +69,61 @@ public final class MergeUtil {
   }
 
   /**
-   * Detects conflicts between two RDFPatch changesets.
+   * Represents a prefix for conflict detection.
+   * Two modifications to the same prefix with different IRIs constitute a conflict.
+   */
+  private static final class PrefixKey {
+    private final String prefix;
+
+    PrefixKey(String prefix) {
+      this.prefix = prefix;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PrefixKey that = (PrefixKey) o;
+      return Objects.equals(prefix, that.prefix);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(prefix);
+    }
+  }
+
+  /**
+   * Detects conflicts between two RDFPatch changesets (quads and prefixes).
    *
-   * <p>A conflict occurs when the same triple position (graph, subject, predicate)
-   * is modified by both branches, regardless of the object value. This correctly
-   * identifies conflicts when branches assign different values to the same position.
+   * <p>Quad conflict: Same triple position (graph, subject, predicate) modified by both branches.
+   *
+   * <p>Prefix conflict: Same prefix mapped to different IRIs by both branches.
    *
    * @param intoChanges changes from base to "into" branch
    * @param fromChanges changes from base to "from" branch
-   * @return list of conflicting positions with their modifications
+   * @return list of conflicting positions and prefixes
    */
   public static List<ConflictItem> detectConflicts(RDFPatch intoChanges, RDFPatch fromChanges) {
-    // Collect positions touched by each branch with their modifications
-    Map<TriplePosition, Quad> intoTouched = new HashMap<>();
-    collectPositions(intoChanges, intoTouched);
+    // Collect quad positions and prefixes touched by each branch
+    Map<TriplePosition, Quad> intoQuadsTouched = new HashMap<>();
+    Map<PrefixKey, String> intoPrefixes = new HashMap<>();
+    collectPositionsAndPrefixes(intoChanges, intoQuadsTouched, intoPrefixes);
 
-    Map<TriplePosition, Quad> fromTouched = new HashMap<>();
-    collectPositions(fromChanges, fromTouched);
+    Map<TriplePosition, Quad> fromQuadsTouched = new HashMap<>();
+    Map<PrefixKey, String> fromPrefixes = new HashMap<>();
+    collectPositionsAndPrefixes(fromChanges, fromQuadsTouched, fromPrefixes);
 
-    // Find overlapping positions (conflicts)
     List<ConflictItem> conflicts = new ArrayList<>();
-    for (Map.Entry<TriplePosition, Quad> entry : intoTouched.entrySet()) {
+
+    // Detect quad-level conflicts
+    for (Map.Entry<TriplePosition, Quad> entry : intoQuadsTouched.entrySet()) {
       TriplePosition position = entry.getKey();
-      if (fromTouched.containsKey(position)) {
+      if (fromQuadsTouched.containsKey(position)) {
         // Both branches modified this position - conflict!
         Quad intoQuad = entry.getValue();
         conflicts.add(new ConflictItem(
@@ -104,17 +136,41 @@ public final class MergeUtil {
       }
     }
 
+    // Detect prefix conflicts
+    for (Map.Entry<PrefixKey, String> entry : intoPrefixes.entrySet()) {
+      PrefixKey key = entry.getKey();
+      if (fromPrefixes.containsKey(key)) {
+        String intoIri = entry.getValue();
+        String fromIri = fromPrefixes.get(key);
+
+        // Conflict if both branches changed prefix to different IRIs
+        if (intoIri != null && fromIri != null && !intoIri.equals(fromIri)) {
+          conflicts.add(new ConflictItem(
+              "urn:x-arq:DefaultGraph",
+              "PREFIX:" + key.prefix,
+              "maps-to",
+              intoIri + " (ours) vs " + fromIri + " (theirs)",
+              "Prefix modified by both branches with different values"
+          ));
+        }
+      }
+    }
+
     return conflicts;
   }
 
   /**
-   * Collects triple positions from an RDFPatch (both additions and deletions).
+   * Collects triple positions and prefixes from an RDFPatch.
    *
    * @param patch the RDF patch
-   * @param positions map of positions to representative quads
+   * @param positions map of quad positions to representative quads
+   * @param prefixes map of prefix keys to their IRI values
    */
-  private static void collectPositions(RDFPatch patch, Map<TriplePosition, Quad> positions) {
-    // Use RDFPatch visitor to collect all positions
+  private static void collectPositionsAndPrefixes(
+      RDFPatch patch,
+      Map<TriplePosition, Quad> positions,
+      Map<PrefixKey, String> prefixes) {
+    // Use RDFPatch visitor to collect all positions and prefixes
     patch.apply(new RdfChangesAdapter() {
       @Override
       public void add(Node g, Node s, Node p, Node o) {
@@ -126,6 +182,16 @@ public final class MergeUtil {
       public void delete(Node g, Node s, Node p, Node o) {
         TriplePosition position = new TriplePosition(g, s, p);
         positions.put(position, new Quad(g, s, p, o));
+      }
+
+      @Override
+      public void addPrefix(Node gn, String prefix, String uriStr) {
+        prefixes.put(new PrefixKey(prefix), uriStr);
+      }
+
+      @Override
+      public void deletePrefix(Node gn, String prefix) {
+        prefixes.put(new PrefixKey(prefix), null);  // Deletion marker
       }
     });
   }
@@ -217,7 +283,7 @@ public final class MergeUtil {
   }
 
   /**
-   * Applies all operations from a patch to the collector.
+   * Applies all operations from a patch to the collector (quads and prefixes).
    *
    * @param collector collector to append operations to
    * @param patch patch to copy operations from
@@ -233,11 +299,21 @@ public final class MergeUtil {
       public void delete(Node g, Node s, Node p, Node o) {
         collector.delete(g, s, p, o);
       }
+
+      @Override
+      public void addPrefix(Node gn, String prefix, String uriStr) {
+        collector.addPrefix(gn, prefix, uriStr);
+      }
+
+      @Override
+      public void deletePrefix(Node gn, String prefix) {
+        collector.deletePrefix(gn, prefix);
+      }
     });
   }
 
   /**
-   * Applies operations from a patch, filtering by graph.
+   * Applies operations from a patch, filtering by graph (prefixes always included).
    *
    * @param collector collector to append operations to
    * @param patch patch to copy operations from
@@ -264,6 +340,18 @@ public final class MergeUtil {
         if (include ? inFilter : !inFilter) {
           collector.delete(g, s, p, o);
         }
+      }
+
+      @Override
+      public void addPrefix(Node gn, String prefix, String uriStr) {
+        // Prefixes are dataset-level metadata, always include them
+        collector.addPrefix(gn, prefix, uriStr);
+      }
+
+      @Override
+      public void deletePrefix(Node gn, String prefix) {
+        // Prefixes are dataset-level metadata, always include them
+        collector.deletePrefix(gn, prefix);
       }
     });
   }

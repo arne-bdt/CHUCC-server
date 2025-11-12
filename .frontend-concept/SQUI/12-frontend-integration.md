@@ -268,55 +268,11 @@ async function handleExecute() {
 
 ## State Management
 
-**IMPORTANT**: As of 2025-11-12, CHUCC-SQUI migrated to context-based store instances to eliminate state leakage. See [14-store-migration-impact.md](./14-store-migration-impact.md) for full details.
+**Architecture**: Context-based stores provide state isolation and better testing.
 
-### Approach 1: Global Stores (Legacy, Still Supported)
+**Note**: Since neither CHUCC-SQUI nor CHUCC-server have been released yet, we use modern patterns from day 1. No backward compatibility needed.
 
-**Use when**: Simple apps, backward compatibility, or Phase 1 implementation
-
-```typescript
-// src/lib/stores/app.ts
-
-import { writable, derived } from 'svelte/store';
-import type { QueryContext } from 'chucc-squi/version-control';
-
-// Current dataset (selected by user in Dataset Manager)
-export const currentDataset = writable<string>('default');
-
-// Current query context (branch/commit/asOf)
-export const queryContext = writable<QueryContext>({
-  type: 'branch',
-  branch: 'main'
-});
-
-// Current author (for commit attribution)
-export const currentAuthor = writable<string>('');
-
-// Branches (cached per dataset)
-export const branchCache = writable<Map<string, Branch[]>>(new Map());
-
-// Derived: branches for current dataset
-export const branches = derived(
-  [currentDataset, branchCache],
-  ([$dataset, $cache]) => $cache.get($dataset) || []
-);
-```
-
-**Pros**:
-- Simple to implement
-- No context boilerplate
-- Works with CHUCC-SQUI fallback mechanism
-
-**Cons**:
-- Shared state across tabs/instances
-- Testing isolation challenges
-- Storybook story contamination
-
----
-
-### Approach 2: Context-Based Stores (Recommended)
-
-**Use when**: Multiple instances, better isolation, or Phase 2+ implementation
+### Store Factory Functions
 
 ```typescript
 // src/lib/stores/app.ts
@@ -326,7 +282,7 @@ import type { QueryContext } from 'chucc-squi/version-control';
 
 /**
  * Factory function creates fresh store instances.
- * Used by StoreProvider for context-based isolation.
+ * Called once at app initialization.
  */
 export function createAppStores() {
   const currentDataset = writable<string>('default');
@@ -350,75 +306,80 @@ export function createAppStores() {
     branches
   };
 }
-
-// Export singleton for backward compatibility
-export const appStores = createAppStores();
-export const { currentDataset, queryContext, currentAuthor, branchCache, branches } = appStores;
 ```
+
+### Context Utilities
 
 ```typescript
 // src/lib/stores/context.ts
 
 import { getContext, setContext } from 'svelte';
 import { createAppStores } from './app';
+import type { AppStores } from './types';
 
 // Context key (Symbol for type safety)
 export const APP_STORES_KEY = Symbol('app-stores');
 
 /**
- * Set app stores in context (call from root component).
+ * Provide app stores via context (call from root layout).
  */
-export function setAppStores(stores = createAppStores()) {
+export function provideAppStores(stores = createAppStores()): AppStores {
   setContext(APP_STORES_KEY, stores);
   return stores;
 }
 
 /**
- * Get app stores from context (with fallback to global).
+ * Get app stores from context (call from child components).
+ * Throws error if not in context provider.
  */
-export function getAppStores() {
-  // Try context first
-  const contextStores = getContext(APP_STORES_KEY);
-  if (contextStores) return contextStores;
+export function getAppStores(): AppStores {
+  const stores = getContext<AppStores>(APP_STORES_KEY);
 
-  // Fall back to global singleton
-  return appStores;
+  if (!stores) {
+    throw new Error(
+      'App stores not found in context. ' +
+      'Did you forget provideAppStores() in root layout?'
+    );
+  }
+
+  return stores;
 }
 ```
 
-```svelte
-<!-- src/lib/components/AppStoreProvider.svelte -->
-<script>
-  import { setAppStores } from '$lib/stores/context';
+```typescript
+// src/lib/stores/types.ts
 
-  // Create fresh stores for this component tree
-  const stores = setAppStores();
+import type { Writable, Readable } from 'svelte/store';
+import type { QueryContext, Branch } from 'chucc-squi/version-control';
+
+export interface AppStores {
+  currentDataset: Writable<string>;
+  queryContext: Writable<QueryContext>;
+  currentAuthor: Writable<string>;
+  branchCache: Writable<Map<string, Branch[]>>;
+  branches: Readable<Branch[]>;
+}
+```
+
+### Root Layout Setup
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<script>
+  import { provideAppStores } from '$lib/stores/context';
+
+  // Create and provide stores for entire app
+  provideAppStores();
 </script>
 
 <slot />
 ```
 
-```svelte
-<!-- src/routes/+layout.svelte - Root component -->
-<script>
-  import AppStoreProvider from '$lib/components/AppStoreProvider.svelte';
-</script>
-
-<AppStoreProvider>
-  <slot />
-</AppStoreProvider>
-```
-
-**Pros**:
-- Isolated state per component tree
-- Better testing (no cross-contamination)
-- Multiple tabs work independently
-- Follows CHUCC-SQUI patterns
-
-**Cons**:
-- More boilerplate (provider + context)
-- SSR considerations (context vs global)
-- Requires Svelte context understanding
+**Benefits**:
+- ✅ Isolated state per browser tab/instance
+- ✅ Better testing (fresh stores per test)
+- ✅ Clean Storybook story isolation
+- ✅ No global state pollution
 
 ---
 
@@ -437,33 +398,14 @@ let cursorPosition = { line: 0, ch: 0 };
 
 ### Using Stores in Components
 
-#### Approach 1: Direct Import (Legacy)
-
-```svelte
-<!-- src/routes/query/+page.svelte -->
-<script>
-  import { queryContext, currentDataset } from '$lib/stores/app';
-  import { executeQuery } from '$lib/services/api';
-
-  async function handleExecute(query: string) {
-    const results = await executeQuery(query, $currentDataset, $queryContext);
-    return results;
-  }
-</script>
-```
-
-**Pros**: Simple, minimal code
-**Cons**: Global state, testing challenges
-
-#### Approach 2: Context Accessor (Recommended)
-
 ```svelte
 <!-- src/routes/query/+page.svelte -->
 <script>
   import { getAppStores } from '$lib/stores/context';
+  import { QueryContextSelector } from 'chucc-squi/version-control';
   import { executeQuery } from '$lib/services/api';
 
-  // Get stores from context (or fallback to global)
+  // Get stores from context
   const { queryContext, currentDataset } = getAppStores();
 
   async function handleExecute(query: string) {
@@ -471,10 +413,14 @@ let cursorPosition = { line: 0, ch: 0 };
     return results;
   }
 </script>
+
+<QueryContextSelector
+  currentContext={$queryContext}
+  on:contextChange={(e) => queryContext.set(e.detail.context)}
+/>
 ```
 
-**Pros**: Isolated state, better testing, forward-compatible
-**Cons**: Slightly more verbose
+**Pattern**: Components call `getAppStores()` to access application state from context.
 
 ---
 
@@ -871,46 +817,11 @@ npm run build
 
 ---
 
-## Store Migration (CHUCC-SQUI v2.x)
-
-**Context**: CHUCC-SQUI migrated to context-based stores as of 2025-11-12 (commit [53689c8](https://github.com/arne-bdt/CHUCC-SQUI/commit/53689c8c4b1db43b25032b383cc0037324b6bfae)).
-
-See [14-store-migration-impact.md](./14-store-migration-impact.md) for comprehensive analysis.
-
-### What Changed?
-
-| Before (v1.x) | After (v2.x) |
-|---------------|--------------|
-| Global singleton stores | Context-based store instances |
-| `import { queryStore } from 'chucc-squi'` | `import { getQueryStore } from 'chucc-squi'` |
-| Single shared state | Isolated state per component tree |
-| Storybook story leakage | Clean isolation per story |
-
-### Migration Strategy
-
-**Option A: No Changes Required** (Recommended for initial implementation)
-- Keep using global stores in frontend
-- CHUCC-SQUI components use fallback mechanism
-- Works immediately, no code changes
-
-**Option B: Adopt Context Pattern** (For better isolation)
-1. Convert stores to factory functions
-2. Add `AppStoreProvider` at root
-3. Use context accessors in components
-4. Benefits: isolated state, better testing
-
-**Timeline**:
-- Option A: 0 days (already works)
-- Option B: 1-2 days (when isolation needed)
-
-**Recommendation**: Start with Option A. Migrate to Option B when you need:
-- Multiple browser tabs with independent state
-- Better Storybook story isolation
-- Improved integration test isolation
-
----
-
 ## Component Adoption Path
+
+**Note**: CHUCC-SQUI's store migration ([Task 70](https://github.com/arne-bdt/CHUCC-SQUI/commit/53689c8c4b1db43b25032b383cc0037324b6bfae)) is planned but not yet implemented. See [15-revised-impact-analysis.md](./15-revised-impact-analysis.md) for details.
+
+**Key Insight**: QueryContextSelector does NOT use stores internally - it's stateless and callback-driven. Store architecture doesn't affect this component.
 
 ### Phase 1: Adopt QueryContextSelector
 
@@ -950,7 +861,7 @@ See [14-store-migration-impact.md](./14-store-migration-impact.md) for comprehen
 
 ---
 
-**Document Version**: 1.1
+**Document Version**: 1.2
 **Created**: 2025-11-10
-**Updated**: 2025-11-12 (Store migration to context-based pattern)
+**Updated**: 2025-11-12 (Simplified to single pattern, removed backward compat)
 **Status**: Planning

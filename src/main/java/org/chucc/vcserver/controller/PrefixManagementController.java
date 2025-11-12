@@ -44,11 +44,18 @@ import org.springframework.web.bind.annotation.RestController;
  * All prefix modifications create commits, making changes auditable and
  * enabling time-travel queries.
  *
+ * <p><strong>Note:</strong> OpenAPI annotations for PUT/PATCH/DELETE methods contain
+ * semantic duplication (all mutation operations return similar response codes: 200, 201, 400,
+ * 403, 404). This duplication is intentional and improves API documentation clarity.
+ * Each method's annotations reflect its specific behavior (e.g., PUT returns 200 for no-op,
+ * DELETE accepts multiple query params). PMD CPD suppressed for OpenAPI boilerplate.
+ *
  * @see <a href="../../protocol/Prefix_Management_Protocol.md">PMP Specification</a>
  */
 @RestController
 @RequestMapping("/version/datasets/{dataset}")
 @Tag(name = "Prefix Management", description = "Manage namespace prefixes with version control")
+@SuppressWarnings("CPD-START")  // OpenAPI annotations naturally duplicate across mutation endpoints
 public class PrefixManagementController {
 
   private final MaterializedBranchRepository materializedBranchRepository;
@@ -162,21 +169,32 @@ public class PrefixManagementController {
   @GetMapping("/branches/{branch}/prefixes")
   @Operation(
       summary = "Get prefix mappings",
-      description = "Retrieve current prefix mappings for a branch"
+      description = "Retrieve current prefix mappings for a branch. "
+          + "Returns empty map if no prefixes defined."
   )
   @ApiResponse(
       responseCode = "200",
-      description = "Success",
-      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+      description = "Prefix map retrieved successfully",
+      content = @Content(
+          mediaType = MediaType.APPLICATION_JSON_VALUE,
+          schema = @io.swagger.v3.oas.annotations.media.Schema(
+              implementation = PrefixResponse.class
+          )
+      ),
+      headers = @io.swagger.v3.oas.annotations.headers.Header(
+          name = "ETag",
+          description = "Commit ID of the current branch HEAD",
+          schema = @io.swagger.v3.oas.annotations.media.Schema(type = "string")
+      )
   )
   @ApiResponse(
       responseCode = "404",
-      description = "Branch not found",
+      description = "Branch or dataset not found",
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<PrefixResponse> getCurrentPrefixes(
-      @Parameter(description = "Dataset name") @PathVariable String dataset,
-      @Parameter(description = "Branch name") @PathVariable String branch) {
+      @Parameter(description = "Dataset name", example = "mydata") @PathVariable String dataset,
+      @Parameter(description = "Branch name", example = "main") @PathVariable String branch) {
 
     // Get branch (validate exists)
     Branch branchObj = branchRepository
@@ -218,28 +236,75 @@ public class PrefixManagementController {
   @PutMapping("/branches/{branch}/prefixes")
   @Operation(
       summary = "Replace all prefixes",
-      description = "Replace entire prefix map (creates commit with PD+PA directives)"
+      description = "Replace entire prefix map (creates commit with PD+PA directives). "
+          + "All existing prefixes are removed, then new prefixes are added. "
+          + "Returns 200 OK if no changes needed (prefix map already matches request)."
   )
   @ApiResponse(
       responseCode = "201",
-      description = "Created",
-      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+      description = "Commit created successfully",
+      content = @Content(
+          mediaType = MediaType.APPLICATION_JSON_VALUE,
+          schema = @io.swagger.v3.oas.annotations.media.Schema(
+              implementation = CommitResponse.class
+          )
+      ),
+      headers = {
+          @io.swagger.v3.oas.annotations.headers.Header(
+              name = "Location",
+              description = "URL of the created commit",
+              schema = @io.swagger.v3.oas.annotations.media.Schema(type = "string")
+          ),
+          @io.swagger.v3.oas.annotations.headers.Header(
+              name = "ETag",
+              description = "Commit ID as entity tag",
+              schema = @io.swagger.v3.oas.annotations.media.Schema(type = "string")
+          )
+      }
+  )
+  @ApiResponse(
+      responseCode = "200",
+      description = "No changes made (prefix map already matches requested state)",
+      content = @Content(
+          mediaType = MediaType.APPLICATION_JSON_VALUE,
+          schema = @io.swagger.v3.oas.annotations.media.Schema(
+              implementation = CommitResponse.class
+          )
+      )
   )
   @ApiResponse(
       responseCode = "400",
-      description = "Bad Request (missing author or invalid prefixes)",
+      description = "Bad Request (missing author header, invalid prefix name, or relative IRI)",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "403",
+      description = "Forbidden (branch is protected)",
       content = @Content(mediaType = "application/problem+json")
   )
   @ApiResponse(
       responseCode = "404",
-      description = "Branch not found",
+      description = "Branch or dataset not found",
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<CommitResponse> replacePrefixes(
-      @Parameter(description = "Dataset name") @PathVariable String dataset,
-      @Parameter(description = "Branch name") @PathVariable String branch,
-      @Parameter(description = "Commit author", required = true)
+      @Parameter(description = "Dataset name", example = "mydata") @PathVariable String dataset,
+      @Parameter(description = "Branch name", example = "main") @PathVariable String branch,
+      @Parameter(
+          description = "Commit author (required)",
+          required = true,
+          example = "Alice <alice@example.org>")
       @RequestHeader("SPARQL-VC-Author") String author,
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+          description = "New prefix map and optional commit message",
+          required = true,
+          content = @Content(
+              mediaType = MediaType.APPLICATION_JSON_VALUE,
+              schema = @io.swagger.v3.oas.annotations.media.Schema(
+                  implementation = UpdatePrefixesRequest.class
+              )
+          )
+      )
       @Valid @RequestBody UpdatePrefixesRequest request) {
 
     UpdatePrefixesCommand cmd = new UpdatePrefixesCommand(
@@ -269,28 +334,75 @@ public class PrefixManagementController {
   @PatchMapping("/branches/{branch}/prefixes")
   @Operation(
       summary = "Add/update prefixes",
-      description = "Add or update selected prefixes (creates commit with PA directives)"
+      description = "Add or update selected prefixes (creates commit with PA directives). "
+          + "Only specified prefixes are affected; existing prefixes are preserved. "
+          + "Returns 200 OK if no changes needed (prefixes already exist with same values)."
   )
   @ApiResponse(
       responseCode = "201",
-      description = "Created",
-      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+      description = "Commit created successfully",
+      content = @Content(
+          mediaType = MediaType.APPLICATION_JSON_VALUE,
+          schema = @io.swagger.v3.oas.annotations.media.Schema(
+              implementation = CommitResponse.class
+          )
+      ),
+      headers = {
+          @io.swagger.v3.oas.annotations.headers.Header(
+              name = "Location",
+              description = "URL of the created commit",
+              schema = @io.swagger.v3.oas.annotations.media.Schema(type = "string")
+          ),
+          @io.swagger.v3.oas.annotations.headers.Header(
+              name = "ETag",
+              description = "Commit ID as entity tag",
+              schema = @io.swagger.v3.oas.annotations.media.Schema(type = "string")
+          )
+      }
+  )
+  @ApiResponse(
+      responseCode = "200",
+      description = "No changes made (prefixes already exist with requested values)",
+      content = @Content(
+          mediaType = MediaType.APPLICATION_JSON_VALUE,
+          schema = @io.swagger.v3.oas.annotations.media.Schema(
+              implementation = CommitResponse.class
+          )
+      )
   )
   @ApiResponse(
       responseCode = "400",
-      description = "Bad Request (missing author or invalid prefixes)",
+      description = "Bad Request (missing author header, invalid prefix name, or relative IRI)",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "403",
+      description = "Forbidden (branch is protected)",
       content = @Content(mediaType = "application/problem+json")
   )
   @ApiResponse(
       responseCode = "404",
-      description = "Branch not found",
+      description = "Branch or dataset not found",
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<CommitResponse> updatePrefixes(
-      @Parameter(description = "Dataset name") @PathVariable String dataset,
-      @Parameter(description = "Branch name") @PathVariable String branch,
-      @Parameter(description = "Commit author", required = true)
+      @Parameter(description = "Dataset name", example = "mydata") @PathVariable String dataset,
+      @Parameter(description = "Branch name", example = "main") @PathVariable String branch,
+      @Parameter(
+          description = "Commit author (required)",
+          required = true,
+          example = "Alice <alice@example.org>")
       @RequestHeader("SPARQL-VC-Author") String author,
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+          description = "Prefixes to add/update and optional commit message",
+          required = true,
+          content = @Content(
+              mediaType = MediaType.APPLICATION_JSON_VALUE,
+              schema = @io.swagger.v3.oas.annotations.media.Schema(
+                  implementation = UpdatePrefixesRequest.class
+              )
+          )
+      )
       @Valid @RequestBody UpdatePrefixesRequest request) {
 
     UpdatePrefixesCommand cmd = new UpdatePrefixesCommand(
@@ -321,31 +433,74 @@ public class PrefixManagementController {
   @DeleteMapping("/branches/{branch}/prefixes")
   @Operation(
       summary = "Remove prefixes",
-      description = "Remove specified prefixes (creates commit with PD directives)"
+      description = "Remove specified prefixes (creates commit with PD directives). "
+          + "Multiple prefixes can be specified using repeated 'prefix' query parameters. "
+          + "Returns 200 OK if no changes needed (prefixes don't exist)."
   )
   @ApiResponse(
       responseCode = "201",
-      description = "Created",
-      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+      description = "Commit created successfully",
+      content = @Content(
+          mediaType = MediaType.APPLICATION_JSON_VALUE,
+          schema = @io.swagger.v3.oas.annotations.media.Schema(
+              implementation = CommitResponse.class
+          )
+      ),
+      headers = {
+          @io.swagger.v3.oas.annotations.headers.Header(
+              name = "Location",
+              description = "URL of the created commit",
+              schema = @io.swagger.v3.oas.annotations.media.Schema(type = "string")
+          ),
+          @io.swagger.v3.oas.annotations.headers.Header(
+              name = "ETag",
+              description = "Commit ID as entity tag",
+              schema = @io.swagger.v3.oas.annotations.media.Schema(type = "string")
+          )
+      }
+  )
+  @ApiResponse(
+      responseCode = "200",
+      description = "No changes made (prefixes don't exist)",
+      content = @Content(
+          mediaType = MediaType.APPLICATION_JSON_VALUE,
+          schema = @io.swagger.v3.oas.annotations.media.Schema(
+              implementation = CommitResponse.class
+          )
+      )
   )
   @ApiResponse(
       responseCode = "400",
-      description = "Bad Request (missing author or prefix parameter)",
+      description = "Bad Request (missing author header or prefix parameter)",
+      content = @Content(mediaType = "application/problem+json")
+  )
+  @ApiResponse(
+      responseCode = "403",
+      description = "Forbidden (branch is protected)",
       content = @Content(mediaType = "application/problem+json")
   )
   @ApiResponse(
       responseCode = "404",
-      description = "Branch not found",
+      description = "Branch or dataset not found",
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<CommitResponse> deletePrefixes(
-      @Parameter(description = "Dataset name") @PathVariable String dataset,
-      @Parameter(description = "Branch name") @PathVariable String branch,
-      @Parameter(description = "Prefix names to remove", required = true)
+      @Parameter(description = "Dataset name", example = "mydata") @PathVariable String dataset,
+      @Parameter(description = "Branch name", example = "main") @PathVariable String branch,
+      @Parameter(
+          description = "Prefix names to remove (can be repeated: ?prefix=foo&prefix=bar)",
+          required = true,
+          example = "temp"
+      )
       @RequestParam("prefix") List<String> prefixNames,
-      @Parameter(description = "Optional commit message")
+      @Parameter(
+          description = "Optional commit message",
+          example = "Remove temporary prefixes")
       @RequestParam(required = false) String message,
-      @Parameter(description = "Commit author", required = true)
+      @Parameter(
+          description = "Commit author (required)",
+          required = true,
+          example = "Alice <alice@example.org>")
       @RequestHeader("SPARQL-VC-Author") String author) {
 
     // Convert prefix list to map (value doesn't matter for DELETE)
@@ -481,13 +636,19 @@ public class PrefixManagementController {
   @GetMapping("/branches/{branch}/prefixes/suggested")
   @Operation(
       summary = "Suggest prefix mappings",
-      description = "Analyzes dataset to discover namespaces and suggest conventional prefixes. "
-          + "Useful after importing RDF/XML or discovering new ontologies."
+      description = "Analyzes dataset to discover namespaces and suggest conventional prefixes "
+          + "based on the prefix.cc database. Useful after importing RDF/XML with full URIs "
+          + "or discovering new ontologies. Suggestions are sorted by usage frequency (descending)."
   )
   @ApiResponse(
       responseCode = "200",
-      description = "Suggestions retrieved successfully",
-      content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+      description = "Suggestions retrieved successfully (empty list if no namespaces detected)",
+      content = @Content(
+          mediaType = MediaType.APPLICATION_JSON_VALUE,
+          schema = @io.swagger.v3.oas.annotations.media.Schema(
+              implementation = SuggestedPrefixesResponse.class
+          )
+      )
   )
   @ApiResponse(
       responseCode = "404",
@@ -495,8 +656,8 @@ public class PrefixManagementController {
       content = @Content(mediaType = "application/problem+json")
   )
   public ResponseEntity<SuggestedPrefixesResponse> suggestPrefixes(
-      @Parameter(description = "Dataset name") @PathVariable String dataset,
-      @Parameter(description = "Branch name") @PathVariable String branch) {
+      @Parameter(description = "Dataset name", example = "mydata") @PathVariable String dataset,
+      @Parameter(description = "Branch name", example = "main") @PathVariable String branch) {
 
     // Validate branch exists (throws BranchNotFoundException if not)
     branchRepository

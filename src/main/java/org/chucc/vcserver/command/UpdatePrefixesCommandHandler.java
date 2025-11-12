@@ -11,6 +11,7 @@ import org.chucc.vcserver.event.CommitCreatedEvent;
 import org.chucc.vcserver.exception.BranchNotFoundException;
 import org.chucc.vcserver.repository.BranchRepository;
 import org.chucc.vcserver.repository.MaterializedBranchRepository;
+import org.chucc.vcserver.util.PrefixValidator;
 import org.springframework.stereotype.Component;
 
 /**
@@ -53,23 +54,33 @@ public class UpdatePrefixesCommandHandler {
    * @param cmd the update prefixes command
    * @return commit created event
    * @throws BranchNotFoundException if branch doesn't exist
+   * @throws IllegalArgumentException if prefix names or IRIs are invalid
    */
   public CommitCreatedEvent handle(UpdatePrefixesCommand cmd) {
-    // 1. Validate branch exists
+    // 1. Validate prefix names and IRIs
+    cmd.newPrefixes().forEach((prefixName, iri) -> {
+      PrefixValidator.validatePrefixName(prefixName);
+      // Only validate IRIs for PUT and PATCH operations (DELETE doesn't use IRI values)
+      if (cmd.operation() != UpdatePrefixesCommand.Operation.DELETE) {
+        PrefixValidator.validateAbsoluteIri(iri);
+      }
+    });
+
+    // 2. Validate branch exists
     branchRepository.findByDatasetAndName(cmd.dataset(), cmd.branch())
         .orElseThrow(() -> new BranchNotFoundException(cmd.branch()));
 
-    // 2. Get current prefixes from materialized branch
+    // 3. Get current prefixes from materialized branch
     DatasetGraph currentDsg = materializedBranchRepository
         .getBranchGraph(cmd.dataset(), cmd.branch());
     Map<String, String> oldPrefixes = currentDsg.getDefaultGraph()
         .getPrefixMapping()
         .getNsPrefixMap();
 
-    // 3. Generate RDFPatch with PA/PD directives
+    // 4. Generate RDFPatch with PA/PD directives
     RDFPatch patch = buildPrefixPatch(oldPrefixes, cmd.newPrefixes(), cmd.operation());
 
-    // 4. Create commit via existing handler
+    // 5. Create commit via existing handler
     String message = cmd.message().orElseGet(() -> generateDefaultMessage(cmd));
     CreateCommitCommand commitCmd = new CreateCommitCommand(
         cmd.dataset(),

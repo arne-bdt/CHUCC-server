@@ -245,4 +245,133 @@ class UpdatePrefixesCommandHandlerTest {
     verify(createCommitCommandHandler).handle(any(CreateCommitCommand.class));
     // Default message for PATCH: "Add prefixes: foaf, geo" (or similar)
   }
+
+  // ==============================================
+  // Validation Tests
+  // ==============================================
+
+  @Test
+  void handle_shouldThrowIllegalArgumentException_whenPrefixNameStartsWithNumber() {
+    // Arrange
+    UpdatePrefixesCommand cmd = new UpdatePrefixesCommand(
+        "test-dataset",
+        "main",
+        "TestUser",
+        Map.of("1invalid", "http://example.org/"),  // Starts with number
+        UpdatePrefixesCommand.Operation.PUT,
+        Optional.empty()
+    );
+
+    // Act & Assert
+    assertThatThrownBy(() -> handler.handle(cmd))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid prefix name");
+  }
+
+  @Test
+  void handle_shouldThrowIllegalArgumentException_whenPrefixNameStartsWithUnderscore() {
+    // Arrange
+    UpdatePrefixesCommand cmd = new UpdatePrefixesCommand(
+        "test-dataset",
+        "main",
+        "TestUser",
+        Map.of("_invalid", "http://example.org/"),  // Starts with underscore
+        UpdatePrefixesCommand.Operation.PUT,
+        Optional.empty()
+    );
+
+    // Act & Assert
+    assertThatThrownBy(() -> handler.handle(cmd))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid prefix name");
+  }
+
+  @Test
+  void handle_shouldThrowIllegalArgumentException_whenIriIsRelative() {
+    // Arrange
+    UpdatePrefixesCommand cmd = new UpdatePrefixesCommand(
+        "test-dataset",
+        "main",
+        "TestUser",
+        Map.of("ex", "../relative"),  // Relative IRI
+        UpdatePrefixesCommand.Operation.PUT,
+        Optional.empty()
+    );
+
+    // Act & Assert
+    assertThatThrownBy(() -> handler.handle(cmd))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("must be absolute");
+  }
+
+  @Test
+  void handle_shouldAcceptValidPrefixNamesAndIris() {
+    // Arrange
+    String dataset = "test-dataset";
+    String branch = "main";
+    CommitId headCommitId = CommitId.generate();
+
+    Branch mockBranch = new Branch(branch, headCommitId);
+    when(branchRepository.findByDatasetAndName(dataset, branch))
+        .thenReturn(Optional.of(mockBranch));
+
+    DatasetGraph mockDsg = new DatasetGraphInMemory();
+    when(materializedBranchRepository.getBranchGraph(dataset, branch))
+        .thenReturn(mockDsg);
+
+    CommitCreatedEvent mockEvent = mock(CommitCreatedEvent.class);
+    when(createCommitCommandHandler.handle(any(CreateCommitCommand.class)))
+        .thenReturn(mockEvent);
+
+    UpdatePrefixesCommand cmd = new UpdatePrefixesCommand(
+        dataset,
+        branch,
+        "TestUser",
+        Map.of(
+            "rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+            "foaf", "http://xmlns.com/foaf/0.1/",
+            "dc", "http://purl.org/dc/elements/1.1/",
+            "dcterms", "http://purl.org/dc/terms/"
+        ),
+        UpdatePrefixesCommand.Operation.PUT,
+        Optional.empty()
+    );
+
+    // Act & Assert
+    assertThat(handler.handle(cmd)).isEqualTo(mockEvent);
+    verify(createCommitCommandHandler).handle(any(CreateCommitCommand.class));
+  }
+
+  @Test
+  void handle_shouldNotValidateIriForDeleteOperation() {
+    // Arrange - DELETE operation doesn't use IRI values, so validation should be skipped
+    String dataset = "test-dataset";
+    String branch = "main";
+    CommitId headCommitId = CommitId.generate();
+
+    Branch mockBranch = new Branch(branch, headCommitId);
+    when(branchRepository.findByDatasetAndName(dataset, branch))
+        .thenReturn(Optional.of(mockBranch));
+
+    DatasetGraph mockDsg = new DatasetGraphInMemory();
+    when(materializedBranchRepository.getBranchGraph(dataset, branch))
+        .thenReturn(mockDsg);
+
+    CommitCreatedEvent mockEvent = mock(CommitCreatedEvent.class);
+    when(createCommitCommandHandler.handle(any(CreateCommitCommand.class)))
+        .thenReturn(mockEvent);
+
+    UpdatePrefixesCommand cmd = new UpdatePrefixesCommand(
+        dataset,
+        branch,
+        "TestUser",
+        Map.of("temp", ""),  // Empty IRI (unused for DELETE)
+        UpdatePrefixesCommand.Operation.DELETE,
+        Optional.empty()
+    );
+
+    // Act & Assert - should not throw despite invalid IRI
+    assertThat(handler.handle(cmd)).isEqualTo(mockEvent);
+    verify(createCommitCommandHandler).handle(any(CreateCommitCommand.class));
+  }
 }

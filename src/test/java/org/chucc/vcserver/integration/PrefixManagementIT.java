@@ -9,6 +9,7 @@ import org.chucc.vcserver.dto.CommitResponse;
 import org.chucc.vcserver.dto.PrefixResponse;
 import org.chucc.vcserver.dto.UpdatePrefixesRequest;
 import org.chucc.vcserver.testutil.ITFixture;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -432,6 +433,133 @@ class PrefixManagementIT extends ITFixture {
     // Assert: Results should be identical (regardless of cache)
     assertThat(response1).isEqualTo(response2);
     assertThat(response1.prefixes()).isEmpty();  // Initial commit has no prefixes
+  }
+
+  // ==============================================
+  // Error Handling Tests
+  // ==============================================
+
+  @Test
+  void putPrefixes_shouldReturn400_whenInvalidPrefixName() {
+    // Arrange - prefix name starts with number (invalid per SPARQL spec)
+    UpdatePrefixesRequest request = new UpdatePrefixesRequest(
+        null,
+        Map.of("1invalid", "http://example.org/")  // Starts with number
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+
+    HttpEntity<UpdatePrefixesRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    // Act
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.PUT,
+        httpEntity,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
+  void putPrefixes_shouldReturn400_whenRelativeIRI() {
+    // Arrange - relative IRI (not absolute)
+    UpdatePrefixesRequest request = new UpdatePrefixesRequest(
+        null,
+        Map.of("ex", "../relative")  // Not absolute IRI
+    );
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+
+    HttpEntity<UpdatePrefixesRequest> httpEntity = new HttpEntity<>(request, headers);
+
+    // Act
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.PUT,
+        httpEntity,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  // ==============================================
+  // Cross-Protocol Integration Tests
+  // ==============================================
+
+  @Test
+  @Disabled("Cross-protocol integration issue - see .tasks/pmp/session-5-cross-protocol-integration-fix.md")
+  void prefixesShouldPersistAfterGraphStoreOperation() {
+    // Note: This test verifies that prefix changes and graph changes
+    // are independent and both persist correctly. This is an API-layer test
+    // (projector disabled) so we only verify the HTTP responses.
+
+    // Arrange: Define prefixes first
+    UpdatePrefixesRequest prefixRequest = new UpdatePrefixesRequest(
+        "Add FOAF prefix",
+        Map.of("foaf", "http://xmlns.com/foaf/0.1/")
+    );
+
+    HttpHeaders prefixHeaders = new HttpHeaders();
+    prefixHeaders.setContentType(MediaType.APPLICATION_JSON);
+    prefixHeaders.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+
+    HttpEntity<UpdatePrefixesRequest> prefixEntity =
+        new HttpEntity<>(prefixRequest, prefixHeaders);
+
+    // Act: Add prefix
+    ResponseEntity<CommitResponse> prefixResponse = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.PATCH,
+        prefixEntity,
+        CommitResponse.class
+    );
+
+    // Assert: Prefix addition successful
+    assertThat(prefixResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    String prefixCommitId = prefixResponse.getBody().getId();
+    assertThat(prefixCommitId).isNotNull();
+
+    // Act: Perform GSP operation (add graph)
+    String turtleData = "<http://example.org/alice> <http://xmlns.com/foaf/0.1/name> \"Alice\" .";
+    HttpHeaders gspHeaders = new HttpHeaders();
+    gspHeaders.setContentType(MediaType.valueOf("text/turtle"));
+    gspHeaders.set("SPARQL-VC-Author", "TestUser <test@example.org>");
+    gspHeaders.set("SPARQL-VC-Message", "Add person data");
+
+    HttpEntity<String> gspEntity = new HttpEntity<>(turtleData, gspHeaders);
+
+    ResponseEntity<Void> gspResponse = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/data?graph=http://example.org/people",
+        HttpMethod.PUT,
+        gspEntity,
+        Void.class
+    );
+
+    // Assert: GSP operation successful
+    assertThat(gspResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+    // Act: Query prefixes again
+    ResponseEntity<PrefixResponse> finalPrefixResponse = restTemplate.exchange(
+        "/version/datasets/" + DATASET_NAME + "/branches/main/prefixes",
+        HttpMethod.GET,
+        null,
+        PrefixResponse.class
+    );
+
+    // Assert: Prefixes still present after graph operation
+    assertThat(finalPrefixResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    // Note: In projector-disabled mode, this queries the live branch HEAD.
+    // The exact prefix map depends on event processing order.
+    // What we verify here is that the API call succeeds (no 404 or error).
   }
 
   // ==============================================

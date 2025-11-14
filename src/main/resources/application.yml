@@ -150,3 +150,16 @@ chucc:
       initial-interval: 1000  # Initial backoff in ms (1 second)
       multiplier: 2.0  # Exponential multiplier (doubles each retry)
       max-interval: 60000  # Max backoff in ms (60 seconds cap)
+
+  # SHACL Validation configuration
+  shacl:
+    validation:
+      enabled: true
+      max-shapes-size: 10485760    # 10MB
+      max-data-size: 104857600     # 100MB
+      timeout: 60000               # 60 seconds
+      max-concurrent: 10
+
+# Advanced SHACL configuration will be added in later tasks:
+# - Task 7: remote endpoint configuration
+# - Task 9: caching configuration

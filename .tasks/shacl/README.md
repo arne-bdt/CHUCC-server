@@ -314,20 +314,20 @@ chucc:
 
 ## Progress Tracking
 
-**Phase 1:** ⏳ Not Started (0/3 tasks)
+**Phase 1:** 🔄 In Progress (1/3 tasks)
 **Phase 2:** ⏳ Not Started (0/2 tasks)
 **Phase 3:** ⏳ Not Started (0/1 tasks)
 **Phase 4:** ⏳ Not Started (0/2 tasks)
 **Phase 5:** ⏳ Not Started (0/1 tasks)
 
-**Overall Progress:** 0% (0/9 tasks completed)
+**Overall Progress:** 11% (1/9 tasks completed)
 
 ---
 
 ## Task Files
 
 ### Phase 1 (MVP)
-- `01-core-infrastructure.md` ✅ Ready
+- ~~`01-core-infrastructure.md`~~ ✅ **Completed** (2025-11-14)
 - `02-basic-inline-validation.md` ✅ Ready
 - `03-local-graph-references.md` ✅ Ready
 
@@ -378,7 +378,36 @@ When a task is completed:
 
 ## Completed Tasks
 
-(None yet - will be updated as tasks are completed)
+### Task 1: Core Infrastructure ✅ (2025-11-14)
+**Phase:** 1 (Core Validation - MVP)
+**Completed By:** Claude Code
+
+**Implementation:**
+- Created 6 SHACL DTOs with Bean Validation and cross-field validation:
+  - `GraphReference` - Validates field combinations (inline/local/remote) and mutually exclusive selectors
+  - `DataReference` - Defensive copying pattern for immutable lists
+  - `ValidationOptions` - Validation mode configuration
+  - `ResultsConfig` - Results handling with nested StoreConfig
+  - `ValidationRequest` - Complete request structure with defaults
+  - `ValidationResponse` - Response for stored results
+- Created 3 custom exceptions extending `VcException`:
+  - `InvalidGraphReferenceException` (400 Bad Request)
+  - `InvalidShapesException` (422 Unprocessable Entity)
+  - `ShaclValidationException` (500 Internal Server Error)
+- Created `ShaclValidationProperties` configuration class with resource limits
+- Created `ShaclValidationController` with endpoint skeleton at `POST /{dataset}/shacl`
+- Created `ShaclValidationIT` integration test verifying endpoint exists
+- Added SHACL configuration to `application.yml`
+
+**Quality:**
+- Zero Checkstyle violations
+- Zero SpotBugs warnings
+- Zero PMD violations
+- Zero compiler warnings
+- BUILD SUCCESS
+
+**Files Created:** 12 new files
+**Files Modified:** 1 file (application.yml)
 
 ---
 
@@ -395,6 +424,6 @@ When a task is completed:
 
 ---
 
-**Last Updated:** 2025-11-14 (revised based on architectural review)
-**Status:** Ready for implementation
-**Next Task:** Task 1 - Core Infrastructure
+**Last Updated:** 2025-11-14 (Task 1 completed)
+**Status:** In Progress (1/9 tasks completed)
+**Next Task:** Task 2 - Basic Inline Validation

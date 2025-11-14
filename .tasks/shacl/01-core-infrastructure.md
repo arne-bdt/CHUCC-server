@@ -10,7 +10,7 @@
 ## Overview
 
 This task creates the foundational infrastructure for SHACL validation:
-- Request/response DTOs with JSON schema validation
+- Request/response DTOs with JSON schema validation and cross-field validation
 - Configuration properties for resource limits and feature flags
 - Custom exceptions for validation errors
 - Base controller with endpoint skeleton
@@ -48,6 +48,7 @@ This task creates the foundational infrastructure for SHACL validation:
 {
   "shapes": {
     "source": "inline" | "local" | "remote",
+    "format": "turtle" | "jsonld" | "rdfxml" | "ntriples" | "n3",
     "dataset": "string",
     "graph": "string",
     "endpoint": "string",
@@ -66,7 +67,7 @@ This task creates the foundational infrastructure for SHACL validation:
     "asOf": "RFC3339"
   },
   "options": {
-    "validateGraphs": "separately" | "merged" | "dataset",
+    "validateGraphs": "separately" | "union",
     "targetNode": "string",
     "severity": "Violation" | "Warning" | "Info"
   },
@@ -102,8 +103,8 @@ This task creates the foundational infrastructure for SHACL validation:
 ### Error Codes (RFC 7807)
 
 - `invalid_request` - Malformed request body
-- `invalid_graph_reference` - Invalid graph reference
-- `selector_conflict` - Conflicting selectors (branch + commit)
+- `invalid_graph_reference` - Invalid graph reference or field combination
+- `selector_conflict` - Conflicting selectors (branch + commit + asOf)
 - `dataset_not_found` - Dataset does not exist
 - `shapes_graph_not_found` - Shapes graph does not exist
 - `data_graph_not_found` - Data graph does not exist
@@ -121,6 +122,7 @@ This task creates the foundational infrastructure for SHACL validation:
 ### Step 1: Create DTOs
 
 #### 1.1 GraphReference DTO
+
 **File:** `src/main/java/org/chucc/vcserver/dto/shacl/GraphReference.java`
 
 ```java
@@ -129,14 +131,45 @@ package org.chucc.vcserver.dto.shacl;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import org.chucc.vcserver.exception.InvalidGraphReferenceException;
+
+import java.util.stream.Stream;
 
 /**
  * Reference to a graph (local, remote, or inline).
+ *
+ * <p>Supports three source types:</p>
+ * <ul>
+ *   <li><b>inline</b> - RDF data embedded in request (requires: data)</li>
+ *   <li><b>local</b> - Graph from local dataset (requires: dataset, graph)</li>
+ *   <li><b>remote</b> - Graph from remote SPARQL endpoint (requires: endpoint, graph)</li>
+ * </ul>
+ *
+ * <p><b>Version control selectors</b> (optional, mutually exclusive):</p>
+ * <ul>
+ *   <li>branch - Validate against branch HEAD</li>
+ *   <li>commit - Validate against specific commit</li>
+ *   <li>asOf - Validate against state at timestamp</li>
+ * </ul>
+ *
+ * @param source graph source type
+ * @param format RDF serialization format (default: turtle)
+ * @param dataset local dataset name (for source=local)
+ * @param graph graph URI, "default", or "union" (for source=local/remote)
+ * @param endpoint remote SPARQL endpoint URL (for source=remote)
+ * @param data inline RDF content (for source=inline)
+ * @param branch branch name selector (optional)
+ * @param commit commit ID selector (optional)
+ * @param asOf RFC3339 timestamp selector (optional)
  */
 public record GraphReference(
-    @NotBlank
+    @NotBlank(message = "source is required")
     @Pattern(regexp = "inline|local|remote", message = "source must be 'inline', 'local', or 'remote'")
     String source,
+
+    @Pattern(regexp = "turtle|jsonld|rdfxml|ntriples|n3",
+             message = "format must be 'turtle', 'jsonld', 'rdfxml', 'ntriples', or 'n3'")
+    String format,
 
     @Pattern(regexp = "^[A-Za-z0-9._-]{1,249}$", message = "Invalid dataset name")
     String dataset,
@@ -156,11 +189,111 @@ public record GraphReference(
 
     String asOf  // RFC3339 timestamp
 ) {
-  // Validation methods to be added
+
+  /**
+   * Compact constructor with cross-field validation.
+   */
+  public GraphReference {
+    // Set default format
+    if (format == null) {
+      format = "turtle";
+    }
+
+    // Validate field combinations based on source
+    validateFieldCombinations(source, dataset, graph, endpoint, data);
+
+    // Validate selector conflicts
+    validateSelectors(branch, commit, asOf);
+  }
+
+  /**
+   * Validate required fields for each source type.
+   *
+   * @param source graph source type
+   * @param dataset dataset name
+   * @param graph graph URI
+   * @param endpoint SPARQL endpoint URL
+   * @param data inline RDF content
+   * @throws InvalidGraphReferenceException if field combination is invalid
+   */
+  private static void validateFieldCombinations(
+      String source,
+      String dataset,
+      String graph,
+      String endpoint,
+      String data
+  ) {
+    switch (source) {
+      case "inline":
+        if (data == null || data.isBlank()) {
+          throw new InvalidGraphReferenceException(
+              "source='inline' requires 'data' field"
+          );
+        }
+        if (dataset != null || endpoint != null) {
+          throw new InvalidGraphReferenceException(
+              "source='inline' must not have 'dataset' or 'endpoint' fields"
+          );
+        }
+        break;
+
+      case "local":
+        if (dataset == null || graph == null) {
+          throw new InvalidGraphReferenceException(
+              "source='local' requires 'dataset' and 'graph' fields"
+          );
+        }
+        if (data != null || endpoint != null) {
+          throw new InvalidGraphReferenceException(
+              "source='local' must not have 'data' or 'endpoint' fields"
+          );
+        }
+        break;
+
+      case "remote":
+        if (endpoint == null || graph == null) {
+          throw new InvalidGraphReferenceException(
+              "source='remote' requires 'endpoint' and 'graph' fields"
+          );
+        }
+        if (data != null || dataset != null) {
+          throw new InvalidGraphReferenceException(
+              "source='remote' must not have 'data' or 'dataset' fields"
+          );
+        }
+        break;
+
+      default:
+        throw new InvalidGraphReferenceException(
+            "source must be 'inline', 'local', or 'remote'"
+        );
+    }
+  }
+
+  /**
+   * Validate that selectors are mutually exclusive.
+   *
+   * @param branch branch name selector
+   * @param commit commit ID selector
+   * @param asOf timestamp selector
+   * @throws InvalidGraphReferenceException if multiple selectors provided
+   */
+  private static void validateSelectors(String branch, String commit, String asOf) {
+    long selectorCount = Stream.of(branch, commit, asOf)
+        .filter(s -> s != null && !s.isBlank())
+        .count();
+
+    if (selectorCount > 1) {
+      throw new InvalidGraphReferenceException(
+          "Only one selector allowed: branch, commit, or asOf"
+      );
+    }
+  }
 }
 ```
 
 #### 1.2 DataReference DTO
+
 **File:** `src/main/java/org/chucc/vcserver/dto/shacl/DataReference.java`
 
 ```java
@@ -169,13 +302,37 @@ package org.chucc.vcserver.dto.shacl;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
+import org.chucc.vcserver.exception.InvalidGraphReferenceException;
+
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * Reference to data graphs to be validated.
+ *
+ * <p>Supports two source types:</p>
+ * <ul>
+ *   <li><b>local</b> - Graphs from local dataset (requires: dataset, graphs)</li>
+ *   <li><b>remote</b> - Graphs from remote SPARQL endpoint (requires: endpoint, graphs)</li>
+ * </ul>
+ *
+ * <p><b>Version control selectors</b> (optional, mutually exclusive):</p>
+ * <ul>
+ *   <li>branch - Validate against branch HEAD</li>
+ *   <li>commit - Validate against specific commit</li>
+ *   <li>asOf - Validate against state at timestamp</li>
+ * </ul>
+ *
+ * @param source data source type
+ * @param dataset local dataset name (for source=local)
+ * @param graphs list of graph URIs (or "default", "union")
+ * @param endpoint remote SPARQL endpoint URL (for source=remote)
+ * @param branch branch name selector (optional)
+ * @param commit commit ID selector (optional)
+ * @param asOf RFC3339 timestamp selector (optional)
  */
 public record DataReference(
-    @NotBlank
+    @NotBlank(message = "source is required")
     @Pattern(regexp = "local|remote", message = "source must be 'local' or 'remote'")
     String source,
 
@@ -196,10 +353,89 @@ public record DataReference(
 
     String asOf
 ) {
+
+  /**
+   * Compact constructor with cross-field validation.
+   */
+  public DataReference {
+    // Validate field combinations based on source
+    validateFieldCombinations(source, dataset, endpoint);
+
+    // Validate selector conflicts
+    validateSelectors(branch, commit, asOf);
+  }
+
+  /**
+   * Validate required fields for each source type.
+   *
+   * @param source data source type
+   * @param dataset dataset name
+   * @param endpoint SPARQL endpoint URL
+   * @throws InvalidGraphReferenceException if field combination is invalid
+   */
+  private static void validateFieldCombinations(
+      String source,
+      String dataset,
+      String endpoint
+  ) {
+    switch (source) {
+      case "local":
+        if (dataset == null) {
+          throw new InvalidGraphReferenceException(
+              "source='local' requires 'dataset' field"
+          );
+        }
+        if (endpoint != null) {
+          throw new InvalidGraphReferenceException(
+              "source='local' must not have 'endpoint' field"
+          );
+        }
+        break;
+
+      case "remote":
+        if (endpoint == null) {
+          throw new InvalidGraphReferenceException(
+              "source='remote' requires 'endpoint' field"
+          );
+        }
+        if (dataset != null) {
+          throw new InvalidGraphReferenceException(
+              "source='remote' must not have 'dataset' field"
+          );
+        }
+        break;
+
+      default:
+        throw new InvalidGraphReferenceException(
+            "source must be 'local' or 'remote'"
+        );
+    }
+  }
+
+  /**
+   * Validate that selectors are mutually exclusive.
+   *
+   * @param branch branch name selector
+   * @param commit commit ID selector
+   * @param asOf timestamp selector
+   * @throws InvalidGraphReferenceException if multiple selectors provided
+   */
+  private static void validateSelectors(String branch, String commit, String asOf) {
+    long selectorCount = Stream.of(branch, commit, asOf)
+        .filter(s -> s != null && !s.isBlank())
+        .count();
+
+    if (selectorCount > 1) {
+      throw new InvalidGraphReferenceException(
+          "Only one selector allowed: branch, commit, or asOf"
+      );
+    }
+  }
 }
 ```
 
 #### 1.3 ValidationOptions DTO
+
 **File:** `src/main/java/org/chucc/vcserver/dto/shacl/ValidationOptions.java`
 
 ```java
@@ -209,16 +445,32 @@ import jakarta.validation.constraints.Pattern;
 
 /**
  * Options for SHACL validation.
+ *
+ * <p><b>Validation modes:</b></p>
+ * <ul>
+ *   <li><b>separately</b> - Validate each graph independently (default)</li>
+ *   <li><b>union</b> - Combine graphs into union before validation (for cross-graph constraints)</li>
+ * </ul>
+ *
+ * @param validateGraphs validation mode (default: separately)
+ * @param targetNode URI of specific resource to validate (optional)
+ * @param severity filter results by severity level (optional)
  */
 public record ValidationOptions(
-    @Pattern(regexp = "separately|merged|dataset", message = "validateGraphs must be 'separately', 'merged', or 'dataset'")
+    @Pattern(regexp = "separately|union",
+             message = "validateGraphs must be 'separately' or 'union'")
     String validateGraphs,  // Default: "separately"
 
     String targetNode,  // URI of specific resource to validate
 
-    @Pattern(regexp = "Violation|Warning|Info", message = "severity must be 'Violation', 'Warning', or 'Info'")
+    @Pattern(regexp = "Violation|Warning|Info",
+             message = "severity must be 'Violation', 'Warning', or 'Info'")
     String severity  // Filter results by severity
 ) {
+
+  /**
+   * Compact constructor with defaults.
+   */
   public ValidationOptions {
     if (validateGraphs == null) {
       validateGraphs = "separately";
@@ -228,6 +480,7 @@ public record ValidationOptions(
 ```
 
 #### 1.4 ResultsConfig DTO
+
 **File:** `src/main/java/org/chucc/vcserver/dto/shacl/ResultsConfig.java`
 
 ```java
@@ -238,6 +491,16 @@ import jakarta.validation.constraints.Pattern;
 
 /**
  * Configuration for validation results.
+ *
+ * <p>Results can be:</p>
+ * <ul>
+ *   <li>Returned immediately in HTTP response (returnReport=true)</li>
+ *   <li>Stored in a graph for historical analysis (store config provided)</li>
+ *   <li>Both returned and stored</li>
+ * </ul>
+ *
+ * @param returnReport whether to return report in HTTP response (default: true)
+ * @param store storage configuration (optional)
  */
 public record ResultsConfig(
     Boolean returnReport,  // Default: true
@@ -245,12 +508,23 @@ public record ResultsConfig(
     @Valid
     StoreConfig store
 ) {
+
+  /**
+   * Compact constructor with defaults.
+   */
   public ResultsConfig {
     if (returnReport == null) {
       returnReport = true;
     }
   }
 
+  /**
+   * Configuration for storing validation results.
+   *
+   * @param dataset target dataset name
+   * @param graph target graph URI
+   * @param overwrite whether to overwrite existing graph (default: false)
+   */
   public record StoreConfig(
       @Pattern(regexp = "^[A-Za-z0-9._-]{1,249}$", message = "Invalid dataset name")
       String dataset,
@@ -259,6 +533,10 @@ public record ResultsConfig(
 
       Boolean overwrite  // Default: false
   ) {
+
+    /**
+     * Compact constructor with defaults.
+     */
     public StoreConfig {
       if (overwrite == null) {
         overwrite = false;
@@ -269,6 +547,7 @@ public record ResultsConfig(
 ```
 
 #### 1.5 ValidationRequest DTO
+
 **File:** `src/main/java/org/chucc/vcserver/dto/shacl/ValidationRequest.java`
 
 ```java
@@ -279,6 +558,21 @@ import jakarta.validation.constraints.NotNull;
 
 /**
  * SHACL validation request.
+ *
+ * <p>Complete request structure:</p>
+ * <pre>
+ * {
+ *   "shapes": {GraphReference},
+ *   "data": {DataReference},
+ *   "options": {ValidationOptions},  // optional
+ *   "results": {ResultsConfig}       // optional
+ * }
+ * </pre>
+ *
+ * @param shapes shapes graph reference
+ * @param data data graph(s) reference
+ * @param options validation options (optional, defaults applied)
+ * @param results results configuration (optional, defaults applied)
  */
 public record ValidationRequest(
     @NotNull(message = "shapes is required")
@@ -295,6 +589,10 @@ public record ValidationRequest(
     @Valid
     ResultsConfig results
 ) {
+
+  /**
+   * Compact constructor with defaults.
+   */
   public ValidationRequest {
     if (options == null) {
       options = new ValidationOptions(null, null, null);
@@ -307,6 +605,7 @@ public record ValidationRequest(
 ```
 
 #### 1.6 ValidationResponse DTO
+
 **File:** `src/main/java/org/chucc/vcserver/dto/shacl/ValidationResponse.java`
 
 ```java
@@ -314,6 +613,13 @@ package org.chucc.vcserver.dto.shacl;
 
 /**
  * SHACL validation response (when storing results).
+ *
+ * <p>Returned with HTTP 202 Accepted when results are stored.</p>
+ *
+ * @param message success message
+ * @param commitId version control commit ID
+ * @param conforms whether validation passed
+ * @param resultsGraph graph URI where results were stored
  */
 public record ValidationResponse(
     String message,
@@ -327,6 +633,7 @@ public record ValidationResponse(
 ### Step 2: Create Custom Exceptions
 
 #### 2.1 ShaclValidationException
+
 **File:** `src/main/java/org/chucc/vcserver/exception/ShaclValidationException.java`
 
 ```java
@@ -336,13 +643,27 @@ import org.springframework.http.HttpStatus;
 
 /**
  * Exception thrown when SHACL validation fails (engine error, not validation report).
+ *
+ * <p>This indicates a technical failure (e.g., timeout, out of memory), not
+ * a validation failure (which returns a normal sh:ValidationReport).</p>
  */
 public class ShaclValidationException extends VcServerException {
 
+  /**
+   * Construct exception with message.
+   *
+   * @param message error message
+   */
   public ShaclValidationException(String message) {
     super(message, HttpStatus.INTERNAL_SERVER_ERROR, "validation_error");
   }
 
+  /**
+   * Construct exception with message and cause.
+   *
+   * @param message error message
+   * @param cause underlying exception
+   */
   public ShaclValidationException(String message, Throwable cause) {
     super(message, HttpStatus.INTERNAL_SERVER_ERROR, "validation_error", cause);
   }
@@ -350,6 +671,7 @@ public class ShaclValidationException extends VcServerException {
 ```
 
 #### 2.2 InvalidShapesException
+
 **File:** `src/main/java/org/chucc/vcserver/exception/InvalidShapesException.java`
 
 ```java
@@ -358,14 +680,27 @@ package org.chucc.vcserver.exception;
 import org.springframework.http.HttpStatus;
 
 /**
- * Exception thrown when shapes graph is invalid.
+ * Exception thrown when shapes graph is invalid or cannot be parsed.
+ *
+ * <p>Returns HTTP 422 Unprocessable Entity with error type 'invalid_shapes'.</p>
  */
 public class InvalidShapesException extends VcServerException {
 
+  /**
+   * Construct exception with message.
+   *
+   * @param message error message
+   */
   public InvalidShapesException(String message) {
     super(message, HttpStatus.UNPROCESSABLE_ENTITY, "invalid_shapes");
   }
 
+  /**
+   * Construct exception with message and cause.
+   *
+   * @param message error message
+   * @param cause underlying exception
+   */
   public InvalidShapesException(String message, Throwable cause) {
     super(message, HttpStatus.UNPROCESSABLE_ENTITY, "invalid_shapes", cause);
   }
@@ -373,6 +708,7 @@ public class InvalidShapesException extends VcServerException {
 ```
 
 #### 2.3 InvalidGraphReferenceException
+
 **File:** `src/main/java/org/chucc/vcserver/exception/InvalidGraphReferenceException.java`
 
 ```java
@@ -382,9 +718,24 @@ import org.springframework.http.HttpStatus;
 
 /**
  * Exception thrown when graph reference is invalid.
+ *
+ * <p>Common causes:</p>
+ * <ul>
+ *   <li>Missing required field for source type</li>
+ *   <li>Conflicting fields (e.g., dataset with source=inline)</li>
+ *   <li>Multiple selectors (branch + commit + asOf)</li>
+ *   <li>Invalid graph URI</li>
+ * </ul>
+ *
+ * <p>Returns HTTP 400 Bad Request with error type 'invalid_graph_reference'.</p>
  */
 public class InvalidGraphReferenceException extends VcServerException {
 
+  /**
+   * Construct exception with message.
+   *
+   * @param message error message
+   */
   public InvalidGraphReferenceException(String message) {
     super(message, HttpStatus.BAD_REQUEST, "invalid_graph_reference");
   }
@@ -405,6 +756,9 @@ import org.springframework.validation.annotation.Validated;
 
 /**
  * Configuration properties for SHACL validation.
+ *
+ * <p>Basic resource limits for MVP. Advanced features (remote endpoints, caching)
+ * will add additional configuration sections in later tasks.</p>
  */
 @ConfigurationProperties(prefix = "chucc.shacl.validation")
 @Validated
@@ -412,27 +766,25 @@ public record ShaclValidationProperties(
     Boolean enabled,  // Default: true
 
     @Min(1024)
-    @Max(104857600)
+    @Max(104857600)  // 100MB
     Integer maxShapesSize,  // Default: 10MB
 
     @Min(1024)
-    @Max(1073741824)
+    @Max(1073741824)  // 1GB
     Integer maxDataSize,  // Default: 100MB
 
     @Min(1000)
-    @Max(600000)
+    @Max(600000)  // 10 minutes
     Integer timeout,  // Default: 60 seconds
 
     @Min(1)
     @Max(100)
-    Integer maxConcurrent,  // Default: 10
-
-    RemoteConfig remote,
-
-    CacheConfig cache,
-
-    StorageConfig storage
+    Integer maxConcurrent  // Default: 10
 ) {
+
+  /**
+   * Compact constructor with defaults.
+   */
   public ShaclValidationProperties {
     if (enabled == null) {
       enabled = true;
@@ -449,28 +801,6 @@ public record ShaclValidationProperties(
     if (maxConcurrent == null) {
       maxConcurrent = 10;
     }
-  }
-
-  public record RemoteConfig(
-      Boolean enabled,
-      Integer timeout,
-      Integer maxResponseSize,
-      Boolean blockPrivateIps,
-      java.util.List<String> allowedSchemes
-  ) {
-  }
-
-  public record CacheConfig(
-      Boolean enabled,
-      Integer ttl,
-      Integer maxEntries
-  ) {
-  }
-
-  public record StorageConfig(
-      Boolean defaultOverwrite,
-      Boolean enableVersioning
-  ) {
   }
 }
 ```
@@ -499,6 +829,23 @@ import org.springframework.web.bind.annotation.*;
  * against SHACL shapes with flexible source options (inline, local datasets,
  * remote endpoints) and result persistence.</p>
  *
+ * <p><b>Endpoint:</b> POST /{dataset}/shacl</p>
+ *
+ * <p><b>Validation sources:</b></p>
+ * <ul>
+ *   <li>Inline shapes (embedded in request)</li>
+ *   <li>Local graphs (same or different dataset)</li>
+ *   <li>Remote SPARQL endpoints</li>
+ *   <li>Historical validation (branch/commit/asOf selectors)</li>
+ * </ul>
+ *
+ * <p><b>Results handling:</b></p>
+ * <ul>
+ *   <li>Return immediately (200 OK with sh:ValidationReport)</li>
+ *   <li>Store for historical analysis (202 Accepted with commit ID)</li>
+ *   <li>Both return and store</li>
+ * </ul>
+ *
  * @see <a href="../../protocol/SHACL_Validation_Protocol.md">SHACL Validation Protocol</a>
  */
 @RestController
@@ -516,12 +863,13 @@ public class ShaclValidationController {
    *   <li>Local graph references (same or different dataset)</li>
    *   <li>Remote SPARQL endpoints</li>
    *   <li>Historical validation (branch/commit/asOf selectors)</li>
+   *   <li>Cross-graph validation (union mode)</li>
    * </ul>
    *
    * <p>Results can be returned immediately and/or stored in a specified graph
    * for historical analysis.</p>
    *
-   * @param dataset dataset name (path variable)
+   * @param dataset dataset name (path variable, used as default for local references)
    * @param request validation request with shapes, data, options, and results config
    * @return validation report (200 OK) or storage confirmation (202 Accepted)
    */
@@ -535,10 +883,10 @@ public class ShaclValidationController {
     // TODO: Implementation in subsequent tasks
     // - Task 2: Basic inline validation
     // - Task 3: Local graph reference resolution
-    // - Task 4-5: Cross-dataset and validation modes
-    // - Task 6-7: Result storage with CQRS
-    // - Task 8: Version control selectors
-    // - Task 9-10: Remote endpoint support
+    // - Task 4: Union graph validation (cross-graph constraints)
+    // - Task 5: Result storage via Graph Store Protocol
+    // - Task 6: Version control selectors (branch/commit/asOf)
+    // - Task 7-8: Remote endpoint support
 
     return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
         .body("SHACL validation not yet implemented");
@@ -572,23 +920,9 @@ chucc:
       timeout: 60000               # 60 seconds
       max-concurrent: 10
 
-      remote:
-        enabled: true
-        timeout: 30000             # 30 seconds
-        max-response-size: 104857600
-        block-private-ips: true
-        allowed-schemes:
-          - http
-          - https
-
-      cache:
-        enabled: true
-        ttl: 3600                  # 1 hour
-        max-entries: 100
-
-      storage:
-        default-overwrite: false
-        enable-versioning: true
+# Advanced configuration will be added in later tasks:
+# - Task 7: remote endpoint configuration
+# - Task 9: caching configuration
 ```
 
 ### Step 7: Create Integration Test Skeleton
@@ -609,6 +943,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration tests for SHACL Validation Protocol.
+ *
+ * <p>This test class will be expanded in Task 2 with actual validation tests.</p>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("it")
@@ -642,12 +978,13 @@ class ShaclValidationIT extends ITFixture {
 
 ### Unit Tests (Not Required for This Task)
 - DTOs are simple records with validation annotations
+- Cross-field validation is tested via integration tests
 - Configuration properties are tested via integration tests
 
 ### Integration Tests
 1. **Endpoint Exists** - Verify `/shacl` endpoint is accessible (not 404)
-2. **Invalid Request** - Verify validation errors for malformed requests
-3. **Configuration Loading** - Verify properties loaded correctly
+2. **Invalid Request** - Verify validation errors for malformed requests (will be added in Task 2)
+3. **Configuration Loading** - Verify properties loaded correctly (implicit in endpoint test)
 
 **Test Pattern:** Projector DISABLED (API layer test only)
 
@@ -693,7 +1030,10 @@ class ShaclValidationIT extends ITFixture {
 ## Success Criteria
 
 - ✅ All 12 new files created with proper Javadoc
-- ✅ DTOs have validation annotations
+- ✅ DTOs have validation annotations AND cross-field validation
+- ✅ GraphReference validates field combinations (inline/local/remote)
+- ✅ DataReference validates field combinations (local/remote)
+- ✅ Selector conflicts detected (branch + commit + asOf)
 - ✅ Controller endpoint responds (not 404)
 - ✅ Configuration properties loaded correctly
 - ✅ Integration test passes (endpoint exists)

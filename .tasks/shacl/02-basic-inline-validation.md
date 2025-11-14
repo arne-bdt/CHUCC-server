@@ -12,7 +12,8 @@
 This task implements basic SHACL validation with inline shapes, providing compatibility with Apache Jena Fuseki's SHACL endpoint.
 
 **Features:**
-- Accept shapes graph as inline RDF content (Turtle, JSON-LD, RDF/XML)
+- Accept shapes graph as inline RDF content in multiple formats
+- Format detection from `shapes.format` field (turtle, jsonld, rdfxml, ntriples, n3)
 - Validate local data graphs (default, named, or union)
 - Return validation report in requested RDF format
 - Content negotiation for response format
@@ -25,14 +26,14 @@ This task implements basic SHACL validation with inline shapes, providing compat
 ## Current State
 
 **Existing (from Task 1):**
-- ✅ DTOs (ValidationRequest, ValidationResponse, GraphReference, DataReference)
+- ✅ DTOs (ValidationRequest, ValidationResponse, GraphReference with format field, DataReference)
 - ✅ Exceptions (ShaclValidationException, InvalidShapesException)
 - ✅ Configuration (ShaclValidationProperties)
 - ✅ Controller skeleton (ShaclValidationController)
 
 **Missing:**
 - ❌ ShaclValidationEngine (Apache Jena SHACL integration)
-- ❌ ShaclValidationService (orchestration)
+- ❌ ShaclValidationService (orchestration with format detection)
 - ❌ Content negotiation for RDF formats
 - ❌ Integration tests for inline validation
 
@@ -44,7 +45,7 @@ This task implements basic SHACL validation with inline shapes, providing compat
 
 **Endpoint:** `POST /{dataset}/shacl`
 
-**Request Example (Inline Shapes):**
+**Request Example (Inline Shapes - Turtle):**
 ```bash
 curl -X POST http://localhost:8080/mydata/shacl \
   -H "Content-Type: application/json" \
@@ -52,7 +53,26 @@ curl -X POST http://localhost:8080/mydata/shacl \
   -d '{
     "shapes": {
       "source": "inline",
+      "format": "turtle",
       "data": "@prefix sh: <http://www.w3.org/ns/shacl#> ..."
+    },
+    "data": {
+      "source": "local",
+      "dataset": "mydata",
+      "graphs": ["default"]
+    }
+  }'
+```
+
+**Request Example (Inline Shapes - JSON-LD):**
+```bash
+curl -X POST http://localhost:8080/mydata/shacl \
+  -H "Content-Type: application/json" \
+  -d '{
+    "shapes": {
+      "source": "inline",
+      "format": "jsonld",
+      "data": "{\"@context\": ..., \"@type\": \"sh:NodeShape\", ...}"
     },
     "data": {
       "source": "local",
@@ -72,12 +92,12 @@ curl -X POST http://localhost:8080/mydata/shacl \
 
 ### Supported RDF Formats
 
-**Input (shapes.data):**
-- `text/turtle` (default)
-- `application/ld+json`
-- `application/rdf+xml`
-- `text/n3`
-- `application/n-triples`
+**Input (shapes.format):**
+- `turtle` (default) - Turtle syntax
+- `jsonld` - JSON-LD
+- `rdfxml` - RDF/XML
+- `ntriples` - N-Triples
+- `n3` - Notation3
 
 **Output (Accept header):**
 - `text/turtle` (default)
@@ -199,6 +219,13 @@ public class ShaclValidationService {
   private final DatasetGraphRepository datasetGraphRepository;
   private final ShaclValidationProperties properties;
 
+  /**
+   * Construct ShaclValidationService.
+   *
+   * @param validationEngine SHACL validation engine
+   * @param datasetGraphRepository dataset graph repository
+   * @param properties validation configuration properties
+   */
   public ShaclValidationService(
       ShaclValidationEngine validationEngine,
       DatasetGraphRepository datasetGraphRepository,
@@ -259,20 +286,21 @@ public class ShaclValidationService {
       );
     }
 
-    // Parse inline RDF
+    // Parse inline RDF with format detection
+    Lang lang = parseLang(shapes.format());
+
     try {
       Graph graph = org.apache.jena.graph.Factory.createDefaultGraph();
-      Lang lang = RDFLanguages.TURTLE;  // Default to Turtle
-
       RDFDataMgr.read(graph, new StringReader(shapes.data()), null, lang);
 
-      logger.debug("Parsed inline shapes graph: {} triples", graph.size());
+      logger.debug("Parsed inline shapes graph: {} triples (format: {})",
+          graph.size(), shapes.format());
       return graph;
 
     } catch (Exception e) {
       logger.error("Failed to parse inline shapes: {}", e.getMessage());
       throw new InvalidGraphReferenceException(
-          "Failed to parse inline shapes: " + e.getMessage()
+          "Failed to parse inline shapes (" + shapes.format() + "): " + e.getMessage()
       );
     }
   }
@@ -290,7 +318,7 @@ public class ShaclValidationService {
     if (!"local".equals(data.source())) {
       throw new InvalidGraphReferenceException(
           "Only local data source supported in this task (Task 2). " +
-          "Remote data will be implemented in Task 9."
+          "Remote data will be implemented in Task 7."
       );
     }
 
@@ -298,11 +326,11 @@ public class ShaclValidationService {
     DatasetGraph dsg = datasetGraphRepository.getDatasetGraph(dataset)
         .orElseThrow(() -> new DatasetNotFoundException(dataset));
 
-    // Handle single graph case
+    // Handle single graph case (Task 2 limitation)
     if (data.graphs().size() != 1) {
       throw new InvalidGraphReferenceException(
           "Only single graph validation supported in this task (Task 2). " +
-          "Multiple graphs will be implemented in Task 5."
+          "Multiple graphs (union mode) will be implemented in Task 4."
       );
     }
 
@@ -317,8 +345,29 @@ public class ShaclValidationService {
       graph = dsg.getGraph(org.apache.jena.graph.NodeFactory.createURI(graphName));
     }
 
-    logger.debug("Resolved data graph: {} triples", graph.size());
+    if (graph == null || graph.isEmpty()) {
+      logger.warn("Data graph '{}' is empty or does not exist", graphName);
+    }
+
+    logger.debug("Resolved data graph '{}': {} triples", graphName,
+        graph != null ? graph.size() : 0);
     return graph;
+  }
+
+  /**
+   * Parse Lang from format string.
+   *
+   * @param format RDF format string (turtle, jsonld, rdfxml, ntriples, n3)
+   * @return Jena Lang constant
+   */
+  private Lang parseLang(String format) {
+    return switch (format) {
+      case "jsonld" -> RDFLanguages.JSONLD;
+      case "rdfxml" -> RDFLanguages.RDFXML;
+      case "ntriples" -> RDFLanguages.NTRIPLES;
+      case "n3" -> RDFLanguages.N3;
+      default -> RDFLanguages.TURTLE;  // Default and "turtle" both use Turtle
+    };
   }
 }
 ```
@@ -350,6 +399,10 @@ import java.io.StringWriter;
 
 /**
  * Controller for SHACL validation operations.
+ *
+ * <p>Implements the SHACL Validation Protocol, enabling validation of RDF data
+ * against SHACL shapes with flexible source options (inline, local datasets,
+ * remote endpoints) and result persistence.</p>
  */
 @RestController
 @RequestMapping("/{dataset}/shacl")
@@ -359,12 +412,33 @@ public class ShaclValidationController {
 
   private final ShaclValidationService validationService;
 
+  /**
+   * Construct ShaclValidationController.
+   *
+   * @param validationService SHACL validation service
+   */
   public ShaclValidationController(ShaclValidationService validationService) {
     this.validationService = validationService;
   }
 
   /**
    * Validate data graphs against a shapes graph.
+   *
+   * <p>This implementation (Task 2) supports:</p>
+   * <ul>
+   *   <li>Inline shapes (all RDF formats: turtle, jsonld, rdfxml, ntriples, n3)</li>
+   *   <li>Local data graphs (single graph only)</li>
+   *   <li>Content negotiation for response format</li>
+   * </ul>
+   *
+   * <p>Limitations (to be addressed in later tasks):</p>
+   * <ul>
+   *   <li>No local/remote shapes graph references (Task 3)</li>
+   *   <li>No union graph validation (Task 4)</li>
+   *   <li>No result storage (Task 5)</li>
+   *   <li>No version control selectors (Task 6)</li>
+   *   <li>No remote endpoints (Task 7-8)</li>
+   * </ul>
    *
    * @param dataset dataset name (path variable)
    * @param request validation request with shapes, data, options, and results config
@@ -451,7 +525,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("it")
 class ShaclValidationIT extends ITFixture {
 
-  private static final String PERSON_SHAPES = """
+  private static final String PERSON_SHAPES_TURTLE = """
       @prefix sh: <http://www.w3.org/ns/shacl#> .
       @prefix ex: <http://example.org/> .
       @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
@@ -470,19 +544,29 @@ class ShaclValidationIT extends ITFixture {
           ] .
       """;
 
-  private static final String VALID_DATA = """
-      @prefix ex: <http://example.org/> .
-
-      ex:Alice a ex:Person ;
-          ex:name "Alice" ;
-          ex:age 30 .
-      """;
-
-  private static final String INVALID_DATA = """
-      @prefix ex: <http://example.org/> .
-
-      ex:Bob a ex:Person ;
-          ex:age "thirty" .
+  private static final String PERSON_SHAPES_JSONLD = """
+      {
+        "@context": {
+          "sh": "http://www.w3.org/ns/shacl#",
+          "ex": "http://example.org/",
+          "xsd": "http://www.w3.org/2001/XMLSchema#"
+        },
+        "@id": "ex:PersonShape",
+        "@type": "sh:NodeShape",
+        "sh:targetClass": {"@id": "ex:Person"},
+        "sh:property": [
+          {
+            "sh:path": {"@id": "ex:name"},
+            "sh:datatype": {"@id": "xsd:string"},
+            "sh:minCount": 1
+          },
+          {
+            "sh:path": {"@id": "ex:age"},
+            "sh:datatype": {"@id": "xsd:integer"},
+            "sh:minInclusive": 0
+          }
+        ]
+      }
       """;
 
   @BeforeEach
@@ -500,10 +584,10 @@ class ShaclValidationIT extends ITFixture {
   }
 
   @Test
-  void validate_withInlineShapes_conformingData_shouldReturnConformsTrue() {
+  void validate_withInlineShapesTurtle_conformingData_shouldReturnConformsTrue() {
     // Arrange
     ValidationRequest request = new ValidationRequest(
-        new GraphReference("inline", null, null, null, PERSON_SHAPES, null, null, null),
+        new GraphReference("inline", "turtle", null, null, null, PERSON_SHAPES_TURTLE, null, null, null),
         new DataReference("local", getDatasetName(), List.of("default"), null, null, null, null),
         null,
         null
@@ -533,9 +617,36 @@ class ShaclValidationIT extends ITFixture {
   }
 
   @Test
+  void validate_withInlineShapesJsonLd_conformingData_shouldReturnConformsTrue() {
+    // Arrange
+    ValidationRequest request = new ValidationRequest(
+        new GraphReference("inline", "jsonld", null, null, null, PERSON_SHAPES_JSONLD, null, null, null),
+        new DataReference("local", getDatasetName(), List.of("default"), null, null, null, null),
+        null,
+        null
+    );
+
+    HttpEntity<ValidationRequest> httpEntity = new HttpEntity<>(request);
+
+    // Act
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/" + getDatasetName() + "/shacl",
+        HttpMethod.POST,
+        httpEntity,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody())
+        .contains("sh:ValidationReport")
+        .contains("sh:conforms true");
+  }
+
+  @Test
   void validate_withInlineShapes_nonConformingData_shouldReturnConformsFalse() {
     // Arrange
-    // Add invalid data
+    // Add invalid data (missing name, invalid age type)
     String invalidPatch = """
         TX .
         A <http://example.org/Bob> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/Person> .
@@ -545,7 +656,7 @@ class ShaclValidationIT extends ITFixture {
     applyPatchToDataset(getDatasetName(), invalidPatch);
 
     ValidationRequest request = new ValidationRequest(
-        new GraphReference("inline", null, null, null, PERSON_SHAPES, null, null, null),
+        new GraphReference("inline", "turtle", null, null, null, PERSON_SHAPES_TURTLE, null, null, null),
         new DataReference("local", getDatasetName(), List.of("default"), null, null, null, null),
         null,
         null
@@ -579,7 +690,7 @@ class ShaclValidationIT extends ITFixture {
     String invalidShapes = "@prefix invalid syntax";
 
     ValidationRequest request = new ValidationRequest(
-        new GraphReference("inline", null, null, null, invalidShapes, null, null, null),
+        new GraphReference("inline", "turtle", null, null, null, invalidShapes, null, null, null),
         new DataReference("local", getDatasetName(), List.of("default"), null, null, null, null),
         null,
         null
@@ -598,14 +709,14 @@ class ShaclValidationIT extends ITFixture {
     // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
     assertThat(response.getBody())
-        .contains("invalid_shapes");
+        .contains("invalid_graph_reference");  // Parse error caught early
   }
 
   @Test
   void validate_withJsonLdResponse_shouldReturnJsonLd() {
     // Arrange
     ValidationRequest request = new ValidationRequest(
-        new GraphReference("inline", null, null, null, PERSON_SHAPES, null, null, null),
+        new GraphReference("inline", "turtle", null, null, null, PERSON_SHAPES_TURTLE, null, null, null),
         new DataReference("local", getDatasetName(), List.of("default"), null, null, null, null),
         null,
         null
@@ -633,6 +744,33 @@ class ShaclValidationIT extends ITFixture {
         .contains("@context")
         .contains("ValidationReport");
   }
+
+  @Test
+  void validate_withDefaultFormat_shouldUseTurtle() {
+    // Arrange (format field omitted, should default to turtle)
+    ValidationRequest request = new ValidationRequest(
+        new GraphReference("inline", null, null, null, null, PERSON_SHAPES_TURTLE, null, null, null),
+        new DataReference("local", getDatasetName(), List.of("default"), null, null, null, null),
+        null,
+        null
+    );
+
+    HttpEntity<ValidationRequest> httpEntity = new HttpEntity<>(request);
+
+    // Act
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/" + getDatasetName() + "/shacl",
+        HttpMethod.POST,
+        httpEntity,
+        String.class
+    );
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody())
+        .contains("sh:ValidationReport")
+        .contains("sh:conforms");
+  }
 }
 ```
 
@@ -641,11 +779,12 @@ class ShaclValidationIT extends ITFixture {
 ## Testing Strategy
 
 ### Integration Tests
-1. **Conforming Data** - Shapes + valid data → `sh:conforms true`
-2. **Non-Conforming Data** - Shapes + invalid data → `sh:conforms false` with violations
-3. **Invalid Shapes** - Malformed shapes → 422 with `invalid_shapes` error
-4. **Content Negotiation** - Accept: application/ld+json → JSON-LD response
-5. **Missing Shapes** - Empty shapes.data → 400 with `invalid_graph_reference`
+1. **Conforming Data (Turtle)** - Shapes + valid data → `sh:conforms true`
+2. **Conforming Data (JSON-LD)** - Shapes in JSON-LD format → `sh:conforms true`
+3. **Non-Conforming Data** - Shapes + invalid data → `sh:conforms false` with violations
+4. **Invalid Shapes** - Malformed shapes → 422 with `invalid_graph_reference`
+5. **Content Negotiation** - Accept: application/ld+json → JSON-LD response
+6. **Default Format** - Omitted format field → Defaults to turtle
 
 **Test Pattern:** Projector DISABLED (read-only operation, no CQRS)
 
@@ -671,12 +810,13 @@ class ShaclValidationIT extends ITFixture {
 
 ## Success Criteria
 
-- ✅ Inline shapes validation working
+- ✅ Inline shapes validation working (all formats: turtle, jsonld, rdfxml, ntriples, n3)
+- ✅ Format detection from `shapes.format` field
 - ✅ Local data graph resolution working
 - ✅ Apache Jena SHACL integration correct
 - ✅ Content negotiation (Turtle, JSON-LD, RDF/XML, N-Triples)
 - ✅ Error handling (invalid shapes, missing data)
-- ✅ 5 integration tests passing
+- ✅ 6 integration tests passing
 - ✅ Zero Checkstyle violations
 - ✅ Zero SpotBugs warnings
 - ✅ Zero PMD violations
@@ -716,6 +856,7 @@ After completing this task:
 
 - **[SHACL Validation Protocol](../../protocol/SHACL_Validation_Protocol.md)** - §3.2, §4, §5.1, §8
 - **[Apache Jena SHACL](https://jena.apache.org/documentation/shacl/)** - Validation API
+- **[Apache Jena RDF I/O](https://jena.apache.org/documentation/io/)** - RDF format support
 - **[SHACL Specification](https://www.w3.org/TR/shacl/)** - Validation report format
 - **[Development Guidelines](../../.claude/CLAUDE.md)** - Testing patterns
 
